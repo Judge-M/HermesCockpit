@@ -46,15 +46,21 @@ for (const screen of screens) {
 }
 new vm.Script(read('dist/shell.js'), {filename:'shell.js'});
 new vm.Script(read('dist/shell-data.js'), {filename:'shell-data.js'});
+new vm.Script(read('dist/hermes-client.js'), {filename:'hermes-client.js'});
 assert.ok(read('dist/shell.js').includes('window.__HERMES_SHELL__'), 'Missing file-mode shell fallback');
 assert.ok(existsSync(path.join(root, 'dist/shell-data.js')), 'Missing embedded shell data');
 const shell = JSON.parse(read('dist/shell.json'));
 assert.ok(shell.header.includes('Hermes Cockpit'));
 assert.ok(shell.header.includes('src="assets/hermes-aviator-girl.jpg"'));
 assert.ok(existsSync(path.join(root, 'dist/assets/hermes-aviator-girl.jpg')), 'Missing vendored Hermes Aviator Girl asset');
-for (const asset of ['dist/vendor/tailwindcss-cdn.js', 'dist/vendor/tailwindcss-cdn-forms.js', 'dist/vendor/fonts.css', 'dist/vendor/material-symbols.css']) {
+for (const asset of ['dist/vendor/tailwindcss-cdn.js', 'dist/vendor/tailwindcss-cdn-forms.js', 'dist/vendor/fonts.css', 'dist/vendor/material-symbols.css', 'dist/vendor/xterm/xterm.js', 'dist/vendor/xterm/xterm.css', 'dist/vendor/xterm/LICENSE']) {
   assert.ok(existsSync(path.join(root, asset)), `Missing vendored runtime asset: ${asset}`);
 }
+const live = read('dist/live-control.html');
+assert.ok(live.includes('data-hermes-client="true"') && live.includes('data-hermes-base="/hermes"'), 'Live Control is missing Hermes client configuration');
+assert.ok(live.includes('hermes-client.js') && live.includes('vendor/xterm/xterm.js'), 'Live Control is missing its runtime');
+assert.ok(read('dist/hermes-client.js').includes('/api/auth/ws-ticket'), 'Live client is missing the secure WebSocket ticket flow');
+assert.ok(!read('dist/hermes-client.js').includes('localStorage'), 'Live client must not persist credentials or controls in localStorage');
 for (const screen of screens) assert.ok(shell.aside.includes(`data-path="${screen}"`));
 assert.ok(read('dist/index.html').includes('url=live-control.html'));
 console.log(`PASS: ${provenance.files.length} baseline hashes; ${intentional.size} intentional source changes; ${screens.length} screens; local references and runtime assets; ${inlineScripts} inline scripts and shared shell syntax; vendored cockpit girl asset; blank password defaults.`);

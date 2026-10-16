@@ -10,14 +10,14 @@
     {
       "path": "dist/shell.js",
       "baseline_sha256": "bdf48772916e959367811c6e976d98fe09af0c024f08d5b01d6c26b6e719d26a",
-      "reason": "Use embedded shell data for direct file:// previews while retaining shell.json loading for HTTP previews.",
+      "reason": "Use embedded shell data for direct file previews, disable demo persistence and simulated controls on the live client, and expose live connection status.",
       "verification": "scripts/check.mjs validates both shell.js and the embedded shell-data.js syntax and fallback marker."
     },
     {
       "path": "dist/acp-telemetry.html",
       "baseline_sha256": "fc204c87ee49fb173916fd087b1a382553350d572de943bf091ca670536843da",
-      "reason": "Use vendored local Tailwind, font, and Material Symbols assets so the demo runs without network access.",
-      "verification": "scripts/check.mjs verifies that the screen has no external stylesheet or script dependencies."
+      "reason": "Connect Live Control to the authenticated Hermes REST and PTY WebSocket APIs while retaining the imported visual design and offline runtime assets.",
+      "verification": "scripts/check.mjs validates local assets and JavaScript syntax; deployment smoke tests exercise authentication, terminal connection, sessions, profiles, and model discovery."
     },
     {
       "path": "dist/live-control.html",
@@ -42,6 +42,12 @@
       "baseline_sha256": "a25ed2fc2bf517d2a9f2c83c83fbae4a75b47344ec5c7a61c1d909302ab36ea9",
       "reason": "Use vendored local Tailwind, font, and Material Symbols assets so the demo runs without network access.",
       "verification": "scripts/check.mjs verifies that the screen has no external stylesheet or script dependencies."
+    },
+    {
+      "path": "dist/prototype.css",
+      "baseline_sha256": "a06d112ae5cdcae1146d820a9f26d0ab45c5db9be3951e94a9cfe4db5655fbb1",
+      "reason": "Make the shared navigation usable as a mobile bottom bar and prevent horizontal page overflow.",
+      "verification": "scripts/check.mjs records this as an intentional source change; responsive viewport checks cover the shared shell."
     }
   ]
 }

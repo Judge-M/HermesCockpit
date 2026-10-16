@@ -1,0 +1,467 @@
+body[data-hermes-client="true"] {
+  overflow: hidden;
+}
+
+.cockpit-page-shell {
+  padding-left: 4rem;
+}
+
+body[data-hermes-client="true"] main > div > div:first-child,
+body[data-hermes-client="true"] #terminal-drawer {
+  display: none !important;
+}
+
+body[data-hermes-client="true"] #shared-sidebar aside > div:last-child {
+  display: none !important;
+}
+
+body[data-hermes-client="true"] main > div > div:nth-child(2) {
+  min-height: calc(100dvh - 3rem);
+}
+
+.cockpit-terminal-feed {
+  min-height: 0;
+  height: calc(100dvh - 17.5rem);
+  padding: .75rem;
+  background: #121221;
+}
+
+.cockpit-terminal-frame {
+  position: relative;
+  display: flex;
+  height: 100%;
+  min-height: 24rem;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #3b4252;
+  border-radius: .5rem;
+  background: #0d0d1c;
+  box-shadow: 0 18px 55px rgb(0 0 0 / 28%);
+}
+
+.cockpit-terminal-toolbar {
+  display: flex;
+  min-height: 2.5rem;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  border-bottom: 1px solid #3b4252;
+  background: #181825;
+  padding: .4rem .65rem;
+  color: #d8dee9;
+  font: 500 11px/1.2 "JetBrains Mono", monospace;
+}
+
+.cockpit-connection,
+.cockpit-terminal-actions {
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+}
+
+.cockpit-header-live {
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+  border: 1px solid #434c5e;
+  border-radius: .35rem;
+  background: #242933;
+  padding: .35rem .6rem;
+  color: #d8dee9;
+  font: 500 11px/1.2 "JetBrains Mono", monospace;
+}
+
+.cockpit-header-live [data-state="connected"] {
+  color: #a3be8c;
+}
+
+.cockpit-header-live [data-state="offline"] {
+  color: #bf616a;
+}
+
+.cockpit-admin-link {
+  border: 1px solid #434c5e;
+  border-radius: .35rem;
+  padding: .35rem .6rem;
+  color: #a3dcec;
+  font-size: .7rem;
+  text-decoration: none;
+}
+
+.cockpit-status-dot {
+  width: .5rem;
+  height: .5rem;
+  border-radius: 50%;
+  background: #ebcb8b;
+  box-shadow: 0 0 0 3px rgb(235 203 139 / 12%);
+}
+
+.cockpit-connection[data-state="connected"] .cockpit-status-dot {
+  background: #a3be8c;
+  box-shadow: 0 0 0 3px rgb(163 190 140 / 14%);
+}
+
+.cockpit-connection[data-state="offline"] .cockpit-status-dot {
+  background: #bf616a;
+  box-shadow: 0 0 0 3px rgb(191 97 106 / 14%);
+}
+
+.cockpit-terminal-actions button,
+.cockpit-heading-row button {
+  border: 1px solid #434c5e;
+  border-radius: .3rem;
+  background: #242933;
+  padding: .3rem .55rem;
+  color: #d8dee9;
+}
+
+.cockpit-terminal-actions button:hover,
+.cockpit-terminal-actions button:focus-visible,
+.cockpit-heading-row button:hover,
+.cockpit-heading-row button:focus-visible {
+  border-color: #88c0d0;
+  color: #eceff4;
+  outline: none;
+}
+
+.cockpit-terminal {
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 auto;
+  padding: .55rem;
+}
+
+.cockpit-terminal .xterm,
+.cockpit-terminal .xterm-viewport {
+  height: 100%;
+}
+
+.cockpit-auth {
+  position: absolute;
+  inset: 2.5rem 0 0;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: .75rem;
+  padding: 1.5rem;
+  background: rgb(13 13 28 / 94%);
+  color: #d8dee9;
+  text-align: center;
+}
+
+.cockpit-auth.hidden {
+  display: none;
+}
+
+.cockpit-auth strong {
+  color: #eceff4;
+  font-size: 1.05rem;
+}
+
+.cockpit-auth a,
+.cockpit-primary-action {
+  border: 1px solid #97cfe0;
+  border-radius: .4rem;
+  background: #88c0d0;
+  padding: .55rem .85rem;
+  color: #0d0d1c;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.cockpit-control-panel {
+  display: flex;
+  width: 22.5rem;
+  max-height: calc(100dvh - 3rem);
+  flex: 0 0 22.5rem;
+  flex-direction: column;
+  gap: .75rem;
+  overflow-y: auto;
+  border-left: 1px solid #3b4252;
+  background: #1a1a2a;
+  padding: .75rem;
+}
+
+.cockpit-panel-section {
+  border: 1px solid #3b4252;
+  border-radius: .45rem;
+  background: #1e1e2e;
+  padding: .75rem;
+}
+
+.cockpit-panel-heading {
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+  margin-bottom: .65rem;
+  color: #a3dcec;
+}
+
+.cockpit-panel-heading h2 {
+  margin: 0;
+  color: #eceff4;
+  font-size: .82rem;
+  font-weight: 650;
+}
+
+.cockpit-panel-heading .material-symbols-outlined {
+  font-size: 1.05rem;
+}
+
+.cockpit-heading-row button {
+  margin-left: auto;
+  padding: .15rem .45rem;
+}
+
+.cockpit-facts {
+  display: grid;
+  gap: .45rem;
+  margin: 0;
+}
+
+.cockpit-facts > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: .75rem;
+}
+
+.cockpit-facts dt,
+.cockpit-field,
+.cockpit-muted,
+.cockpit-help,
+.cockpit-session-meta {
+  color: #94a3b8;
+  font-size: .7rem;
+}
+
+.cockpit-facts dd {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: #d8dee9;
+  font: 500 .7rem/1.3 "JetBrains Mono", monospace;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cockpit-field {
+  display: block;
+  margin-bottom: .35rem;
+}
+
+.cockpit-control-panel select {
+  width: 100%;
+  min-height: 2.2rem;
+  border: 1px solid #434c5e;
+  border-radius: .35rem;
+  background: #121221;
+  padding: .35rem .5rem;
+  color: #eceff4;
+  font: 500 .7rem/1.3 "JetBrains Mono", monospace;
+}
+
+.cockpit-primary-action {
+  width: 100%;
+  margin-top: .5rem;
+  cursor: pointer;
+  font-size: .72rem;
+}
+
+.cockpit-help {
+  margin: .5rem 0 0;
+  line-height: 1.45;
+}
+
+.cockpit-help code {
+  color: #a3dcec;
+}
+
+.cockpit-session-list {
+  display: grid;
+  max-height: 15rem;
+  gap: .35rem;
+  overflow-y: auto;
+}
+
+.cockpit-bot-list {
+  display: grid;
+  max-height: 15rem;
+  gap: .35rem;
+  margin-top: .6rem;
+  overflow-y: auto;
+}
+
+.cockpit-bot {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: .25rem;
+  border: 1px solid #3b4252;
+  border-radius: .35rem;
+  background: #181825;
+  padding: .5rem;
+  color: #d8dee9;
+  text-align: left;
+}
+
+.cockpit-bot:hover,
+.cockpit-bot:focus-visible {
+  border-color: #88c0d0;
+  outline: none;
+}
+
+.cockpit-bot-identity {
+  display: grid;
+  grid-template-columns: .45rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: .4rem;
+}
+
+.cockpit-bot-identity i {
+  width: .4rem;
+  height: .4rem;
+  border-radius: 50%;
+  background: #616e88;
+}
+
+.cockpit-bot-identity i[data-running="true"] {
+  background: #a3be8c;
+}
+
+.cockpit-bot-identity strong {
+  overflow: hidden;
+  font-size: .75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cockpit-bot-identity small,
+.cockpit-bot-detail {
+  overflow: hidden;
+  color: #94a3b8;
+  font: 500 .65rem/1.3 "JetBrains Mono", monospace;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cockpit-bot-detail {
+  padding-left: .85rem;
+}
+
+.cockpit-session {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: stretch;
+  gap: .15rem;
+  border: 1px solid #3b4252;
+  border-radius: .35rem;
+  background: #181825;
+  padding: .45rem .5rem;
+  color: #d8dee9;
+  text-align: left;
+}
+
+.cockpit-session:hover,
+.cockpit-session:focus-visible,
+.cockpit-session[data-active="true"] {
+  border-color: #88c0d0;
+  outline: none;
+}
+
+.cockpit-session-title {
+  overflow: hidden;
+  font-size: .74rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#execute-prompt:disabled {
+  cursor: not-allowed;
+  opacity: .5;
+}
+
+#demo-notice[data-live="true"] {
+  border-color: #54705d;
+  color: #a3be8c;
+}
+
+@media (max-width: 1023px) {
+  body[data-hermes-client="true"] {
+    overflow: auto;
+  }
+
+  body[data-hermes-client="true"] main > div > div:nth-child(2) {
+    min-height: auto;
+  }
+
+  .cockpit-control-panel {
+    width: 100%;
+    max-height: none;
+    flex-basis: auto;
+    border-top: 1px solid #3b4252;
+    border-left: 0;
+  }
+
+  .cockpit-terminal-feed {
+    height: 58dvh;
+    min-height: 26rem;
+  }
+
+  .cockpit-terminal-frame {
+    min-height: 25rem;
+  }
+}
+
+@media (max-width: 767px) {
+  .cockpit-page-shell {
+    padding-right: 0;
+    padding-bottom: 3.65rem;
+    padding-left: 0;
+  }
+
+  .cockpit-terminal-feed {
+    height: 56dvh;
+    min-height: 23rem;
+    padding: .45rem;
+  }
+
+  .cockpit-terminal-frame {
+    min-height: 22rem;
+    border-radius: .35rem;
+  }
+
+  .cockpit-terminal-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .cockpit-terminal-actions {
+    width: 100%;
+  }
+
+  .cockpit-terminal-actions button {
+    min-height: 2rem;
+    flex: 1 1 auto;
+  }
+
+  .cockpit-terminal {
+    padding: .35rem;
+  }
+
+  .cockpit-control-panel {
+    padding: .55rem;
+  }
+
+  .cockpit-session-list {
+    max-height: 18rem;
+  }
+
+  #demo-notice {
+    display: none;
+  }
+}
