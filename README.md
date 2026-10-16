@@ -1,6 +1,6 @@
 # Hermes Cockpit
 
-Hermes Cockpit is a mobile-friendly browser interface for [Hermes Agent](https://github.com/NousResearch/hermes-agent). It connects directly to a running Hermes dashboard, so you can use a real Hermes terminal, switch models, and resume sessions without streaming an entire desktop through VNC.
+Hermes Cockpit is a mobile-friendly browser interface for [Hermes Agent](https://github.com/NousResearch/hermes-agent). It connects directly to a running Hermes server, so you can chat, switch models, resume sessions, manage tools, and use Hermes Bot Mode without streaming a desktop through VNC or opening the official Hermes web interface.
 
 ![Status: early integration](https://img.shields.io/badge/status-early%20integration-EBCB8B)
 
@@ -10,20 +10,23 @@ Hermes Cockpit is a mobile-friendly browser interface for [Hermes Agent](https:/
 - Automatic reconnect with a keep-alive terminal session
 - Resume recent Hermes sessions
 - Use any model returned by Hermes' model catalog
-- Bot Mode roster backed by Hermes agent profiles, including each profile's title, model, and gateway state
-- Start a dedicated chat as any Hermes bot/profile
+- Real Bot Mode roster from Hermes' gateway protocol, including the same profile metadata used by Hermes Desktop
+- Resume each bot's canonical hidden `Bot Chat`, including its existing conversation history, or create it when one does not exist
+- Native Bot Mode transcript with independently scrollable conversation, live task state, subagent status, and tool activity from Hermes gateway events
 - Keyboard input, mobile composer input, terminal selection, copy, and paste
 - Hermes' existing sign-in flow; Cockpit does not store provider credentials
 - Responsive desktop and mobile layouts
 - Live views for Hermes health, profiles, sessions, system statistics, tools, toolsets, skills, and model options
 - Native Cockpit controls for enabling toolsets and skills, adding/testing/enabling/deleting MCP servers, and creating/editing eligible skills
+- Full schema-driven Hermes configuration editor, including every field published by `/api/config/schema`
+- Per-profile active selection, model assignment, routing description, and `SOUL.md` editing
 - Automatic redaction of credential-like fields in raw API inspectors and copied telemetry snapshots
 
-Bot Mode group rooms, routines, avatar editing, and cross-machine roster merging are not ported yet. Docker-agent creation and lifecycle control are also not implemented yet. The remaining screens report only data returned by the connected Hermes APIs; they do not invent peer health, latency, throughput, or provider status. Tailscale peer topology is not available through the current Hermes API, so the Mesh screen says so explicitly instead of simulating it.
+Hermes Cockpit follows a strict coverage rule: every user-facing capability exposed by the installed Hermes backend or `hermes` CLI must have a real Cockpit surface, and every Cockpit control must call a real operation. CLI-only capabilities must be implemented through a narrowly allowlisted server-side bridge—not a browser-accessible shell. Missing coverage is tracked as unfinished work in [BACKEND-COVERAGE.md](BACKEND-COVERAGE.md); it is not represented with invented data or dead controls.
 
 ## Requirements
 
-- A current Hermes Agent installation with `hermes dashboard` running
+- A current Hermes Agent installation with `hermes serve` or the equivalent dashboard service running
 - A reverse proxy that serves Cockpit and Hermes from the same browser origin
 - Node.js 18 or newer only if you want to run the local preview/check scripts
 
@@ -68,7 +71,7 @@ location /hermes/ {
 }
 ```
 
-Open `/hermes/login`, sign in, and then open `/cockpit/live-control.html`. Cockpit requests a short-lived, single-use WebSocket ticket from Hermes for every connection. It never asks for or saves your Hermes password, OAuth token, model API key, or provider credentials.
+Open `/hermes/login` once to establish the Hermes session, then use `/cockpit/live-control.html`. The `/hermes/` proxy is required for authentication and API traffic, but normal operation stays inside Cockpit. Cockpit requests a short-lived, single-use WebSocket ticket for every connection and never asks for or saves your Hermes password, OAuth token, model API key, or provider credentials.
 
 ### Use a different Hermes path
 
@@ -82,7 +85,7 @@ Live Control defaults to `/hermes`. Change the `data-hermes-base` value on the `
 
 Cockpit keeps a random terminal attachment ID in browser session storage. This lets a chat survive a page refresh in the same browser tab without storing credentials. Saved conversations remain in Hermes and are available from the Recent Sessions panel.
 
-Selecting a different model sends Hermes' native `/model` command to the current chat. Selecting an agent profile affects the next new session. It does not rewrite provider configuration or expose provider secrets to the page.
+Selecting a different model sends Hermes' native `/model` command to the current chat. Opening a Bot Mode entry resolves the same canonical `Bot Chat` session used by Hermes Desktop and resumes its real transcript. It does not rewrite provider configuration or expose provider secrets to the page.
 
 ## Security notes
 
@@ -99,10 +102,13 @@ Selecting a different model sends Hermes' native `/model` command to the current
 - `dist/mesh-topology.html` — live Hermes reachability, gateway/profile, session, and system overview
 - `dist/tool-registry.html` — live MCP server, toolset, skill, and profile inventory with native management controls
 - `dist/acp-telemetry.html` — live read-only endpoint telemetry and redacted snapshots
-- `dist/runtime-config-settings.html` — live model, profile, gateway, and redacted configuration inspection
+- `dist/runtime-config-settings.html` — full schema-driven configuration, model, profile, and identity management
+- `dist/backend-control.html` — plain-language Control Center that keeps every installed Hermes REST operation available as normal fields and actions, with API details collapsed by default
+- `BACKEND-COVERAGE.md` — backend-to-interface coverage ledger and acceptance rule
+- `CLI-COVERAGE.md` — installed Hermes command inventory and secure bridge requirements
 - `scripts/serve.mjs` — loopback-only preview server
 - `scripts/check.mjs` — source, syntax, and asset checks
 
 ## Project status
 
-This is an independent community frontend and is not affiliated with or endorsed by Nous Research or the Hermes team. The current milestone is a dependable single-install Hermes client and honest, read-only operational visibility. Multi-host orchestration and Docker-agent lifecycle management are planned separately.
+This is an independent community frontend and is not affiliated with or endorsed by Nous Research or the Hermes team. All 337 REST operations exposed by the tested Hermes `0.21.7` service are reachable through native Cockpit controls. Purpose-built workflows, the allowlisted CLI bridge, and Docker-agent orchestration remain active milestones and are tracked as unfinished until they are deployed and tested.

@@ -4,7 +4,7 @@
     {
       "path": "dist/shell.json",
       "baseline_sha256": "26ce1725b769ec818d89316abd7b39b3b7376b328e60d49c24eeec1b05b6fe95",
-      "reason": "Use the checked-in Hermes Aviator Girl image and an honest shared shell containing only live Hermes status placeholders, navigation, and the real admin link.",
+      "reason": "Use the checked-in Hermes Aviator Girl image and a shared Cockpit shell with live Hermes status, native navigation, and no dependency on the official admin interface.",
       "verification": "scripts/check.mjs validates this as an explicit intentional source change and rejects stale source drift."
     },
     {
@@ -28,19 +28,19 @@
     {
       "path": "dist/mesh-topology.html",
       "baseline_sha256": "54990e7c8abfdb042e019893043806f97f42146365f924220038265c41496f64",
-      "reason": "Replace simulated provider controls with authenticated, read-only Hermes model, profile, gateway, system, and redacted configuration data.",
+      "reason": "Replace simulated topology with authenticated Hermes service, profile, session, and system data, and route all supported work to native Cockpit screens.",
       "verification": "scripts/check.mjs verifies local assets and JavaScript syntax; deployment smoke tests confirm model discovery, profile rendering, and safe unsupported states."
     },
     {
       "path": "dist/runtime-config-settings.html",
       "baseline_sha256": "e369d5452600af9cdcd690b460d5319336cc7ff4242efdfddcd1c64b79a83c49",
-      "reason": "Replace fabricated tools, schemas, and counters with authenticated Hermes inventory plus native MCP, toolset, and skill controls, credential redaction, and accessible confirmations.",
-      "verification": "scripts/check.mjs verifies local assets and JavaScript syntax; deployment smoke tests confirm live inventory, filtering, redacted inspection, and the real management UI without executing writes."
+      "reason": "Replace simulated provider settings with authenticated, schema-driven editing for every Hermes configuration field plus per-profile active selection, model, description, and SOUL controls.",
+      "verification": "scripts/check.mjs verifies local assets and JavaScript syntax; deployment smoke tests confirm 896 live settings, profile controls, filtering, redacted inspection, and real write contracts."
     },
     {
       "path": "dist/tool-registry.html",
       "baseline_sha256": "a25ed2fc2bf517d2a9f2c83c83fbae4a75b47344ec5c7a61c1d909302ab36ea9",
-      "reason": "Use vendored local Tailwind, font, and Material Symbols assets so the demo runs without network access.",
+      "reason": "Use vendored assets and replace fabricated registry data with authenticated Hermes inventory plus native MCP, toolset, and skill controls without an admin-interface fallback.",
       "verification": "scripts/check.mjs verifies that the screen has no external stylesheet or script dependencies."
     },
     {

@@ -44,7 +44,7 @@
         <div class="flex flex-wrap items-center gap-space-sm self-start md:self-auto">
           <span id="last-updated" class="font-code-xs text-code-xs text-text-tertiary px-space-sm py-1.5 rounded bg-surface-container">Not refreshed yet</span>
           <button id="refresh-btn" type="button" class="flex items-center gap-1.5 px-space-md py-1.5 rounded-lg bg-primary text-on-primary font-body-medium text-body-sm hover:bg-primary-container transition-all active:scale-95"><span class="material-symbols-outlined text-[16px]">refresh</span><span>Refresh live data</span></button>
-          <a href="/hermes/" target="_blank" rel="noreferrer" class="flex items-center gap-1.5 px-space-md py-1.5 rounded-lg bg-surface-secondary text-text-primary font-body-medium text-body-sm hover:bg-surface-bright transition-colors"><span class="material-symbols-outlined text-[16px] text-primary">open_in_new</span><span>Hermes admin</span></a>
+          <span class="flex items-center gap-1.5 px-space-md py-1.5 rounded-lg bg-success/10 text-success font-body-medium text-body-sm"><span class="material-symbols-outlined text-[16px]">verified</span><span>Live Hermes data</span></span>
         </div>
       </section>
 
@@ -87,7 +87,7 @@
           <div id="profiles-list" class="p-space-md grid grid-cols-1 md:grid-cols-2 gap-space-sm"><div class="text-text-tertiary font-body-sm text-body-sm">Loading profiles…</div></div>
         </article>
         <article class="bg-surface-container rounded-xl overflow-hidden shadow-lg">
-          <header class="px-space-md py-space-sm bg-surface-container-low flex items-center justify-between"><div><h2 class="font-headline-sm text-headline-sm text-text-primary">Recent Hermes sessions</h2><p class="font-code-xs text-code-xs text-text-tertiary">Read from /hermes/api/sessions</p></div><a href="/hermes/sessions?profile=default" target="_blank" rel="noreferrer" class="font-code-xs text-code-xs text-primary hover:underline">Manage in Hermes ↗</a></header>
+          <header class="px-space-md py-space-sm bg-surface-container-low flex items-center justify-between"><div><h2 class="font-headline-sm text-headline-sm text-text-primary">Recent Hermes sessions</h2><p class="font-code-xs text-code-xs text-text-tertiary">Read from /hermes/api/sessions</p></div><a href="live-control.html" class="font-code-xs text-code-xs text-primary hover:underline">Open in Live Control →</a></header>
           <div id="sessions-list" class="divide-y divide-border-muted/30 max-h-[420px] overflow-y-auto"><div class="p-space-md text-text-tertiary font-body-sm text-body-sm">Loading sessions…</div></div>
         </article>
       </section>
@@ -97,7 +97,7 @@
         <article class="bg-surface-container rounded-xl overflow-hidden shadow-lg"><header class="px-space-md py-space-sm bg-surface-container-low"><h2 class="font-headline-sm text-headline-sm text-text-primary">System statistics</h2><p class="font-code-xs text-code-xs text-text-tertiary">Available scalar fields from /hermes/api/system/stats</p></header><dl id="stats-fields" class="p-space-md grid grid-cols-1 sm:grid-cols-2 gap-space-sm"></dl></article>
       </section>
 
-      <footer class="px-space-lg pb-space-lg"><div class="bg-surface-container p-space-md rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-space-md"><div class="flex items-start gap-space-sm"><span class="material-symbols-outlined text-primary">visibility</span><div><div class="font-body-medium text-text-primary">Read-only operational view</div><p class="font-body-sm text-body-sm text-text-secondary">This page performs GET requests only. Configuration, gateway control, session deletion, and security policy changes remain in the real Hermes and Tailscale administration tools.</p></div></div><a href="/hermes/" target="_blank" rel="noreferrer" class="shrink-0 px-space-md py-2 rounded-lg bg-surface-secondary hover:bg-surface-bright text-primary font-body-medium text-body-sm">Open Hermes admin</a></div></footer>
+      <footer class="px-space-lg pb-space-lg"><div class="bg-surface-container p-space-md rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-space-md"><div class="flex items-start gap-space-sm"><span class="material-symbols-outlined text-primary">visibility</span><div><div class="font-body-medium text-text-primary">Read-only operational view</div><p class="font-body-sm text-body-sm text-text-secondary">This screen is intentionally observational. Chat, model selection, Bot Mode, and tool management are available in Cockpit; capabilities without a verified Hermes write API are labeled instead of being faked.</p></div></div><a href="runtime-config-settings.html" class="shrink-0 px-space-md py-2 rounded-lg bg-surface-secondary hover:bg-surface-bright text-primary font-body-medium text-body-sm">Runtime settings</a></div></footer>
     </main>
   </div>
 

@@ -72,6 +72,24 @@
     profile: "",
     health: null,
     currentModel: null,
+    gateway: null,
+    botProfiles: [],
+    botRefreshTimer: null,
+    mode: "terminal",
+    botProfile: null,
+    botSession: null,
+    botMessages: [],
+    botStreaming: false,
+    botEventUnsubscribe: null,
+    botTodos: [],
+    botSubagents: [],
+    selectedSubagent: null,
+    subagentTail: "",
+    botActivity: [],
+    botPollTimer: null,
+    voiceRecorder: null,
+    voiceStream: null,
+    voiceChunks: [],
     sessionKey: getSessionValue("hermes-cockpit-channel", randomId("cockpit")),
     attachKey: getSessionValue("hermes-cockpit-attach", randomId("attach"))
   };
@@ -168,9 +186,25 @@
           <button type="button" id="cockpit-copy" title="Copy selected terminal text">Copy</button>
           <button type="button" id="cockpit-reconnect" title="Reconnect to Hermes">Reconnect</button>
           <button type="button" id="cockpit-new-session" title="Start a fresh Hermes session">New session</button>
+          <button type="button" id="cockpit-terminal-mode" class="hidden" title="Return to the regular Hermes terminal">Terminal</button>
+          <button type="button" id="cockpit-interrupt-bot" class="hidden" title="Stop the active Bot Mode response">Stop</button>
         </div>
       </div>
       <div id="hermes-terminal" class="cockpit-terminal" tabindex="0"></div>
+      <div id="cockpit-bot-chat" class="cockpit-native-chat hidden" aria-label="Hermes Bot Mode conversation">
+        <div class="cockpit-native-chat-heading">
+          <div><strong id="cockpit-bot-chat-title">Bot Chat</strong><span id="cockpit-bot-chat-profile">Hermes profile</span></div>
+          <span id="cockpit-bot-chat-status">Loading conversation…</span>
+        </div>
+        <div class="cockpit-bot-workspace">
+          <div id="cockpit-bot-transcript" class="cockpit-native-transcript" role="log" aria-live="polite"></div>
+          <aside class="cockpit-bot-activity" aria-label="Live Bot Mode activity">
+            <section><div class="cockpit-activity-heading"><strong>Task list</strong><span id="cockpit-task-count">0</span></div><div id="cockpit-task-list" class="cockpit-task-list"><p>Waiting for task state…</p></div></section>
+            <section><div class="cockpit-activity-heading"><strong>Subagents</strong><span id="cockpit-subagent-count">0</span></div><div id="cockpit-subagent-list" class="cockpit-subagent-list"><p>No active subagents</p></div><div id="cockpit-subagent-detail" class="cockpit-subagent-detail hidden"><div class="cockpit-subagent-detail-head"><strong id="cockpit-subagent-detail-title">Subagent</strong><button id="cockpit-subagent-close" type="button" aria-label="Close subagent detail">×</button></div><pre id="cockpit-subagent-tail">Waiting for transcript…</pre><textarea id="cockpit-subagent-steer-text" rows="2" placeholder="Send guidance to this subagent"></textarea><div><button id="cockpit-subagent-steer" type="button">Send guidance</button><button id="cockpit-subagent-stop" type="button">Stop subagent</button></div></div></section>
+            <section><div class="cockpit-activity-heading"><strong>Live activity</strong><span id="cockpit-activity-count">0</span></div><div id="cockpit-activity-list" class="cockpit-activity-list"><p>Waiting for activity…</p></div></section>
+          </aside>
+        </div>
+      </div>
       <div id="cockpit-auth" class="cockpit-auth hidden">
         <strong>Hermes sign-in required</strong>
         <span>Your credentials stay with Hermes and are never stored by Cockpit.</span>
@@ -201,21 +235,28 @@
         <div id="cockpit-sessions" class="cockpit-session-list"><p class="cockpit-muted">Loading sessions…</p></div>
       </section>
       <section class="cockpit-panel-section">
-        <div class="cockpit-panel-heading"><span class="material-symbols-outlined">groups</span><h2>Bot Mode roster</h2></div>
-        <label class="cockpit-field" for="cockpit-profile-picker">Run chat as</label>
+        <div class="cockpit-panel-heading cockpit-heading-row"><span class="material-symbols-outlined">groups</span><h2>Bot Mode</h2><button type="button" id="cockpit-refresh-bots" title="Refresh Bot Mode">↻</button></div>
+        <label class="cockpit-field" for="cockpit-profile-picker">Open bot chat</label>
         <select id="cockpit-profile-picker"><option value="">Default profile</option></select>
         <div id="cockpit-bots" class="cockpit-bot-list"><p class="cockpit-muted">Loading agents…</p></div>
-        <p class="cockpit-help">Each bot is a native Hermes profile. Choose one to start its own session with its configured model and tools.</p>
+        <p class="cockpit-help">The same profile roster and canonical hidden <code>Bot Chat</code> sessions used by Hermes Desktop. Opening a bot resumes its one persistent chat.</p>
       </section>`;
 
     document.getElementById("cockpit-copy")?.addEventListener("click", copySelection);
-    document.getElementById("cockpit-reconnect")?.addEventListener("click", () => connect({ resume: state.resume }));
+    document.getElementById("cockpit-reconnect")?.addEventListener("click", () => state.mode === "bot" && state.botProfile ? openBotChat(state.botProfile) : connect({ resume: state.resume }));
     document.getElementById("cockpit-new-session")?.addEventListener("click", newSession);
+    document.getElementById("cockpit-terminal-mode")?.addEventListener("click", () => setWorkspaceMode("terminal"));
+    document.getElementById("cockpit-interrupt-bot")?.addEventListener("click", interruptBot);
     document.getElementById("cockpit-refresh-sessions")?.addEventListener("click", loadSessions);
+    document.getElementById("cockpit-refresh-bots")?.addEventListener("click", loadProfiles);
     document.getElementById("cockpit-apply-model")?.addEventListener("click", applySelectedModel);
+    document.getElementById("cockpit-subagent-close")?.addEventListener("click", closeSubagentDetail);
+    document.getElementById("cockpit-subagent-steer")?.addEventListener("click", steerSelectedSubagent);
+    document.getElementById("cockpit-subagent-stop")?.addEventListener("click", interruptSelectedSubagent);
     document.getElementById("cockpit-profile-picker")?.addEventListener("change", (event) => {
-      state.profile = event.target.value;
-      text(document.getElementById("cockpit-profile"), state.profile || "default");
+      const name = event.target.value || "default";
+      const profile = state.botProfiles.find((entry) => entry.name === name);
+      if (profile) openBotChat(profile);
     });
     const signIn = document.getElementById("cockpit-sign-in");
     if (signIn) signIn.href = `${API_BASE}/login?next=${encodeURIComponent(location.pathname + location.search)}`;
@@ -232,7 +273,7 @@
         <span id="cockpit-header-status" data-state="connecting">Connecting…</span>
       </div>`;
     header.children[2].innerHTML = `
-      <a class="cockpit-admin-link" href="${API_BASE}/" target="_blank" rel="noreferrer">Hermes admin ↗</a>`;
+      <a class="cockpit-admin-link" href="runtime-config-settings.html" aria-label="Open Cockpit settings">Settings</a>`;
     const versionBadge = header.children[0].querySelector("span:last-child");
     if (versionBadge) versionBadge.textContent = "beta";
   }
@@ -312,6 +353,455 @@
     const payload = await request("/api/auth/ws-ticket", { method: "POST" });
     if (!payload.ticket) throw new Error("Hermes did not return a WebSocket ticket.");
     return payload.ticket;
+  }
+
+  class GatewayRpc {
+    constructor() {
+      this.socket = null;
+      this.pending = new Map();
+      this.counter = 0;
+      this.connecting = null;
+      this.ready = false;
+      this.heartbeat = null;
+      this.listeners = new Set();
+    }
+
+    async ensure() {
+      if (this.socket?.readyState === WebSocket.OPEN && this.ready) return this;
+      if (this.connecting) return this.connecting;
+      this.connecting = this.open().finally(() => { this.connecting = null; });
+      return this.connecting;
+    }
+
+    async open() {
+      this.close();
+      const ticket = await wsTicket();
+      const protocol = location.protocol === "https:" ? "wss:" : "ws:";
+      const url = `${protocol}//${location.host}${API_BASE}/api/ws?ticket=${encodeURIComponent(ticket)}`;
+      await new Promise((resolve, reject) => {
+        const socket = new WebSocket(url);
+        let settled = false;
+        const timeout = window.setTimeout(() => {
+          if (!settled) reject(new Error("Hermes Bot Mode gateway timed out."));
+          socket.close();
+        }, 12000);
+        socket.onmessage = (event) => {
+          const frames = String(event.data || "").split(/\r?\n/).filter(Boolean);
+          for (const raw of frames) {
+            let frame;
+            try { frame = JSON.parse(raw); } catch (_) { continue; }
+            if (frame.id && this.pending.has(String(frame.id))) {
+              const pending = this.pending.get(String(frame.id));
+              this.pending.delete(String(frame.id));
+              window.clearTimeout(pending.timer);
+              if (frame.error) pending.reject(new Error(frame.error.message || "Hermes gateway request failed."));
+              else pending.resolve(frame.result);
+              continue;
+            }
+            if (frame.method === "event" && frame.params?.type === "gateway.ready") {
+              this.ready = true;
+              if (!settled) {
+                settled = true;
+                window.clearTimeout(timeout);
+                resolve(this);
+              }
+              const heartbeat = frame.params?.payload?.heartbeat;
+              if (heartbeat && !this.heartbeat) {
+                this.heartbeat = window.setInterval(() => {
+                  this.call("gateway.ping", {}, 8000).catch(() => {});
+                }, 15000);
+              }
+            }
+            if (frame.method === "event") {
+              for (const listener of this.listeners) {
+                try { listener(frame.params || {}); } catch (_) {}
+              }
+            }
+          }
+        };
+        socket.onopen = () => { this.socket = socket; };
+        socket.onerror = () => {
+          if (!settled) {
+            settled = true;
+            window.clearTimeout(timeout);
+            reject(new Error("Could not connect to the Hermes Bot Mode gateway."));
+          }
+        };
+        socket.onclose = (event) => {
+          this.ready = false;
+          if (this.socket === socket) this.socket = null;
+          if (this.heartbeat) window.clearInterval(this.heartbeat);
+          this.heartbeat = null;
+          for (const pending of this.pending.values()) {
+            window.clearTimeout(pending.timer);
+            pending.reject(new Error(event.reason || "Hermes Bot Mode gateway disconnected."));
+          }
+          this.pending.clear();
+          if (!settled) {
+            settled = true;
+            window.clearTimeout(timeout);
+            reject(new Error(event.code === 4401 ? "Sign in to Hermes to use Bot Mode." : "Hermes Bot Mode gateway disconnected."));
+          }
+        };
+      });
+      return this;
+    }
+
+    async call(method, params = {}, timeoutMs = 20000) {
+      await this.ensure();
+      if (!this.socket || this.socket.readyState !== WebSocket.OPEN) throw new Error("Hermes Bot Mode gateway is unavailable.");
+      const id = `cockpit-${++this.counter}-${Date.now().toString(36)}`;
+      return new Promise((resolve, reject) => {
+        const timer = window.setTimeout(() => {
+          this.pending.delete(id);
+          reject(new Error(`${method} timed out.`));
+        }, timeoutMs);
+        this.pending.set(id, { resolve, reject, timer });
+        this.socket.send(JSON.stringify({ jsonrpc: "2.0", id, method, params }));
+      });
+    }
+
+    onEvent(listener) {
+      this.listeners.add(listener);
+      return () => this.listeners.delete(listener);
+    }
+
+    close() {
+      if (this.socket) this.socket.close(1000, "Cockpit Bot Mode reconnect");
+      this.socket = null;
+      this.ready = false;
+      if (this.heartbeat) window.clearInterval(this.heartbeat);
+      this.heartbeat = null;
+    }
+  }
+
+  function gateway() {
+    if (!state.gateway) state.gateway = new GatewayRpc();
+    return state.gateway;
+  }
+
+  function setWorkspaceMode(mode) {
+    state.mode = mode === "bot" ? "bot" : "terminal";
+    const terminal = document.getElementById("hermes-terminal");
+    const botChat = document.getElementById("cockpit-bot-chat");
+    const terminalButton = document.getElementById("cockpit-terminal-mode");
+    const interruptButton = document.getElementById("cockpit-interrupt-bot");
+    terminal?.classList.toggle("hidden", state.mode === "bot");
+    botChat?.classList.toggle("hidden", state.mode !== "bot");
+    terminalButton?.classList.toggle("hidden", state.mode !== "bot");
+    interruptButton?.classList.toggle("hidden", state.mode !== "bot" || !state.botStreaming);
+    if (state.mode === "terminal") {
+      if (state.botPollTimer) window.clearInterval(state.botPollTimer);
+      state.botPollTimer = null;
+      setConnection(state.socket?.readyState === WebSocket.OPEN ? "connected" : "connecting", state.socket?.readyState === WebSocket.OPEN ? "Hermes connected" : "Reconnecting terminal…");
+      if (state.socket?.readyState !== WebSocket.OPEN) connect({ resume: state.resume });
+      window.setTimeout(() => resizeTerminal(), 0);
+    }
+  }
+
+  function setBotStatus(value) {
+    text(document.getElementById("cockpit-bot-chat-status"), value || "Ready");
+  }
+
+  function messageText(message) {
+    if (!message) return "";
+    if (typeof message.text === "string") return message.text;
+    if (typeof message.content === "string") return message.content;
+    if (Array.isArray(message.content)) {
+      return message.content.map((item) => typeof item === "string" ? item : item?.text || "").filter(Boolean).join("\n");
+    }
+    return "";
+  }
+
+  function renderBotMessages() {
+    const transcript = document.getElementById("cockpit-bot-transcript");
+    if (!transcript) return;
+    const wasEmpty = transcript.childElementCount === 0;
+    const stickToBottom = wasEmpty || transcript.scrollHeight - transcript.scrollTop - transcript.clientHeight < 120;
+    transcript.replaceChildren();
+    if (!state.botMessages.length) {
+      const empty = document.createElement("div");
+      empty.className = "cockpit-native-empty";
+      empty.textContent = "This Bot Chat is ready. Send the first message below.";
+      transcript.append(empty);
+      return;
+    }
+    const fragment = document.createDocumentFragment();
+    for (const message of state.botMessages) {
+      const role = String(message.role || "assistant").toLowerCase();
+      const article = document.createElement("article");
+      article.className = "cockpit-native-message";
+      article.dataset.role = role;
+      const label = document.createElement("div");
+      label.className = "cockpit-native-message-role";
+      label.textContent = role === "user" ? "You" : role === "assistant" ? botTitle(state.botProfile) : role;
+      const content = document.createElement("div");
+      content.className = "cockpit-native-message-content";
+      content.textContent = messageText(message) || (message._streaming ? "Thinking…" : "");
+      article.append(label, content);
+      if (message.reasoning) {
+        const reasoning = document.createElement("details");
+        reasoning.className = "cockpit-native-reasoning";
+        const summary = document.createElement("summary");
+        summary.textContent = "Reasoning";
+        const body = document.createElement("div");
+        body.textContent = String(message.reasoning);
+        reasoning.append(summary, body);
+        article.append(reasoning);
+      }
+      fragment.append(article);
+    }
+    transcript.append(fragment);
+    if (stickToBottom) transcript.scrollTop = transcript.scrollHeight;
+  }
+
+  function renderBotTasks() {
+    const host = document.getElementById("cockpit-task-list");
+    text(document.getElementById("cockpit-task-count"), state.botTodos.length);
+    if (!host) return;
+    host.replaceChildren();
+    if (!state.botTodos.length) {
+      const empty = document.createElement("p");
+      empty.textContent = "No task list in this session.";
+      host.append(empty);
+      return;
+    }
+    for (const task of state.botTodos) {
+      const row = document.createElement("div");
+      row.className = "cockpit-task-row";
+      row.dataset.status = task.status || "pending";
+      const icon = document.createElement("span");
+      icon.className = "material-symbols-outlined";
+      icon.textContent = task.status === "completed" ? "check_circle" : task.status === "in_progress" ? "pending" : task.status === "cancelled" ? "cancel" : "radio_button_unchecked";
+      const copy = document.createElement("span");
+      copy.textContent = task.content || task.title || task.id || "Untitled task";
+      row.append(icon, copy);
+      host.append(row);
+    }
+  }
+
+  function renderBotSubagents() {
+    const host = document.getElementById("cockpit-subagent-list");
+    text(document.getElementById("cockpit-subagent-count"), state.botSubagents.length);
+    if (!host) return;
+    host.replaceChildren();
+    if (!state.botSubagents.length) {
+      const empty = document.createElement("p");
+      empty.textContent = "No active subagents.";
+      host.append(empty);
+      return;
+    }
+    for (const agent of state.botSubagents) {
+      const row = document.createElement("button");
+      row.type = "button";
+      row.className = "cockpit-subagent-row";
+      row.dataset.status = agent.status || "running";
+      row.dataset.active = state.selectedSubagent === agent.subagent_id ? "true" : "false";
+      const top = document.createElement("div");
+      const goal = document.createElement("strong");
+      goal.textContent = agent.goal || agent.subagent_id || "Subagent";
+      const badge = document.createElement("span");
+      badge.textContent = agent.status || "running";
+      top.append(goal, badge);
+      const meta = document.createElement("div");
+      meta.className = "cockpit-subagent-meta";
+      meta.textContent = [agent.model, agent.last_tool ? `tool: ${agent.last_tool}` : "", Number.isFinite(agent.tool_count) ? `${agent.tool_count} tools` : ""].filter(Boolean).join(" · ");
+      row.append(top, meta);
+      row.addEventListener("click", () => openSubagentDetail(agent));
+      host.append(row);
+    }
+  }
+
+  async function openSubagentDetail(agent) {
+    if (!agent?.subagent_id) return;
+    state.selectedSubagent = agent.subagent_id;
+    state.subagentTail = "";
+    text(document.getElementById("cockpit-subagent-detail-title"), agent.goal || agent.subagent_id);
+    document.getElementById("cockpit-subagent-detail")?.classList.remove("hidden");
+    text(document.getElementById("cockpit-subagent-tail"), "Loading live transcript…");
+    renderBotSubagents();
+    await refreshSelectedSubagentTail();
+  }
+
+  function closeSubagentDetail() {
+    state.selectedSubagent = null;
+    state.subagentTail = "";
+    document.getElementById("cockpit-subagent-detail")?.classList.add("hidden");
+    renderBotSubagents();
+  }
+
+  async function refreshSelectedSubagentTail() {
+    if (!state.selectedSubagent || !state.botSession?.runtimeId) return;
+    try {
+      const result = await gateway().call("subagent.tail", {
+        session_id: state.botSession.runtimeId,
+        subagent_id: state.selectedSubagent
+      }, 12000);
+      state.subagentTail = result?.text || "";
+      text(document.getElementById("cockpit-subagent-tail"), result?.available ? (state.subagentTail || "Transcript is empty.") : "Live transcript is not available for this completed or reconnected subagent.");
+    } catch (error) {
+      text(document.getElementById("cockpit-subagent-tail"), error.message || "Could not load subagent transcript.");
+    }
+  }
+
+  async function steerSelectedSubagent() {
+    const input = document.getElementById("cockpit-subagent-steer-text");
+    const value = input?.value.trim();
+    if (!value || !state.selectedSubagent || !state.botSession?.runtimeId) return;
+    try {
+      const result = await gateway().call("subagent.steer", {
+        session_id: state.botSession.runtimeId,
+        subagent_id: state.selectedSubagent,
+        text: value
+      }, 12000);
+      if (input) input.value = "";
+      setBotStatus(result?.status === "queued" ? "Guidance queued for subagent" : "Subagent rejected guidance");
+    } catch (error) {
+      setBotStatus(error.message || "Could not guide subagent");
+    }
+  }
+
+  async function interruptSelectedSubagent() {
+    if (!state.selectedSubagent || !state.botSession?.runtimeId) return;
+    try {
+      const result = await gateway().call("subagent.interrupt", {
+        session_id: state.botSession.runtimeId,
+        subagent_id: state.selectedSubagent
+      }, 12000);
+      setBotStatus(result?.found ? "Subagent stop requested" : "Subagent is no longer active");
+      await refreshBotSubagents();
+    } catch (error) {
+      setBotStatus(error.message || "Could not stop subagent");
+    }
+  }
+
+  function renderBotActivity() {
+    const host = document.getElementById("cockpit-activity-list");
+    text(document.getElementById("cockpit-activity-count"), state.botActivity.length);
+    if (!host) return;
+    host.replaceChildren();
+    if (!state.botActivity.length) {
+      const empty = document.createElement("p");
+      empty.textContent = "No live tool activity yet.";
+      host.append(empty);
+      return;
+    }
+    for (const activity of state.botActivity.slice(-30).reverse()) {
+      const row = document.createElement("div");
+      row.className = "cockpit-activity-row";
+      row.dataset.status = activity.status;
+      const icon = document.createElement("span");
+      icon.className = "material-symbols-outlined";
+      icon.textContent = activity.status === "complete" ? "check_circle" : activity.status === "error" ? "error" : "progress_activity";
+      const copy = document.createElement("div");
+      const title = document.createElement("strong");
+      title.textContent = activity.name || "Hermes tool";
+      const detail = document.createElement("span");
+      detail.textContent = activity.summary || activity.context || (activity.status === "complete" ? "Completed" : "Running");
+      copy.append(title, detail);
+      row.append(icon, copy);
+      host.append(row);
+    }
+  }
+
+  function updateBotActivity(event) {
+    const payload = event.payload || {};
+    const id = payload.tool_id || `${payload.name || "tool"}-${event.seq || Date.now()}`;
+    const index = state.botActivity.findIndex((item) => item.id === id);
+    const next = {
+      id,
+      name: payload.labels?.title || payload.name || "Hermes tool",
+      context: payload.context || payload.labels?.detail || "",
+      summary: payload.summary || "",
+      status: event.type === "tool.complete" ? (payload.error ? "error" : "complete") : "running"
+    };
+    if (index >= 0) state.botActivity[index] = { ...state.botActivity[index], ...next };
+    else state.botActivity.push(next);
+    if (state.botActivity.length > 60) state.botActivity.splice(0, state.botActivity.length - 60);
+    renderBotActivity();
+  }
+
+  async function refreshBotSubagents() {
+    if (!state.botSession?.runtimeId) return;
+    try {
+      const result = await gateway().call("subagent.list", { session_id: state.botSession.runtimeId }, 12000);
+      state.botSubagents = Array.isArray(result?.subagents) ? result.subagents : [];
+      renderBotSubagents();
+      if (state.selectedSubagent) refreshSelectedSubagentTail();
+    } catch (_) {}
+  }
+
+  function startBotPolling() {
+    if (state.botPollTimer) window.clearInterval(state.botPollTimer);
+    refreshBotSubagents();
+    state.botPollTimer = window.setInterval(refreshBotSubagents, 2500);
+  }
+
+  function currentStreamingMessage() {
+    const last = state.botMessages[state.botMessages.length - 1];
+    return last?.role === "assistant" && last._streaming ? last : null;
+  }
+
+  function handleBotEvent(event) {
+    if (!state.botSession || event?.session_id !== state.botSession.runtimeId) return;
+    const payload = event.payload || {};
+    if (event.seq) state.botSession.lastSeen = event.seq;
+    if (event.type === "todo.updated") {
+      state.botTodos = Array.isArray(payload.todos) ? payload.todos : [];
+      renderBotTasks();
+    }
+    if (event.type === "tool.start" || event.type === "tool.complete") updateBotActivity(event);
+    if (String(event.type || "").startsWith("subagent.")) {
+      const id = payload.subagent_id;
+      if (id) {
+        const index = state.botSubagents.findIndex((agent) => agent.subagent_id === id);
+        const next = { ...(index >= 0 ? state.botSubagents[index] : {}), ...payload };
+        if (event.type === "subagent.complete") next.status = payload.status || "completed";
+        else if (!next.status) next.status = "running";
+        if (index >= 0) state.botSubagents[index] = next;
+        else state.botSubagents.push(next);
+        renderBotSubagents();
+      }
+      if (event.type === "subagent.start" || event.type === "subagent.complete") refreshBotSubagents();
+    }
+    if (event.type === "message.start") {
+      if (!currentStreamingMessage()) state.botMessages.push({ role: "assistant", text: "", _streaming: true });
+      state.botStreaming = true;
+      setBotStatus("Responding…");
+    } else if (event.type === "message.delta") {
+      const message = currentStreamingMessage() || { role: "assistant", text: "", _streaming: true };
+      if (!currentStreamingMessage()) state.botMessages.push(message);
+      message.text += payload.text || "";
+      state.botStreaming = true;
+    } else if (event.type === "reasoning.delta") {
+      const message = currentStreamingMessage() || { role: "assistant", text: "", _streaming: true };
+      if (!currentStreamingMessage()) state.botMessages.push(message);
+      message.reasoning = (message.reasoning || "") + (payload.text || "");
+      state.botStreaming = true;
+    } else if (event.type === "message.complete") {
+      const message = currentStreamingMessage();
+      if (message) {
+        if (payload.text) message.text = payload.text;
+        message._streaming = false;
+      } else if (payload.text) state.botMessages.push({ role: "assistant", text: payload.text });
+      state.botStreaming = false;
+      setBotStatus(payload.status === "interrupted" ? "Stopped" : payload.status === "error" ? "Response failed" : "Ready");
+      loadProfiles();
+    } else if (event.type === "status.update") {
+      setBotStatus(payload.text || payload.kind || "Working…");
+    } else if (event.type === "session.info") {
+      if (payload.model) text(document.getElementById("cockpit-model"), `${payload.provider || "provider"} / ${payload.model}`);
+    } else if (event.type === "error") {
+      state.botStreaming = false;
+      state.botMessages.push({ role: "system", text: payload.message || payload.error || "Hermes reported an error." });
+      setBotStatus("Error");
+    }
+    document.getElementById("cockpit-interrupt-bot")?.classList.toggle("hidden", !state.botStreaming);
+    if (/^(message|reasoning|error)/.test(event.type || "")) renderBotMessages();
+  }
+
+  function ensureBotEventHandler() {
+    if (!state.botEventUnsubscribe) state.botEventUnsubscribe = gateway().onEvent(handleBotEvent);
   }
 
   async function connect({ resume = null, fresh = false } = {}) {
@@ -432,16 +922,111 @@
     return true;
   }
 
-  function sendComposer() {
+  async function sendComposer() {
     if (!composer) return;
     const value = composer.value.trim();
-    if (sendCommand(value)) {
+    if (!value) return;
+    if (state.mode === "bot") {
+      composer.value = "";
+      composer.dispatchEvent(new Event("change", { bubbles: true }));
+      await submitBotPrompt(value);
+    } else if (sendCommand(value)) {
       composer.value = "";
       composer.dispatchEvent(new Event("change", { bubbles: true }));
     }
   }
 
+  function asDataUrl(blob) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ""));
+      reader.onerror = () => reject(reader.error || new Error("Could not read the recording."));
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  async function toggleVoiceInput() {
+    const button = document.getElementById("voice-input");
+    if (state.voiceRecorder?.state === "recording") {
+      state.voiceRecorder.stop();
+      if (button) button.innerHTML = '<span class="material-symbols-outlined">hourglass_top</span><span>Transcribing</span>';
+      return;
+    }
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      setBotStatus("This browser does not provide microphone recording.");
+      return;
+    }
+    try {
+      state.voiceStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      state.voiceChunks = [];
+      state.voiceRecorder = new MediaRecorder(state.voiceStream);
+      state.voiceRecorder.addEventListener("dataavailable", event => { if (event.data?.size) state.voiceChunks.push(event.data); });
+      state.voiceRecorder.addEventListener("stop", async () => {
+        try {
+          const type = state.voiceRecorder?.mimeType || state.voiceChunks[0]?.type || "audio/webm";
+          const blob = new Blob(state.voiceChunks, { type });
+          const dataUrl = await asDataUrl(blob);
+          const query = state.profile ? `?profile=${encodeURIComponent(state.profile)}` : "";
+          const result = await request(`/api/audio/transcribe${query}`, { method: "POST", body: JSON.stringify({ data_url: dataUrl, mime_type: type }) });
+          if (result?.transcript && composer) composer.value = [composer.value.trim(), result.transcript].filter(Boolean).join(" ");
+          setBotStatus(result?.transcript ? `Voice transcribed by ${result.provider || "Hermes"}` : "No speech detected");
+        } catch (error) {
+          setBotStatus(error.message || "Voice transcription failed");
+        } finally {
+          state.voiceStream?.getTracks().forEach(track => track.stop());
+          state.voiceStream = null;
+          state.voiceRecorder = null;
+          state.voiceChunks = [];
+          if (button) button.innerHTML = '<span class="material-symbols-outlined">mic</span><span>Voice</span>';
+        }
+      }, { once: true });
+      state.voiceRecorder.start();
+      if (button) button.innerHTML = '<span class="material-symbols-outlined">stop_circle</span><span>Stop</span>';
+      setBotStatus("Recording voice…");
+    } catch (error) {
+      state.voiceStream?.getTracks().forEach(track => track.stop());
+      state.voiceStream = null;
+      state.voiceRecorder = null;
+      setBotStatus(error.message || "Microphone access failed");
+    }
+  }
+
+  async function attachSourceFiles(files) {
+    const input = document.getElementById("source-file-input");
+    const button = document.getElementById("attach-source");
+    if (!state.botSession?.runtimeId) {
+      setConnection(state.connected ? "connected" : "offline", "Open a Bot Chat before attaching files");
+      if (input) input.value = "";
+      return;
+    }
+    const selected = Array.from(files || []);
+    if (!selected.length) return;
+    if (button) button.disabled = true;
+    const refs = [];
+    try {
+      for (const file of selected) {
+        if (file.size > 12 * 1024 * 1024) throw new Error(`${file.name} exceeds the 12 MB browser attachment limit.`);
+        const dataUrl = await asDataUrl(file);
+        const result = await gateway().call("file.attach", {
+          profile: state.botSession.profile,
+          session_id: state.botSession.runtimeId,
+          data_url: dataUrl,
+          name: file.name
+        }, 60000);
+        if (result?.ref_text) refs.push(result.ref_text);
+      }
+      if (composer && refs.length) composer.value = [composer.value.trim(), ...refs].filter(Boolean).join(" ");
+      setBotStatus(`${refs.length} file${refs.length === 1 ? "" : "s"} attached`);
+    } catch (error) {
+      setBotStatus(error.message || "File attachment failed");
+    } finally {
+      if (input) input.value = "";
+      if (button) button.disabled = false;
+    }
+  }
+
   function newSession() {
+    setWorkspaceMode("terminal");
     state.resume = null;
     state.sessionKey = randomId("cockpit");
     state.attachKey = randomId("attach");
@@ -454,7 +1039,7 @@
   }
 
   async function copySelection() {
-    const selected = state.terminal?.getSelection() || "";
+    const selected = state.mode === "bot" ? String(globalThis.getSelection?.() || "") : state.terminal?.getSelection() || "";
     if (!selected) return;
     try {
       await navigator.clipboard.writeText(selected);
@@ -496,6 +1081,7 @@
         meta.textContent = `${session.message_count || 0} messages${session.is_active ? " · active" : ""}`;
         button.append(label, meta);
         button.addEventListener("click", () => {
+          setWorkspaceMode("terminal");
           state.terminal?.clear();
           connect({ resume: id });
         });
@@ -553,10 +1139,210 @@
     }
   }
 
-  function applySelectedModel() {
+  async function applySelectedModel() {
     const picker = document.getElementById("cockpit-model-picker");
     if (!picker?.value) return;
+    if (state.mode === "bot" && state.botSession?.runtimeId) {
+      const option = picker.selectedOptions?.[0];
+      const provider = option?.dataset?.provider;
+      const value = `${picker.value}${provider ? ` --provider ${provider}` : ""} --session`;
+      const params = {
+        profile: state.botSession.profile,
+        session_id: state.botSession.runtimeId,
+        key: "model",
+        value
+      };
+      setBotStatus(`Switching to ${picker.value}…`);
+      try {
+        let result = await gateway().call("config.set", params, 30000);
+        if (result?.confirm_required) {
+          const accepted = globalThis.confirm(result.confirm_message || `Use ${picker.value} for this Bot Chat?`);
+          if (!accepted) {
+            setBotStatus("Model switch cancelled");
+            return;
+          }
+          result = await gateway().call("config.set", { ...params, confirm_expensive_model: true }, 30000);
+        }
+        state.currentModel = result?.value || picker.value;
+        text(document.getElementById("cockpit-model"), state.currentModel);
+        setBotStatus(result?.deferred ? "Model will switch after the current response" : `Model set to ${state.currentModel}`);
+      } catch (error) {
+        setBotStatus(error.message || "Model switch failed");
+      }
+      return;
+    }
     sendCommand(`/model ${picker.value}`);
+  }
+
+  function botMeta(profile) {
+    const value = profile?.ui_meta?.["hermes-bots"];
+    return value && typeof value === "object" ? value : {};
+  }
+
+  function botTitle(profile) {
+    const meta = botMeta(profile);
+    return meta.title || profile.bot_title || profile.display_name || profile.name || "Unnamed bot";
+  }
+
+  function canonicalSession(profile) {
+    const session = profile?.canonical_session;
+    if (!session?.id) return null;
+    return { ...session, resumeId: session.resolved_id || session.id };
+  }
+
+  function botChatMatches(profile) {
+    const canonical = canonicalSession(profile);
+    if (!canonical) return false;
+    if (state.mode === "bot" && state.botSession?.profile === profile.name) {
+      return [canonical.id, canonical.resolved_id].filter(Boolean).includes(state.botSession.sessionKey) || state.botSession.canonicalId === canonical.id;
+    }
+    return Boolean(state.resume && [canonical.id, canonical.resolved_id].filter(Boolean).includes(state.resume));
+  }
+
+  async function resolveCanonicalBotChat(profile) {
+    const name = profile.name || "default";
+    const known = canonicalSession(profile);
+    if (known) return known;
+    const rpc = gateway();
+    const lookup = await rpc.call("session.list", {
+      profile: name,
+      title: "Bot Chat",
+      limit: 500,
+      include_hidden: true
+    });
+    const existing = (lookup?.sessions || []).find((row) => row?.title === "Bot Chat" || row?.root_title === "Bot Chat");
+    if (existing?.id) return { ...existing, resumeId: existing.resolved_id || existing.id };
+    const created = await rpc.call("session.create", {
+      profile: name,
+      title: "Bot Chat",
+      hidden: true,
+      follow_profile_config: true
+    });
+    const runtimeId = created?.session_id;
+    const storedId = created?.stored_session_id;
+    if (!runtimeId || !storedId) throw new Error(`Hermes did not create ${botTitle(profile)}'s Bot Chat.`);
+    await rpc.call("session.title", { profile: name, session_id: runtimeId, title: "Bot Chat" });
+    return { id: storedId, resolved_id: storedId, resumeId: storedId, title: "Bot Chat", message_count: 0 };
+  }
+
+  async function submitBotPrompt(value) {
+    if (!state.botSession?.runtimeId || !state.botProfile) {
+      setBotStatus("Open a bot before sending a message.");
+      return false;
+    }
+    const message = String(value || "").trim();
+    if (!message) return false;
+    state.botMessages.push({ role: "user", text: message });
+    state.botStreaming = true;
+    setBotStatus("Sending…");
+    document.getElementById("cockpit-interrupt-bot")?.classList.remove("hidden");
+    renderBotMessages();
+    try {
+      const result = await gateway().call("prompt.submit", {
+        profile: state.botSession.profile,
+        session_id: state.botSession.runtimeId,
+        text: message
+      }, 30000);
+      setBotStatus(result?.status === "queued" ? "Queued" : result?.status === "steered" ? "Steered current response" : "Responding…");
+      return true;
+    } catch (error) {
+      state.botStreaming = false;
+      state.botMessages.push({ role: "system", text: error.message || "Hermes did not accept the prompt." });
+      setBotStatus("Send failed");
+      document.getElementById("cockpit-interrupt-bot")?.classList.add("hidden");
+      renderBotMessages();
+      return false;
+    }
+  }
+
+  async function interruptBot() {
+    if (!state.botSession?.runtimeId) return;
+    setBotStatus("Stopping…");
+    try {
+      await gateway().call("session.interrupt", {
+        profile: state.botSession.profile,
+        session_id: state.botSession.runtimeId
+      });
+    } catch (error) {
+      setBotStatus(error.message || "Could not stop the response.");
+    }
+  }
+
+  async function openBotChat(profile) {
+    const roster = document.getElementById("cockpit-bots");
+    const name = profile?.name || "default";
+    state.profile = name === "default" ? "" : name;
+    const picker = document.getElementById("cockpit-profile-picker");
+    if (picker) picker.value = name;
+    text(document.getElementById("cockpit-profile"), name);
+    if (roster) roster.dataset.loading = "true";
+    setConnection("connecting", `Opening ${botTitle(profile)}…`);
+    state.botProfile = profile;
+    state.botSession = null;
+    state.botMessages = [];
+    state.botTodos = [];
+    state.botSubagents = [];
+    state.botActivity = [];
+    text(document.getElementById("cockpit-bot-chat-title"), botTitle(profile));
+    text(document.getElementById("cockpit-bot-chat-profile"), name === "default" ? "default profile · Bot Chat" : `@${name} · Bot Chat`);
+    setBotStatus("Opening canonical Bot Chat…");
+    setWorkspaceMode("bot");
+    renderBotMessages();
+    renderBotTasks();
+    renderBotSubagents();
+    renderBotActivity();
+    try {
+      const chat = await resolveCanonicalBotChat(profile);
+      const rpc = gateway();
+      ensureBotEventHandler();
+      const resumed = await rpc.call("session.resume", {
+        profile: name,
+        session_id: chat.resumeId,
+        source: "desktop",
+        inline_images: false
+      }, 60000);
+      const runtimeId = resumed?.session_id;
+      if (!runtimeId) throw new Error(`Hermes did not resume ${botTitle(profile)}'s Bot Chat.`);
+      state.botSession = {
+        profile: name,
+        runtimeId,
+        sessionKey: resumed.session_key || resumed.resumed || chat.resumeId,
+        canonicalId: chat.id,
+        lastSeen: 0
+      };
+      state.botStreaming = resumed.status === "streaming" || Boolean(resumed.inflight);
+      state.botTodos = Array.isArray(resumed?.todo_state?.todos) ? resumed.todo_state.todos : [];
+      state.botSubagents = [];
+      state.selectedSubagent = null;
+      state.subagentTail = "";
+      document.getElementById("cockpit-subagent-detail")?.classList.add("hidden");
+      state.botActivity = [];
+      setBotStatus("Loading conversation and live activity…");
+      setConnection("connected", `${botTitle(profile)} · Bot Chat`);
+      renderBotTasks();
+      renderBotSubagents();
+      renderBotActivity();
+      startBotPolling();
+      let messages = Array.isArray(resumed.messages) ? resumed.messages : [];
+      state.botMessages = messages.map((message) => ({ ...message, text: messageText(message) }));
+      renderBotMessages();
+      try {
+        const history = await rpc.call("session.history", { profile: name, session_id: runtimeId }, 60000);
+        if (Array.isArray(history?.messages)) messages = history.messages;
+      } catch (_) {}
+      state.botMessages = messages.map((message) => ({ ...message, text: messageText(message) }));
+      setBotStatus(state.botStreaming ? "Responding…" : `${state.botMessages.length} messages`);
+      renderBotMessages();
+      Promise.allSettled([loadModels(), loadSessions(), loadProfiles()]);
+    } catch (error) {
+      if (error instanceof AuthRequiredError) showAuth();
+      else {
+        setConnection("offline", `Could not open ${botTitle(profile)}`);
+        showTerminalMessage(error.message || "Hermes Bot Chat could not be opened.", "error");
+      }
+    } finally {
+      if (roster) delete roster.dataset.loading;
+    }
   }
 
   async function loadProfiles() {
@@ -564,49 +1350,51 @@
     const roster = document.getElementById("cockpit-bots");
     if (!picker) return;
     try {
-      const payload = await request("/api/profiles");
-      const profiles = Array.isArray(payload) ? payload : payload.profiles || [];
+      const payload = await gateway().call("profiles.list", { include_sessions: true });
+      const profiles = Array.isArray(payload?.profiles) ? payload.profiles : [];
+      state.botProfiles = profiles;
+      picker.replaceChildren();
       if (roster) roster.replaceChildren();
       for (const profile of profiles) {
-        const id = typeof profile === "string" ? profile : profile.id || profile.name || profile.slug;
+        const id = profile?.name;
         if (!id) continue;
-        if (id !== "default") {
-          const option = document.createElement("option");
-          option.value = id;
-          option.textContent = profile.display_name || profile.bot_title || id;
-          picker.append(option);
-        }
+        const title = botTitle(profile);
+        const canonical = canonicalSession(profile);
+        const option = document.createElement("option");
+        option.value = id;
+        option.textContent = title;
+        option.selected = (state.profile || "default") === id;
+        picker.append(option);
         if (roster) {
           const button = document.createElement("button");
           button.type = "button";
           button.className = "cockpit-bot";
-          button.title = `Start a new chat as ${id}`;
+          button.dataset.active = botChatMatches(profile) ? "true" : "false";
+          button.title = canonical ? `Resume ${title}'s Bot Chat` : `Create ${title}'s Bot Chat`;
           const identity = document.createElement("span");
           identity.className = "cockpit-bot-identity";
           const dot = document.createElement("i");
-          dot.dataset.running = profile.gateway_running ? "true" : "false";
+          dot.dataset.running = profile.worker_session || canonical ? "true" : "false";
           const name = document.createElement("strong");
-          name.textContent = profile.bot_title || profile.display_name || id;
+          name.textContent = title;
           const profileName = document.createElement("small");
           profileName.textContent = id === "default" ? "default profile" : `@${id}`;
           identity.append(dot, name, profileName);
           const detail = document.createElement("span");
           detail.className = "cockpit-bot-detail";
-          detail.textContent = profile.model || profile.description || "Use configured model";
+          detail.textContent = canonical
+            ? `${canonical.message_count || 0} messages${canonical.preview ? ` · ${canonical.preview}` : ""}`
+            : (profile.model || profile.description || "No Bot Chat yet");
           button.append(identity, detail);
-          button.addEventListener("click", () => {
-            state.profile = id === "default" ? "" : id;
-            picker.value = state.profile;
-            text(document.getElementById("cockpit-profile"), state.profile || "default");
-            newSession();
-          });
+          button.addEventListener("click", () => openBotChat(profile));
           roster.append(button);
         }
       }
-      if (roster && !roster.childElementCount) roster.innerHTML = '<p class="cockpit-muted">No Hermes profiles found.</p>';
+      if (!picker.childElementCount) picker.innerHTML = '<option value="">No bots returned</option>';
+      if (roster && !roster.childElementCount) roster.innerHTML = '<p class="cockpit-muted">Hermes returned no Bot Mode profiles.</p>';
     } catch (error) {
       if (error instanceof AuthRequiredError) showAuth();
-      if (roster) roster.innerHTML = '<p class="cockpit-muted">Bot roster unavailable.</p>';
+      if (roster) roster.innerHTML = `<p class="cockpit-muted">Real Bot Mode roster unavailable: ${String(error.message || error)}</p>`;
     }
   }
 
@@ -626,6 +1414,9 @@
     composer?.setAttribute("autocomplete", "off");
     composer?.setAttribute("autocapitalize", "sentences");
     composer?.setAttribute("spellcheck", "true");
+    document.getElementById("voice-input")?.addEventListener("click", toggleVoiceInput);
+    document.getElementById("attach-source")?.addEventListener("click", () => document.getElementById("source-file-input")?.click());
+    document.getElementById("source-file-input")?.addEventListener("change", event => attachSourceFiles(event.target.files));
   }
 
   async function start() {
@@ -635,6 +1426,13 @@
     installComposerBridge();
     if (!initTerminal()) return;
     await Promise.allSettled([loadStatus(), loadSessions(), loadModels(), loadProfiles()]);
+    state.botRefreshTimer = window.setInterval(loadProfiles, 5000);
+    window.addEventListener("beforeunload", () => {
+      if (state.botRefreshTimer) window.clearInterval(state.botRefreshTimer);
+      if (state.botPollTimer) window.clearInterval(state.botPollTimer);
+      state.botEventUnsubscribe?.();
+      state.gateway?.close();
+    }, { once: true });
     connect();
   }
 

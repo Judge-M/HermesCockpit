@@ -4,7 +4,18 @@
   document.getElementById("shared-header").innerHTML = shell.header;
   document.getElementById("shared-sidebar").innerHTML = shell.aside;
 
-  const pages = ["live-control", "mesh-topology", "tool-registry", "acp-telemetry", "runtime-config-settings"];
+  const nav = document.querySelector("#shared-sidebar nav");
+  if (nav && !nav.querySelector('[data-path="backend-control"]')) {
+    const link = document.createElement("a");
+    link.dataset.path = "backend-control";
+    link.href = "backend-control.html";
+    link.title = "Control Center (F6)";
+    link.setAttribute("aria-label", "Control Center");
+    link.innerHTML = '<span class="material-symbols-outlined">schema</span>';
+    nav.append(link);
+  }
+
+  const pages = ["live-control", "mesh-topology", "tool-registry", "acp-telemetry", "runtime-config-settings", "backend-control"];
   document.querySelectorAll("#shared-sidebar a").forEach((link) => {
     const active = link.dataset.path === window.currentPage;
     link.href = `${link.dataset.path}.html`;
@@ -16,7 +27,7 @@
 
   document.addEventListener("keydown", (event) => {
     const number = Number(event.key.slice(1));
-    if (/^F[1-5]$/.test(event.key)) {
+    if (/^F[1-6]$/.test(event.key)) {
       event.preventDefault();
       location.href = `${pages[number - 1]}.html`;
     }
@@ -33,7 +44,7 @@
         <span id="shared-hermes-status" data-state="connecting">Connecting…</span>
       </div>`;
     header.children[2].innerHTML = `
-      <a class="cockpit-admin-link" href="${HERMES_BASE}/" target="_blank" rel="noreferrer">Hermes admin ↗</a>`;
+      <a class="cockpit-admin-link" href="runtime-config-settings.html" aria-label="Open Cockpit settings">Settings</a>`;
   }
 
   const oldDaemonBadge = document.querySelector("#shared-sidebar aside > div:last-child");
