@@ -354,10 +354,14 @@
   function sendCommand(command) {
     const value = String(command || "").trim();
     if (!value) return false;
-    if (!sendRaw(`${value}\r`)) {
+    if (!sendRaw(value)) {
       setConnection("offline", "Reconnect before sending");
       return false;
     }
+    // Hermes' TUI needs a render beat between the pasted text and Enter.
+    // Sending both in one WebSocket frame can clear the browser composer
+    // without ever submitting the command to the Ink input control.
+    window.setTimeout(() => sendRaw("\r"), 75);
     state.terminal?.focus();
     return true;
   }
