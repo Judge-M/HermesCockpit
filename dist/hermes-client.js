@@ -11,6 +11,55 @@
   const executeButton = document.getElementById("execute-prompt");
   const encoder = new TextEncoder();
   const decoder = new TextDecoder();
+  const RESUME_SANITIZE_WINDOW_MS = 30000;
+  const BLANK_LINE_BURST = /(?:\r?\n){50,}/g;
+  const ERASE_LINE = /\x1b\[\d*K/g;
+  const ERASE_CHAR = /\x1b\[\d*X/g;
+  const PARTIAL_ESCAPE = /^\x1b(?:\[\d*)?$/;
+  const TRAILING_NEWLINES = /(?:\r?\n)*\r?$/;
+
+  function applyResumeFilters(input, stripErase = true) {
+    const collapsed = input.replace(BLANK_LINE_BURST, "\r\n\r\n");
+    return stripErase ? collapsed.replace(ERASE_LINE, "").replace(ERASE_CHAR, "") : collapsed;
+  }
+
+  class ResumeSanitizer {
+    constructor() {
+      this.pending = "";
+      this.stripErase = true;
+    }
+
+    endEraseSuppression() {
+      this.stripErase = false;
+    }
+
+    next(chunk) {
+      const combined = this.pending + chunk;
+      if (!combined) {
+        this.pending = "";
+        return "";
+      }
+      const lastEscape = combined.lastIndexOf("\x1b");
+      if (lastEscape !== -1 && PARTIAL_ESCAPE.test(combined.slice(lastEscape))) {
+        this.pending = combined.slice(lastEscape);
+        return applyResumeFilters(combined.slice(0, lastEscape), this.stripErase);
+      }
+      const trailing = TRAILING_NEWLINES.exec(combined);
+      if (trailing.index === 0) {
+        this.pending = combined;
+        return "";
+      }
+      this.pending = trailing[0];
+      return applyResumeFilters(combined.slice(0, trailing.index), this.stripErase);
+    }
+
+    flush() {
+      const pending = this.pending;
+      this.pending = "";
+      if (!pending || pending.includes("\x1b")) return "";
+      return applyResumeFilters(pending, this.stripErase);
+    }
+  }
   const state = {
     socket: null,
     terminal: null,
@@ -272,6 +321,17 @@
     state.socket = null;
     state.intentionalClose = false;
     state.resume = resume || null;
+    let resumeSanitizer = state.resume ? new ResumeSanitizer() : null;
+    let resumeSanitizerTimer = null;
+    const beginResumeReplay = () => {
+      if (!resumeSanitizer) resumeSanitizer = new ResumeSanitizer();
+      if (!resumeSanitizerTimer) {
+        resumeSanitizerTimer = window.setTimeout(() => {
+          resumeSanitizer?.endEraseSuppression();
+          resumeSanitizerTimer = null;
+        }, RESUME_SANITIZE_WINDOW_MS);
+      }
+    };
     setConnection("connecting", resume ? "Resuming session…" : "Starting Hermes…");
     document.getElementById("cockpit-auth")?.classList.add("hidden");
 
@@ -294,6 +354,7 @@
       socket.onopen = () => {
         if (state.socket !== socket) return;
         state.reconnectAttempt = 0;
+        if (state.resume) beginResumeReplay();
         setConnection("connected", state.resume ? "Session resumed" : "Hermes connected");
         sendRaw(`\u001b[RESIZE:${state.terminal?.cols || 80};${state.terminal?.rows || 24}]`);
         state.terminal?.focus();
@@ -306,15 +367,20 @@
             const control = JSON.parse(output);
             if (control.type === "resume" && control.id) {
               state.resume = control.id;
+              beginResumeReplay();
               return;
             }
           } catch (_) {}
         }
-        state.terminal?.write(output);
+        const rendered = resumeSanitizer ? resumeSanitizer.next(output) : output;
+        if (rendered) state.terminal?.write(rendered, () => state.terminal?.scrollToBottom());
       };
       socket.onerror = () => setConnection("offline", "Hermes WebSocket error");
       socket.onclose = (event) => {
+        if (resumeSanitizerTimer) window.clearTimeout(resumeSanitizerTimer);
         if (state.socket !== socket) return;
+        const trailing = resumeSanitizer?.flush() || "";
+        if (trailing) state.terminal?.write(trailing);
         state.socket = null;
         state.connected = false;
         if (event.code === 4401) return showAuth();
