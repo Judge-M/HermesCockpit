@@ -6,6 +6,36 @@
       "baseline_sha256": "26ce1725b769ec818d89316abd7b39b3b7376b328e60d49c24eeec1b05b6fe95",
       "reason": "Use the checked-in Hermes Aviator Girl image for GitHub Pages and portable previews.",
       "verification": "scripts/check.mjs validates this as an explicit intentional source change; all other imported files remain baseline-verified."
+    },
+    {
+      "path": "dist/acp-telemetry.html",
+      "baseline_sha256": "fc204c87ee49fb173916fd087b1a382553350d572de943bf091ca670536843da",
+      "reason": "Use vendored local Tailwind, font, and Material Symbols assets so the demo runs without network access.",
+      "verification": "scripts/check.mjs verifies that the screen has no external stylesheet or script dependencies."
+    },
+    {
+      "path": "dist/live-control.html",
+      "baseline_sha256": "2cb94b0b45923d764014e7e7b21abdff2caf45f973907737fb417e38378bcb9c",
+      "reason": "Use vendored local Tailwind, font, and Material Symbols assets so the demo runs without network access.",
+      "verification": "scripts/check.mjs verifies that the screen has no external stylesheet or script dependencies."
+    },
+    {
+      "path": "dist/mesh-topology.html",
+      "baseline_sha256": "54990e7c8abfdb042e019893043806f97f42146365f924220038265c41496f64",
+      "reason": "Use vendored local Tailwind, font, and Material Symbols assets so the demo runs without network access.",
+      "verification": "scripts/check.mjs verifies that the screen has no external stylesheet or script dependencies."
+    },
+    {
+      "path": "dist/runtime-config-settings.html",
+      "baseline_sha256": "e369d5452600af9cdcd690b460d5319336cc7ff4242efdfddcd1c64b79a83c49",
+      "reason": "Use vendored local Tailwind, font, and Material Symbols assets so the demo runs without network access.",
+      "verification": "scripts/check.mjs verifies that the screen has no external stylesheet or script dependencies."
+    },
+    {
+      "path": "dist/tool-registry.html",
+      "baseline_sha256": "a25ed2fc2bf517d2a9f2c83c83fbae4a75b47344ec5c7a61c1d909302ab36ea9",
+      "reason": "Use vendored local Tailwind, font, and Material Symbols assets so the demo runs without network access.",
+      "verification": "scripts/check.mjs verifies that the screen has no external stylesheet or script dependencies."
     }
   ]
 }

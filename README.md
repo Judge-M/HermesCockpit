@@ -28,7 +28,7 @@ The check validates immutable imported-file hashes, recorded intentional source 
 
 The static prototype is published from `main` through GitHub Pages:
 
-[Open the Hermes Cockpit demo](https://judge-m.github.io/Hermes-Cockpit/)
+[Open the Hermes Cockpit demo](https://judge-m.github.io/HermesCockpit/)
 
 The header uses the checked-in [Hermes Aviator Girl asset](dist/assets/hermes-aviator-girl.jpg), so the demo does not depend on the original externally hosted image.
 
@@ -43,7 +43,7 @@ The header uses the checked-in [Hermes Aviator Girl asset](dist/assets/hermes-av
 
 The files were recovered from the owned [original demo](https://hermes-copilot-workbench.artfulperch7.chatgpt.site) at source commit `e52f5d2ac25718b67c5f135c4bfbd50c52fe5206`. `source-provenance.json` records original and imported SHA-256 hashes. All copied files remain byte-identical except the two password default values in the settings screen; the later local-logo change is recorded separately in `source-changes.json`. No layout, CSS, or interaction logic was redesigned.
 
-The original frontend depends on externally hosted Tailwind, Google Fonts, and icons. Those references are preserved; the Hermes Aviator Girl header image is now vendored in `dist/assets/` for the GitHub Pages demo. The copied `build.py` is a historical generator that requires the original uploaded Stitch exports at an environment-specific path; it is not the local build command. Serve the already-generated `dist/` files instead.
+The prototype vendors its Tailwind browser runtime, Inter and JetBrains Mono fonts, Material Symbols font, and Hermes Aviator Girl image under `dist/vendor/` and `dist/assets/`, so the demo has no network dependency at runtime. It is still served through the included loopback server because the shared shell loads `shell.json`; opening HTML with `file://` is not sufficient. The copied `build.py` is a historical generator that requires the original uploaded Stitch exports at an environment-specific path; it is not the local build command. Serve the already-generated `dist/` files instead.
 
 The existing Site's `.openai/hosting.json` is deliberately excluded so this repository does not accidentally target the original hosted Site. No Site deployment was changed by this import.
 

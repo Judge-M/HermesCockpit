@@ -26,6 +26,10 @@ for (const screen of screens) {
   const html = read(`dist/${screen}.html`);
   assert.ok(html.includes('id="shared-header"') && html.includes('id="shared-sidebar"'), screen);
   assert.ok(html.includes(`window.currentPage="${screen}"`), screen);
+  assert.ok(!/<link\b[^>]+href="https?:\/\//i.test(html), `${screen}: external stylesheet dependency`);
+  assert.ok(!/<script\b[^>]+src="https?:\/\//i.test(html), `${screen}: external script dependency`);
+  assert.ok(html.includes('vendor/fonts.css'), `${screen}: missing local font stylesheet`);
+  assert.ok(html.includes('vendor/material-symbols.css'), `${screen}: missing local icon stylesheet`);
   for (const match of html.matchAll(/(?:src|href)="([^"#]+)"/g)) {
     const ref = match[1];
     if (/^(?:https?:|data:|javascript:)/.test(ref)) continue;
@@ -45,6 +49,9 @@ const shell = JSON.parse(read('dist/shell.json'));
 assert.ok(shell.header.includes('Hermes Cockpit'));
 assert.ok(shell.header.includes('src="assets/hermes-aviator-girl.jpg"'));
 assert.ok(existsSync(path.join(root, 'dist/assets/hermes-aviator-girl.jpg')), 'Missing vendored Hermes Aviator Girl asset');
+for (const asset of ['dist/vendor/tailwindcss-cdn.js', 'dist/vendor/tailwindcss-cdn-forms.js', 'dist/vendor/fonts.css', 'dist/vendor/material-symbols.css']) {
+  assert.ok(existsSync(path.join(root, asset)), `Missing vendored runtime asset: ${asset}`);
+}
 for (const screen of screens) assert.ok(shell.aside.includes(`data-path="${screen}"`));
 assert.ok(read('dist/index.html').includes('url=live-control.html'));
-console.log(`PASS: ${provenance.files.length} baseline hashes; ${intentional.size} intentional source change; ${screens.length} screens; local references; ${inlineScripts} inline scripts and shared shell syntax; vendored cockpit girl asset; blank password defaults.`);
+console.log(`PASS: ${provenance.files.length} baseline hashes; ${intentional.size} intentional source changes; ${screens.length} screens; local references and runtime assets; ${inlineScripts} inline scripts and shared shell syntax; vendored cockpit girl asset; blank password defaults.`);
