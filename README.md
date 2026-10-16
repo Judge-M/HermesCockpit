@@ -15,8 +15,11 @@ Hermes Cockpit is a mobile-friendly browser interface for [Hermes Agent](https:/
 - Keyboard input, mobile composer input, terminal selection, copy, and paste
 - Hermes' existing sign-in flow; Cockpit does not store provider credentials
 - Responsive desktop and mobile layouts
+- Live views for Hermes health, profiles, sessions, system statistics, tools, toolsets, skills, and model options
+- Native Cockpit controls for enabling toolsets and skills, adding/testing/enabling/deleting MCP servers, and creating/editing eligible skills
+- Automatic redaction of credential-like fields in raw API inspectors and copied telemetry snapshots
 
-The Live Control screen is connected to Hermes. Bot Mode group rooms, routines, avatar editing, and cross-machine roster merging are not ported yet. Mesh Topology, Tool Registry, ACP Telemetry, and Runtime Settings are still visual prototypes and are clearly sample data until their integrations are completed.
+Bot Mode group rooms, routines, avatar editing, and cross-machine roster merging are not ported yet. Docker-agent creation and lifecycle control are also not implemented yet. The remaining screens report only data returned by the connected Hermes APIs; they do not invent peer health, latency, throughput, or provider status. Tailscale peer topology is not available through the current Hermes API, so the Mesh screen says so explicitly instead of simulating it.
 
 ## Requirements
 
@@ -93,13 +96,13 @@ Selecting a different model sends Hermes' native `/model` command to the current
 - `dist/live-control.html` — live Hermes terminal and controls
 - `dist/hermes-client.js` — Hermes REST/WebSocket client
 - `dist/hermes-client.css` — responsive live-client styles
-- `dist/mesh-topology.html` — topology prototype
-- `dist/tool-registry.html` — tool registry prototype
-- `dist/acp-telemetry.html` — telemetry prototype
-- `dist/runtime-config-settings.html` — settings prototype
+- `dist/mesh-topology.html` — live Hermes reachability, gateway/profile, session, and system overview
+- `dist/tool-registry.html` — live MCP server, toolset, skill, and profile inventory with native management controls
+- `dist/acp-telemetry.html` — live read-only endpoint telemetry and redacted snapshots
+- `dist/runtime-config-settings.html` — live model, profile, gateway, and redacted configuration inspection
 - `scripts/serve.mjs` — loopback-only preview server
 - `scripts/check.mjs` — source, syntax, and asset checks
 
 ## Project status
 
-This is an independent community frontend and is not affiliated with or endorsed by Nous Research or the Hermes team. The current milestone is a dependable single-install Hermes client. Multi-host orchestration and Docker-agent lifecycle management are planned separately and should not be inferred from the remaining prototype screens.
+This is an independent community frontend and is not affiliated with or endorsed by Nous Research or the Hermes team. The current milestone is a dependable single-install Hermes client and honest, read-only operational visibility. Multi-host orchestration and Docker-agent lifecycle management are planned separately.

@@ -1,415 +1,216 @@
-<!DOCTYPE html><html class="dark" lang="en" style=""><head><link href="vendor/fonts.css" rel="stylesheet"><link href="vendor/material-symbols.css" rel="stylesheet"><title>Hermes Copilot — mesh-topology</title></head><body class="bg-background font-body-base text-body-base text-text-primary min-h-screen selection:bg-secondary-container selection:text-text-primary"><svg class="inline-defs-container" aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden"></svg><meta charset="utf-8"><meta content="width=device-width, initial-scale=1.0" name="viewport"><meta content="web_dashboard" name="shell-type">
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <meta content="web_dashboard" name="shell-type">
+  <title>Hermes Cockpit — Live service topology</title>
+  <link href="vendor/fonts.css" rel="stylesheet">
+  <link href="vendor/material-symbols.css" rel="stylesheet">
+  <script src="vendor/tailwindcss-cdn.js"></script>
+  <script id="tailwind-config">
+    tailwind.config = {darkMode:"class",theme:{extend:{
+      colors:{"surface-container-low":"#1a1a2a","inverse-surface":"#e3e0f7","on-surface":"#e3e0f7","surface-bright":"#383849","border-muted":"#3B4252","success":"#A3BE8C","surface-dim":"#121221","on-surface-variant":"#c0c8cb","primary":"#a3dcec","text-quaternary":"#616E88","surface":"#282A36","on-secondary-container":"#9bbcdd","on-primary":"#003640","surface-container":"#1e1e2e","primary-container":"#88c0d0","error":"#ffb4ab","outline-variant":"#40484b","secondary":"#a9caeb","text-primary":"#ECEFF4","surface-secondary":"#3B4252","text-tertiary":"#94A3B8","primary-fixed-dim":"#97cfe0","text-secondary":"#D8DEE9","text-mono":"#E5E9F0","outline":"#8a9295","surface-container-highest":"#333344","background":"#121221","surface-container-high":"#292839","border":"#4C566A","danger":"#BF616A","warning":"#EBCB8B"},
+      borderRadius:{"DEFAULT":"0.125rem","lg":"0.25rem","xl":"0.5rem","full":"0.75rem"},
+      spacing:{"space-xl":"1.5rem","margin":"1rem","space-lg":"1rem","space-xs":"0.25rem","gutter":"1rem","space-sm":"0.5rem","space-md":"0.75rem"},
+      fontFamily:{"label-caps":["Inter"],"body-base":["Inter"],"headline-md":["Inter"],"body-medium":["Inter"],"headline-sm":["Inter"],"code-mono":["JetBrains Mono"],"headline-lg":["Inter"],"body-sm":["Inter"],"code-xs":["JetBrains Mono"],"code-sm":["JetBrains Mono"]},
+      fontSize:{"label-caps":["11px",{"lineHeight":"14px","letterSpacing":"0.06em","fontWeight":"600"}],"body-base":["14px",{"lineHeight":"22px","fontWeight":"400"}],"headline-md":["20px",{"lineHeight":"28px","fontWeight":"600"}],"body-medium":["14px",{"lineHeight":"22px","fontWeight":"500"}],"headline-sm":["16px",{"lineHeight":"24px","fontWeight":"600"}],"code-mono":["13px",{"lineHeight":"20px","fontWeight":"400"}],"headline-lg":["28px",{"lineHeight":"36px","fontWeight":"700"}],"body-sm":["12px",{"lineHeight":"18px","fontWeight":"400"}],"code-xs":["11px",{"lineHeight":"16px","fontWeight":"500"}],"code-sm":["12px",{"lineHeight":"18px","fontWeight":"400"}]}
+    }}};
+  </script>
+  <style>
+    @layer base{html,body{margin:0;padding:0}body{overscroll-behavior:none}}
+    ::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{background:#3B4252;border-radius:8px}
+    .metric-value{min-height:2.25rem}.endpoint-row:last-child{border-bottom:0}
+    .topology-line{height:2px;background:linear-gradient(90deg,#88c0d0,#4C566A)}
+    .topology-line[data-state="error"]{background:linear-gradient(90deg,#BF616A,#4C566A)}
+    .topology-line[data-state="pending"]{background:#4C566A}
+    @media(max-width:767px){.desktop-arrow{transform:rotate(90deg)}}
+  </style>
+</head>
+<body class="bg-background font-body-base text-body-base text-text-primary min-h-screen selection:bg-secondary selection:text-background">
+  <div id="shared-header"></div>
+  <div id="shared-sidebar"></div>
+  <div class="pl-16">
+    <main data-workspace="true" class="relative pt-12 min-h-screen bg-background">
+      <section class="px-space-lg py-space-md bg-surface-container-low flex flex-col md:flex-row md:items-center justify-between gap-space-md">
+        <div>
+          <div class="flex flex-wrap items-center gap-space-sm mb-1">
+            <span class="font-code-xs text-code-xs text-primary px-space-xs py-0.5 rounded bg-surface font-semibold tracking-wider uppercase">F2 :: Live topology</span>
+            <span id="page-state" class="font-code-xs text-code-xs text-warning flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-warning animate-pulse"></span>Loading live services</span>
+          </div>
+          <h1 class="font-headline-lg text-headline-lg text-text-primary tracking-tight">Hermes service topology</h1>
+          <p class="font-body-sm text-body-sm text-text-secondary mt-0.5">Live, read-only visibility from the APIs this deployment actually exposes.</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-space-sm self-start md:self-auto">
+          <span id="last-updated" class="font-code-xs text-code-xs text-text-tertiary px-space-sm py-1.5 rounded bg-surface-container">Not refreshed yet</span>
+          <button id="refresh-btn" type="button" class="flex items-center gap-1.5 px-space-md py-1.5 rounded-lg bg-primary text-on-primary font-body-medium text-body-sm hover:bg-primary-container transition-all active:scale-95"><span class="material-symbols-outlined text-[16px]">refresh</span><span>Refresh live data</span></button>
+          <a href="/hermes/" target="_blank" rel="noreferrer" class="flex items-center gap-1.5 px-space-md py-1.5 rounded-lg bg-surface-secondary text-text-primary font-body-medium text-body-sm hover:bg-surface-bright transition-colors"><span class="material-symbols-outlined text-[16px] text-primary">open_in_new</span><span>Hermes admin</span></a>
+        </div>
+      </section>
 
-<style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="vendor/tailwindcss-cdn.js"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{colors:{"surface-container-low":"#1a1a2a","tertiary-fixed-dim":"#e3badb","on-secondary-fixed-variant":"#294965","inverse-surface":"#e3e0f7","on-surface":"#e3e0f7","on-tertiary-fixed":"#2c122a","on-primary-fixed":"#001f26","on-tertiary-container":"#5d3e59","surface-bright":"#383849","border-muted":"#3B4252","orange":"#D08770","on-secondary-fixed":"#001d32","success":"#A3BE8C","surface-dim":"#121221","on-surface-variant":"#c0c8cb","primary":"#a3dcec","text-quaternary":"#616E88","surface":"#282A36","on-secondary-container":"#9bbcdd","on-primary":"#003640","surface-container":"#1e1e2e","primary-container":"#88c0d0","error":"#ffb4ab","outline-variant":"#40484b","on-error-container":"#ffdad6","on-primary-fixed-variant":"#094e5c","secondary":"#a9caeb","on-error":"#690005","tertiary-container":"#d3abcb","on-tertiary":"#432740","surface-tint":"#97cfe0","inverse-primary":"#2b6674","text-primary":"#ECEFF4","surface-secondary":"#3B4252","on-tertiary-fixed-variant":"#5b3d57","surface-container-lowest":"#0d0d1c","primary-fixed-dim":"#97cfe0","secondary-container":"#2b4c68","secondary-fixed-dim":"#a9caeb","text-tertiary":"#94A3B8","primary-fixed":"#b3ecfc","text-secondary":"#D8DEE9","text-mono":"#E5E9F0","on-secondary":"#0e334e","outline":"#8a9295","on-background":"#e3e0f7","surface-container-highest":"#333344","surface-variant":"#333344","background":"#121221","tertiary":"#f0c6e7","inverse-on-surface":"#2f2f40","surface-container-high":"#292839","on-primary-container":"#0c4f5d","error-container":"#93000a","tertiary-fixed":"#ffd7f6","border":"#4C566A","danger":"#BF616A","secondary-fixed":"#cee5ff","warning":"#EBCB8B"},borderRadius:{"DEFAULT":"0.125rem","lg":"0.25rem","xl":"0.5rem","full":"0.75rem"},spacing:{"space-xl":"1.5rem","margin":"1rem","space-lg":"1rem","space-xs":"0.25rem","gutter":"1rem","space-sm":"0.5rem","space-md":"0.75rem"},fontFamily:{"label-caps":["Inter"],"body-base":["Inter"],"headline-md":["Inter"],"body-medium":["Inter"],"headline-sm":["Inter"],"code-mono":["JetBrains Mono"],"headline-lg":["Inter"],"body-sm":["Inter"],"code-xs":["JetBrains Mono"],"code-sm":["JetBrains Mono"]},fontSize:{"label-caps":["11px",{"lineHeight":"14px","letterSpacing":"0.06em","fontWeight":"600"}],"body-base":["14px",{"lineHeight":"22px","fontWeight":"400"}],"headline-md":["20px",{"lineHeight":"28px","letterSpacing":"-0.01em","fontWeight":"600"}],"body-medium":["14px",{"lineHeight":"22px","fontWeight":"500"}],"headline-sm":["16px",{"lineHeight":"24px","letterSpacing":"-0.005em","fontWeight":"600"}],"code-mono":["13px",{"lineHeight":"20px","fontWeight":"400"}],"headline-lg":["28px",{"lineHeight":"36px","letterSpacing":"-0.02em","fontWeight":"700"}],"body-sm":["12px",{"lineHeight":"18px","fontWeight":"400"}],"code-xs":["11px",{"lineHeight":"16px","letterSpacing":"0.02em","fontWeight":"500"}],"code-sm":["12px",{"lineHeight":"18px","fontWeight":"400"}]}}}};</script><div id="shared-header"></div><div id="shared-sidebar"></div><div class="pl-16"><main data-workspace="true" class="relative pt-12 min-h-screen bg-background"><div class="flex flex-col w-full">
-<div class="px-space-lg py-space-md bg-surface-container-low flex flex-col md:flex-row md:items-center justify-between gap-space-md">
-<div class="flex flex-col">
-<div class="flex items-center gap-space-sm mb-1">
-<span class="font-code-xs text-code-xs text-primary px-space-xs py-0.5 rounded bg-surface font-semibold tracking-wider uppercase">F2 :: Topology</span>
-<span class="text-text-quaternary font-code-xs text-code-xs">•</span>
-<span class="font-code-xs text-code-xs text-success flex items-center gap-1">
-<span class="w-1.5 h-1.5 rounded-full bg-success animate-ping"></span>
-          WireGuard Mesh Synchronized
-        </span>
-</div>
-<h1 class="font-headline-lg text-headline-lg text-text-primary tracking-tight">Tailscale Mesh Topology &amp; Multi-Agent Swarm</h1>
-<p class="font-body-sm text-body-sm text-text-secondary mt-0.5">Live peer-to-peer Tailscale WireGuard interconnect map, node health, and subagent RPC routing.</p>
-</div>
-<div class="flex items-center gap-space-sm self-start md:self-auto">
-<div class="flex items-center gap-1.5 px-space-md py-1.5 rounded-lg bg-surface-container font-code-xs text-code-xs text-text-secondary">
-<span class="material-symbols-outlined text-[16px] text-text-tertiary">lock</span>
-<span class="">ChaCha20-Poly1305</span>
-</div>
-<button class="flex items-center gap-1.5 px-space-md py-1.5 rounded-lg bg-primary text-on-primary font-body-medium text-body-sm shadow hover:bg-primary-container transition-all active:scale-95" id="forceMeshSyncBtn" type="button">
-<span class="material-symbols-outlined text-[16px]">sync</span>
-<span class="">Rescan Mesh</span>
-</button>
-</div>
-</div>
-<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-space-sm p-space-lg bg-surface-dim">
-<div class="bg-surface-container p-space-md rounded-lg flex flex-col justify-between">
-<div class="flex items-center justify-between mb-space-sm">
-<span class="font-label-caps text-label-caps text-text-quaternary uppercase">Swarm Density</span>
-<span class="material-symbols-outlined text-[16px] text-primary">hub</span>
-</div>
-<div class="flex items-baseline gap-space-sm">
-<span class="font-code-mono text-headline-lg text-text-primary">5</span>
-<span class="font-code-xs text-code-xs text-text-secondary">Nodes Registered</span>
-</div>
-<div class="flex items-center gap-1.5 mt-2 font-code-xs text-code-xs">
-<span class="px-1.5 py-0.5 rounded bg-success/20 text-success font-semibold">3 Active</span>
-<span class="px-1.5 py-0.5 rounded bg-surface-secondary text-primary font-semibold">1 Idle</span>
-<span class="px-1.5 py-0.5 rounded bg-warning/20 text-warning font-semibold">1 Standby</span>
-</div>
-</div>
-<div class="bg-surface-container p-space-md rounded-lg flex flex-col justify-between">
-<div class="flex items-center justify-between mb-space-sm">
-<span class="font-label-caps text-label-caps text-text-quaternary uppercase">WireGuard Transport</span>
-<span class="material-symbols-outlined text-[16px] text-success">terminal</span>
-</div>
-<div class="flex items-baseline gap-space-sm">
-<span class="font-code-mono text-headline-md text-primary tracking-tight">ACP v1.4</span>
-<span class="font-code-xs text-code-xs text-text-quaternary">TCP/JSON-RPC</span>
-</div>
-<div class="flex items-center justify-between mt-2 font-code-xs text-code-xs text-text-secondary">
-<span class="">Handshake Cycle</span>
-<span class="font-code-mono text-success">Every 15000ms</span>
-</div>
-</div>
-<div class="bg-surface-container p-space-md rounded-lg flex flex-col justify-between">
-<div class="flex items-center justify-between mb-space-sm">
-<span class="font-label-caps text-label-caps text-text-quaternary uppercase">Mesh Uptime &amp; Latency</span>
-<span class="material-symbols-outlined text-[16px] text-warning">speed</span>
-</div>
-<div class="flex items-baseline gap-space-sm">
-<span class="font-code-mono text-headline-lg text-text-primary">11.4<span class="text-body-sm font-normal text-text-tertiary">ms</span></span>
-<span class="font-code-xs text-code-xs text-success">99.98% Avail</span>
-</div>
-<div class="w-full bg-surface-container-low rounded-full h-1 mt-2 overflow-hidden">
-<div class="bg-primary h-full w-[94%]"></div>
-</div>
-</div>
-<div class="bg-surface-container p-space-md rounded-lg flex flex-col justify-between">
-<div class="flex items-center justify-between mb-space-sm">
-<span class="font-label-caps text-label-caps text-text-quaternary uppercase">Subagent Workload</span>
-<span class="material-symbols-outlined text-[16px] text-tertiary">memory</span>
-</div>
-<div class="flex items-baseline gap-space-sm">
-<span class="font-code-mono text-headline-lg text-text-primary">1.42<span class="text-body-sm font-normal text-text-tertiary">GB</span></span>
-<span class="font-code-xs text-code-xs text-text-quaternary">Aggregate RAM</span>
-</div>
-<div class="flex items-center justify-between mt-2 font-code-xs text-code-xs text-text-secondary">
-<span class="">Channel Ingestion</span>
-<span class="font-code-mono text-primary">382 req/min</span>
-</div>
-</div>
-</div>
-<div class="px-space-lg py-space-sm">
-<div class="relative bg-surface-container-lowest rounded-xl overflow-hidden shadow-2xl">
-<div class="absolute inset-0 opacity-15 pointer-events-none" style="background-image: radial-gradient(#4C566A 1px, transparent 1px); background-size: 24px 24px;"></div>
-<div class="relative z-10 flex items-center justify-between px-space-md py-space-sm bg-surface-container-low/90 backdrop-blur">
-<div class="flex items-center gap-space-md">
-<div class="flex items-center gap-1.5 font-code-xs text-code-xs text-text-primary">
-<span class="material-symbols-outlined text-[16px] text-primary">schema</span>
-<span class="font-semibold uppercase tracking-wider">Topology Canvas</span>
-</div>
-<span class="text-text-quaternary text-code-xs">|</span>
-<span class="font-code-xs text-code-xs text-text-tertiary">Interactive Node Map</span>
-</div>
-<div class="flex items-center gap-space-sm">
-<div class="hidden sm:flex items-center gap-2 font-code-xs text-code-xs bg-surface px-space-sm py-1 rounded">
-<span class="inline-block w-2 h-2 rounded-full bg-success"></span>
-<span class="text-text-secondary">Active</span>
-<span class="inline-block w-2 h-2 rounded-full bg-primary ml-1"></span>
-<span class="text-text-secondary">Idle</span>
-<span class="inline-block w-2 h-2 rounded-full bg-warning ml-1"></span>
-<span class="text-text-secondary">Standby</span>
-</div>
-<button class="px-space-sm py-1 rounded bg-surface-secondary text-text-secondary hover:text-text-primary font-code-xs text-code-xs transition-colors" id="resetZoomBtn" type="button">
-            Reset View
-          </button>
-</div>
-</div>
-<div class="relative w-full h-[520px] overflow-hidden select-none" id="viewportStage">
-<svg class="absolute inset-0 w-full h-full pointer-events-none" xmlns="http://www.w3.org/2000/svg">
-<defs>
-<linearGradient id="vectorCyan" x1="0%" x2="100%" y1="0%" y2="100%">
-<stop offset="0%" stop-color="#88c0d0" stop-opacity="0.8"></stop>
-<stop offset="100%" stop-color="#a3dcec" stop-opacity="0.2"></stop>
-</linearGradient>
-<linearGradient id="vectorSuccess" x1="0%" x2="100%" y1="0%" y2="100%">
-<stop offset="0%" stop-color="#88c0d0" stop-opacity="0.6"></stop>
-<stop offset="100%" stop-color="#A3BE8C" stop-opacity="0.8"></stop>
-</linearGradient>
-<filter height="140%" id="glow" width="140%" x="-20%" y="-20%">
-<feGaussianBlur result="blur" stdDeviation="3"></feGaussianBlur>
-<feComposite in="SourceGraphic" in2="blur" operator="over"></feComposite>
-</filter>
-</defs>
-<!-- Vector Lines from Hermes-Prime (50%, 48%) -->
-<line opacity="0.6" stroke="#4C566A" stroke-dasharray="4 4" stroke-width="2" x1="50%" x2="20%" y1="48%" y2="28%"></line>
-<line opacity="0.6" stroke="#4C566A" stroke-dasharray="4 4" stroke-width="2" x1="50%" x2="80%" y1="48%" y2="28%"></line>
-<line opacity="0.6" stroke="#4C566A" stroke-dasharray="4 4" stroke-width="2" x1="50%" x2="24%" y1="48%" y2="76%"></line>
-<line opacity="0.6" stroke="#4C566A" stroke-dasharray="4 4" stroke-width="2" x1="50%" x2="76%" y1="48%" y2="76%"></line>
-<!-- Dynamic Pulse Overlays -->
-<line filter="url(#glow)" opacity="0.9" stroke="url(#vectorSuccess)" stroke-width="2" x1="50%" x2="20%" y1="48%" y2="28%">
-<animate attributeName="stroke-dasharray" dur="2s" repeatCount="indefinite" values="6,12;12,6;6,12"></animate>
-</line>
-<line opacity="0.8" stroke="url(#vectorCyan)" stroke-width="2" x1="50%" x2="80%" y1="48%" y2="28%"></line>
-<line opacity="0.8" stroke="url(#vectorSuccess)" stroke-width="2" x1="50%" x2="24%" y1="48%" y2="76%"></line>
-<line opacity="0.7" stroke="#EBCB8B" stroke-dasharray="2 4" stroke-width="1.5" x1="50%" x2="76%" y1="48%" y2="76%"></line>
-<!-- Data transfer badges mid-line -->
-<rect fill="#1e1e2e" height="18" opacity="0.9" rx="4" width="78" x="33%" y="37%"></rect>
-<text fill="#A3BE8C" font-family="JetBrains Mono" font-size="9" font-weight="600" x="34%" y="38.5%">142.4 KB/s</text>
-<rect fill="#1e1e2e" height="18" opacity="0.9" rx="4" width="72" x="62%" y="37%"></rect>
-<text fill="#88c0d0" font-family="JetBrains Mono" font-size="9" font-weight="600" x="63%" y="38.5%">28.1 KB/s</text>
-<rect fill="#1e1e2e" height="18" opacity="0.9" rx="4" width="70" x="34%" y="60%"></rect>
-<text fill="#A3BE8C" font-family="JetBrains Mono" font-size="9" font-weight="600" x="35%" y="61.5%">96.0 KB/s</text>
-<rect fill="#1e1e2e" height="18" opacity="0.9" rx="4" width="70" x="62%" y="60%"></rect>
-<text fill="#EBCB8B" font-family="JetBrains Mono" font-size="9" font-weight="600" x="63%" y="61.5%">4.2 KB/s</text>
-</svg>
-<!-- NODE: HERMES-PRIME (CENTER SUPERVISOR) -->
-<div class="absolute top-[48%] left-[50%] -translate-x-1/2 -translate-y-1/2 z-20 cursor-pointer node-card" data-node="hermes-prime">
-<div class="relative bg-surface p-space-md rounded-xl shadow-xl w-64 hover:scale-105 transition-transform duration-200">
-<div class="flex items-center justify-between mb-1.5">
-<span class="px-1.5 py-0.5 rounded bg-primary/20 text-primary font-label-caps text-[10px] uppercase font-bold tracking-wider">Supervisor Node</span>
-<span class="w-2.5 h-2.5 rounded-full bg-primary animate-pulse"></span>
-</div>
-<div class="flex items-center gap-1.5 mb-1">
-<span class="material-symbols-outlined text-[18px] text-primary">stars</span>
-<span class="font-headline-sm text-headline-sm text-text-primary">Hermes-Prime</span>
-</div>
-<div class="font-code-mono text-code-xs text-text-tertiary mb-2">100.84.12.9:8787</div>
-<div class="grid grid-cols-3 gap-1 pt-1.5 bg-surface-container-low/60 rounded px-1.5 py-1 font-code-xs text-[10px]">
-<div>
-<span class="text-text-quaternary block">CPU</span>
-<span class="text-text-primary font-bold">34%</span>
-</div>
-<div>
-<span class="text-text-quaternary block">RAM</span>
-<span class="text-text-primary font-bold">512MB</span>
-</div>
-<div>
-<span class="text-text-quaternary block">LATENCY</span>
-<span class="text-success font-bold">0ms</span>
-</div>
-</div>
-</div>
-</div>
-<!-- NODE 1: AGENT-ALPHA (TOP LEFT) -->
-<div class="absolute top-[28%] left-[20%] -translate-x-1/2 -translate-y-1/2 z-20 cursor-pointer node-card" data-node="agent-alpha">
-<div class="relative bg-surface-container p-space-md rounded-xl shadow-lg w-56 hover:scale-105 transition-transform duration-200">
-<div class="flex items-center justify-between mb-1">
-<span class="px-1.5 py-0.5 rounded bg-success/20 text-success font-label-caps text-[10px] uppercase font-semibold">Primary Worker</span>
-<span class="w-2 h-2 rounded-full bg-success"></span>
-</div>
-<div class="flex items-center gap-1.5 mb-0.5">
-<span class="material-symbols-outlined text-[16px] text-success">security</span>
-<span class="font-body-medium text-body-sm text-text-primary font-semibold">Agent-Alpha</span>
-</div>
-<div class="font-code-mono text-code-xs text-text-tertiary mb-1.5">100.84.12.9:8788</div>
-<div class="flex items-center justify-between font-code-xs text-[10px] text-text-secondary bg-surface-container-lowest px-1.5 py-0.5 rounded">
-<span class="truncate max-w-[120px] text-primary">Audit sec-ops</span>
-<span class="text-success font-bold font-code-mono">9ms</span>
-</div>
-</div>
-</div>
-<!-- NODE 2: AGENT-BETA (TOP RIGHT) -->
-<div class="absolute top-[28%] left-[80%] -translate-x-1/2 -translate-y-1/2 z-20 cursor-pointer node-card" data-node="agent-beta">
-<div class="relative bg-surface-container p-space-md rounded-xl shadow-lg w-56 hover:scale-105 transition-transform duration-200">
-<div class="flex items-center justify-between mb-1">
-<span class="px-1.5 py-0.5 rounded bg-surface-secondary text-primary font-label-caps text-[10px] uppercase font-semibold">Synthesis Worker</span>
-<span class="w-2 h-2 rounded-full bg-primary"></span>
-</div>
-<div class="flex items-center gap-1.5 mb-0.5">
-<span class="material-symbols-outlined text-[16px] text-primary">code</span>
-<span class="font-body-medium text-body-sm text-text-primary font-semibold">Agent-Beta</span>
-</div>
-<div class="font-code-mono text-code-xs text-text-tertiary mb-1.5">100.92.4.15:8787</div>
-<div class="flex items-center justify-between font-code-xs text-[10px] text-text-secondary bg-surface-container-lowest px-1.5 py-0.5 rounded">
-<span class="text-text-tertiary">AWS us-east-1</span>
-<span class="text-primary font-bold font-code-mono">14ms</span>
-</div>
-</div>
-</div>
-<!-- NODE 3: RESEARCH-WORKER-03 (BOTTOM LEFT) -->
-<div class="absolute top-[76%] left-[24%] -translate-x-1/2 -translate-y-1/2 z-20 cursor-pointer node-card" data-node="research-worker-03">
-<div class="relative bg-surface-container p-space-md rounded-xl shadow-lg w-56 hover:scale-105 transition-transform duration-200">
-<div class="flex items-center justify-between mb-1">
-<span class="px-1.5 py-0.5 rounded bg-success/20 text-success font-label-caps text-[10px] uppercase font-semibold">Subagent Exec</span>
-<span class="w-2 h-2 rounded-full bg-success"></span>
-</div>
-<div class="flex items-center gap-1.5 mb-0.5">
-<span class="material-symbols-outlined text-[16px] text-success">psychology</span>
-<span class="font-body-medium text-body-sm text-text-primary font-semibold truncate">Research-Worker-03</span>
-</div>
-<div class="font-code-mono text-code-xs text-text-tertiary mb-1.5">100.104.7.1:8787</div>
-<div class="flex items-center justify-between font-code-xs text-[10px] text-text-secondary bg-surface-container-lowest px-1.5 py-0.5 rounded">
-<span class="text-text-tertiary">PID 8812 [DeepSearch]</span>
-<span class="text-success font-bold font-code-mono">12ms</span>
-</div>
-</div>
-</div>
-<!-- NODE 4: EDGE-TESTER-NODE (BOTTOM RIGHT) -->
-<div class="absolute top-[76%] left-[76%] -translate-x-1/2 -translate-y-1/2 z-20 cursor-pointer node-card" data-node="edge-tester-node">
-<div class="relative bg-surface-container p-space-md rounded-xl shadow-lg w-56 hover:scale-105 transition-transform duration-200">
-<div class="flex items-center justify-between mb-1">
-<span class="px-1.5 py-0.5 rounded bg-warning/20 text-warning font-label-caps text-[10px] uppercase font-semibold">Local Peer</span>
-<span class="w-2 h-2 rounded-full bg-warning"></span>
-</div>
-<div class="flex items-center gap-1.5 mb-0.5">
-<span class="material-symbols-outlined text-[16px] text-warning">laptop_mac</span>
-<span class="font-body-medium text-body-sm text-text-primary font-semibold truncate">Edge-Tester-Node</span>
-</div>
-<div class="font-code-mono text-code-xs text-text-tertiary mb-1.5">100.76.19.4:8787</div>
-<div class="flex items-center justify-between font-code-xs text-[10px] text-text-secondary bg-surface-container-lowest px-1.5 py-0.5 rounded">
-<span class="text-text-tertiary">macOS M3 Max</span>
-<span class="text-warning font-bold font-code-mono">4ms</span>
-</div>
-</div>
-</div>
-<div class="absolute bottom-3 left-3 bg-surface-container-low/90 backdrop-blur px-space-md py-1.5 rounded-lg flex items-center gap-space-md font-code-xs text-code-xs text-text-quaternary">
-<span class="flex items-center gap-1 text-text-secondary">
-<span class="material-symbols-outlined text-[14px] text-primary">lock_clock</span>
-<span class="">WG Mesh Key Rotation: 18m left</span>
-</span>
-<span class="text-text-quaternary">•</span>
-<span class="">DERP Relay: <span class="text-success font-code-mono">Direct P2P (No Relay)</span></span>
-</div>
-</div>
-</div>
-</div>
-<div class="p-space-lg grid grid-cols-1 lg:grid-cols-12 gap-space-lg">
-<div class="lg:col-span-5 bg-surface-container rounded-xl p-space-lg flex flex-col justify-between shadow-lg">
-<div class="flex flex-col">
-<div class="flex items-center justify-between pb-space-sm mb-space-md">
-<div class="flex items-center gap-space-sm">
-<div class="w-8 h-8 rounded-lg bg-surface-secondary flex items-center justify-center text-primary">
-<span class="material-symbols-outlined text-[20px]">router</span>
-</div>
-<div>
-<div class="flex items-center gap-2">
-<span class="font-headline-sm text-headline-sm text-text-primary" id="detailNodeName">Agent-Alpha</span>
-<span class="px-1.5 py-0.2 rounded bg-success/20 text-success font-code-xs text-[10px] uppercase font-bold" id="detailNodeStatus">Active Primary</span>
-</div>
-<span class="font-code-xs text-code-xs text-text-tertiary">Node Inspector &amp; RPC Bus</span>
-</div>
-</div>
-<span class="material-symbols-outlined text-[18px] text-text-quaternary cursor-pointer hover:text-text-primary">more_vert</span>
-</div>
-<div class="grid grid-cols-2 gap-space-sm mb-space-md font-code-xs text-code-xs">
-<div class="bg-surface-container-low p-space-sm rounded-lg">
-<span class="text-text-quaternary block mb-0.5">Tailscale Mesh IP</span>
-<span class="text-text-primary font-code-mono font-semibold" id="detailNodeIp">100.84.12.9:8788</span>
-</div>
-<div class="bg-surface-container-low p-space-sm rounded-lg">
-<span class="text-text-quaternary block mb-0.5">WireGuard PubKey</span>
-<span class="text-text-primary font-code-mono truncate block" id="detailNodeKey" title="k8Jv...mQ9=">k8Jv2x...9Qm9=</span>
-</div>
-</div>
-<div class="bg-surface-container-low p-space-md rounded-lg mb-space-md flex flex-col gap-2">
-<span class="font-label-caps text-label-caps text-text-quaternary uppercase">Active Execution Context</span>
-<div class="flex items-center justify-between text-body-sm">
-<span class="text-text-secondary flex items-center gap-1.5 font-code-mono">
-<span class="material-symbols-outlined text-[15px] text-primary">folder_open</span>
-<span id="detailWorktree" class="">/tmp/hermes-wt-992</span>
-</span>
-<span class="px-2 py-0.5 rounded bg-surface-secondary text-primary font-code-mono text-code-xs" id="detailBranch">feat/deadlock-fix</span>
-</div>
-<div class="flex items-center justify-between text-body-sm pt-1">
-<span class="text-text-quaternary font-code-xs">Current Task</span>
-<span class="text-text-secondary font-body-sm font-medium" id="detailTask">Static concurrency audit via Rust-analyzer</span>
-</div>
-</div>
-<div class="grid grid-cols-2 gap-space-sm mb-space-md font-code-xs text-code-xs">
-<div class="bg-surface-container-lowest p-space-sm rounded-lg flex items-center justify-between">
-<span class="text-text-quaternary">RPC Frame Rate</span>
-<span class="text-success font-code-mono font-bold">42 msg/sec</span>
-</div>
-<div class="bg-surface-container-lowest p-space-sm rounded-lg flex items-center justify-between">
-<span class="text-text-quaternary">Dropped Frames</span>
-<span class="text-text-primary font-code-mono font-bold">0</span>
-</div>
-</div>
-</div>
-<div class="flex flex-col gap-2 pt-space-sm">
-<span class="font-label-caps text-label-caps text-text-quaternary uppercase">Node Actions</span>
-<div class="grid grid-cols-2 gap-2">
-<button class="action-btn flex items-center justify-center gap-1.5 px-space-sm py-2 rounded-lg bg-surface-secondary hover:bg-surface-bright text-text-primary font-body-medium text-body-sm transition-all" data-action="ping" type="button">
-<span class="material-symbols-outlined text-[16px] text-primary">radar</span>
-<span class="">Ping / Trace</span>
-</button>
-<button class="action-btn flex items-center justify-center gap-1.5 px-space-sm py-2 rounded-lg bg-surface-secondary hover:bg-surface-bright text-text-primary font-body-medium text-body-sm transition-all" data-action="memory" type="button">
-<span class="material-symbols-outlined text-[16px] text-warning">memory</span>
-<span class="">Inspect RAM</span>
-</button>
-<button class="action-btn flex items-center justify-center gap-1.5 px-space-sm py-2 rounded-lg bg-surface-secondary hover:bg-surface-bright text-text-primary font-body-medium text-body-sm transition-all" data-action="restart" type="button">
-<span class="material-symbols-outlined text-[16px] text-primary">restart_alt</span>
-<span class="">Reboot Daemon</span>
-</button>
-<button class="action-btn flex items-center justify-center gap-1.5 px-space-sm py-2 rounded-lg bg-danger/20 hover:bg-danger/30 text-danger font-body-medium text-body-sm transition-all" data-action="detach" type="button">
-<span class="material-symbols-outlined text-[16px]">link_off</span>
-<span class="">Detach Peer</span>
-</button>
-</div>
-</div>
-</div>
-<div class="lg:col-span-7 bg-surface-container rounded-xl p-space-lg flex flex-col justify-between shadow-lg">
-<div class="flex items-center justify-between pb-space-sm mb-space-sm">
-<div class="flex items-center gap-space-sm">
-<span class="material-symbols-outlined text-[18px] text-primary">terminal</span>
-<span class="font-headline-sm text-headline-sm text-text-primary">Swarm Event Stream Log</span>
-</div>
-<div class="flex items-center gap-2">
-<span class="font-code-xs text-code-xs text-text-quaternary">Filter: All Peers</span>
-<button class="font-code-xs text-code-xs px-2 py-0.5 rounded bg-surface hover:bg-surface-secondary text-text-tertiary hover:text-text-primary transition-colors" id="clearLogBtn" type="button">Clear</button>
-</div>
-</div>
-<div class="bg-surface-container-lowest rounded-lg p-space-md font-code-mono text-code-xs overflow-y-auto max-h-[290px] flex flex-col gap-1.5 selection:bg-surface-secondary" id="eventStreamLog">
-<div class="flex items-start gap-2">
-<span class="text-text-quaternary select-none">14:28:01.092</span>
-<span class="text-primary font-bold">[DISCOVERY]</span>
-<span class="text-text-secondary">Node Agent-Alpha registered over Tailscale IP <span class="text-text-primary">100.84.12.9:8788</span></span>
-</div>
-<div class="flex items-start gap-2">
-<span class="text-text-quaternary select-none">14:28:01.144</span>
-<span class="text-success font-bold">[HANDSHAKE]</span>
-<span class="text-text-secondary">WireGuard ChaCha20 tunnel verified for peer <span class="text-text-primary">Agent-Beta</span> (RTT 14ms)</span>
-</div>
-<div class="flex items-start gap-2">
-<span class="text-text-quaternary select-none">14:28:02.301</span>
-<span class="text-warning font-bold">[RPC-ROUTER]</span>
-<span class="text-text-secondary">Subagent delegation handoff: <span class="text-text-primary">Hermes-Prime</span> -&gt; <span class="text-primary">Research-Worker-03</span> [Method: acp.executeTree]</span>
-</div>
-<div class="flex items-start gap-2">
-<span class="text-text-quaternary select-none">14:28:04.992</span>
-<span class="text-text-tertiary font-bold">[KEEP-ALIVE]</span>
-<span class="text-text-secondary">SYN-ACK mesh sweep confirmed across 5/5 peers. Dropped: 0.</span>
-</div>
-<div class="flex items-start gap-2">
-<span class="text-text-quaternary select-none">14:28:06.120</span>
-<span class="text-primary font-bold">[TELEMETRY]</span>
-<span class="text-text-secondary">Edge-Tester-Node reports idle warm state (RAM 184MB, M3 unified mem ready).</span>
-</div>
-<div class="flex items-start gap-2">
-<span class="text-text-quaternary select-none">14:28:07.412</span>
-<span class="text-success font-bold">[SUBAGENT]</span>
-<span class="text-text-secondary">Research-Worker-03 completed embedding traversal pass. 14 chunks indexed.</span>
-</div>
-</div>
-<div class="mt-space-md pt-space-sm flex items-center justify-between text-code-xs font-code-xs text-text-quaternary">
-<div class="flex items-center gap-1.5">
-<span class="w-1.5 h-1.5 rounded-full bg-success"></span>
-<span class="">ACP JSON-RPC Socket Stream Open</span>
-</div>
-<span class="">Buffer: 4.8 KB / 64 KB</span>
-</div>
-</div>
-</div>
-<div class="px-space-lg pb-space-lg">
-<div class="bg-surface-container p-space-md rounded-xl flex flex-col md:flex-row items-center justify-between gap-space-md">
-<div class="flex items-center gap-space-md">
-<span class="material-symbols-outlined text-[24px] text-primary">security_update_good</span>
-<div class="flex flex-col">
-<span class="font-body-medium text-body-base text-text-primary">Mesh Subagent Security Policy</span>
-<span class="font-body-sm text-body-sm text-text-secondary">Zero-trust cryptographic isolation active. Direct memory access requires signed supervisor bearer tokens.</span>
-</div>
-</div>
-<div class="flex items-center gap-space-sm">
-<button class="px-space-md py-1.5 rounded bg-surface hover:bg-surface-secondary text-text-secondary font-code-xs text-code-xs transition-colors" id="viewAclBtn" type="button">
-          View ACL Rules
-        </button>
-<button class="px-space-md py-1.5 rounded bg-surface-secondary hover:bg-surface-bright text-primary font-code-xs text-code-xs transition-colors" id="exportMeshCfgBtn" type="button">
-          Export Mesh Config
-        </button>
-</div>
-</div>
-</div>
-</div></main></div>
+      <section class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-space-sm p-space-lg bg-surface-dim" aria-label="Live summary">
+        <article class="bg-surface-container p-space-md rounded-lg"><div class="flex items-center justify-between mb-space-sm"><span class="font-label-caps text-label-caps text-text-quaternary uppercase">Hermes API</span><span id="health-icon" class="material-symbols-outlined text-[18px] text-warning">pending</span></div><div id="health-value" class="metric-value font-code-mono text-headline-md text-text-primary">Checking…</div><div id="health-detail" class="font-code-xs text-code-xs text-text-tertiary mt-1">/hermes/api/health</div></article>
+        <article class="bg-surface-container p-space-md rounded-lg"><div class="flex items-center justify-between mb-space-sm"><span class="font-label-caps text-label-caps text-text-quaternary uppercase">Configured profiles</span><span class="material-symbols-outlined text-[18px] text-primary">groups</span></div><div id="profiles-value" class="metric-value font-code-mono text-headline-lg text-text-primary">—</div><div id="profiles-detail" class="font-code-xs text-code-xs text-text-tertiary mt-1">Waiting for Hermes</div></article>
+        <article class="bg-surface-container p-space-md rounded-lg"><div class="flex items-center justify-between mb-space-sm"><span class="font-label-caps text-label-caps text-text-quaternary uppercase">Recent sessions</span><span class="material-symbols-outlined text-[18px] text-primary">forum</span></div><div id="sessions-value" class="metric-value font-code-mono text-headline-lg text-text-primary">—</div><div id="sessions-detail" class="font-code-xs text-code-xs text-text-tertiary mt-1">Up to 20 most recent</div></article>
+        <article class="bg-surface-container p-space-md rounded-lg"><div class="flex items-center justify-between mb-space-sm"><span class="font-label-caps text-label-caps text-text-quaternary uppercase">Host statistics</span><span class="material-symbols-outlined text-[18px] text-primary">monitor_heart</span></div><div id="stats-value" class="metric-value font-code-mono text-headline-md text-text-primary">Checking…</div><div id="stats-detail" class="font-code-xs text-code-xs text-text-tertiary mt-1">/hermes/api/system/stats</div></article>
+      </section>
 
+      <div id="auth-notice" class="hidden mx-space-lg mt-space-lg p-space-md rounded-xl border border-warning/40 bg-warning/10 flex-col md:flex-row md:items-center justify-between gap-space-md">
+        <div class="flex items-start gap-space-sm"><span class="material-symbols-outlined text-warning">lock</span><div><div class="font-body-medium text-text-primary">Hermes authentication required</div><p class="font-body-sm text-body-sm text-text-secondary">Sign in to Hermes, then return here and refresh. Cockpit does not collect or store your credentials.</p></div></div>
+        <a href="/hermes/login?next=%2Fcockpit%2Fmesh-topology.html" class="shrink-0 px-space-md py-2 rounded-lg bg-warning text-background font-body-medium text-body-sm">Sign in to Hermes</a>
+      </div>
 
+      <section class="p-space-lg grid grid-cols-1 xl:grid-cols-12 gap-space-md">
+        <article class="xl:col-span-8 bg-surface-container-lowest rounded-xl overflow-hidden shadow-xl">
+          <header class="px-space-md py-space-sm bg-surface-container-low flex flex-col sm:flex-row sm:items-center justify-between gap-space-sm">
+            <div><h2 class="font-headline-sm text-headline-sm text-text-primary flex items-center gap-2"><span class="material-symbols-outlined text-[18px] text-primary">account_tree</span>Observed request path</h2><p class="font-code-xs text-code-xs text-text-tertiary">Logical service relationships verified by same-origin HTTP requests</p></div>
+            <span class="font-code-xs text-code-xs px-2 py-1 rounded bg-surface text-text-tertiary">Not a Tailscale peer map</span>
+          </header>
+          <div class="p-space-lg min-h-[330px] flex flex-col md:flex-row items-stretch md:items-center justify-center gap-space-md">
+            <div class="bg-surface-container p-space-md rounded-xl border border-border-muted/50 md:w-48"><div class="flex items-center justify-between"><span class="font-label-caps text-label-caps text-primary uppercase">Client</span><span class="material-symbols-outlined text-primary">web</span></div><div class="font-body-medium text-text-primary mt-2">This browser</div><div class="font-code-xs text-code-xs text-text-tertiary mt-1">Same-origin session</div></div>
+            <div class="flex md:flex-col items-center justify-center md:w-24 gap-1"><div class="topology-line flex-1 md:w-full" data-state="pending" id="portal-line"></div><span class="material-symbols-outlined desktop-arrow text-text-quaternary">arrow_forward</span><div class="font-code-xs text-[10px] text-text-quaternary whitespace-nowrap">HTTPS</div></div>
+            <div class="bg-surface-container p-space-md rounded-xl border border-border-muted/50 md:w-56"><div class="flex items-center justify-between"><span class="font-label-caps text-label-caps text-primary uppercase">Gateway</span><span id="portal-dot" class="w-2 h-2 rounded-full bg-warning"></span></div><div class="font-body-medium text-text-primary mt-2">Hermes Cockpit portal</div><div id="portal-map-detail" class="font-code-xs text-code-xs text-text-tertiary mt-1">Checking /api/health</div></div>
+            <div class="flex md:flex-col items-center justify-center md:w-24 gap-1"><div class="topology-line flex-1 md:w-full" data-state="pending" id="hermes-line"></div><span class="material-symbols-outlined desktop-arrow text-text-quaternary">arrow_forward</span><div class="font-code-xs text-[10px] text-text-quaternary whitespace-nowrap">reverse proxy</div></div>
+            <div class="bg-surface-container p-space-md rounded-xl border border-border-muted/50 md:w-56"><div class="flex items-center justify-between"><span class="font-label-caps text-label-caps text-primary uppercase">Runtime</span><span id="hermes-dot" class="w-2 h-2 rounded-full bg-warning"></span></div><div class="font-body-medium text-text-primary mt-2">Hermes server</div><div id="hermes-map-detail" class="font-code-xs text-code-xs text-text-tertiary mt-1">Checking API</div></div>
+          </div>
+          <div class="mx-space-lg mb-space-lg p-space-md rounded-lg bg-surface-container border border-border-muted/30 flex items-start gap-space-sm"><span class="material-symbols-outlined text-warning text-[20px]">info</span><div><div class="font-body-medium text-body-sm text-text-primary">Physical mesh inventory is unavailable</div><p class="font-body-sm text-body-sm text-text-secondary mt-0.5">The available endpoints expose Hermes health, runtime state, profiles, host statistics, and sessions. They do not expose Tailscale peer names, IPs, WireGuard keys, transport latency, traffic, or ACLs, so this page does not invent them. Use the Tailscale admin console for physical mesh management.</p></div></div>
+        </article>
+        <article class="xl:col-span-4 bg-surface-container rounded-xl overflow-hidden shadow-lg">
+          <header class="px-space-md py-space-sm bg-surface-container-low flex items-center justify-between"><div><h2 class="font-headline-sm text-headline-sm text-text-primary">Endpoint diagnostics</h2><p class="font-code-xs text-code-xs text-text-tertiary">Live status and request time</p></div><span class="material-symbols-outlined text-primary">network_check</span></header>
+          <div id="endpoint-list" class="px-space-md"><div class="py-space-md text-text-tertiary font-code-xs text-code-xs">Waiting for first refresh…</div></div>
+        </article>
+      </section>
 
+      <section class="px-space-lg pb-space-lg grid grid-cols-1 xl:grid-cols-2 gap-space-md">
+        <article class="bg-surface-container rounded-xl overflow-hidden shadow-lg">
+          <header class="px-space-md py-space-sm bg-surface-container-low flex items-center justify-between"><div><h2 class="font-headline-sm text-headline-sm text-text-primary">Hermes profiles and gateways</h2><p class="font-code-xs text-code-xs text-text-tertiary">Read from /hermes/api/profiles</p></div><span id="profiles-badge" class="font-code-xs text-code-xs px-2 py-1 rounded bg-surface text-text-tertiary">Loading</span></header>
+          <div id="profiles-list" class="p-space-md grid grid-cols-1 md:grid-cols-2 gap-space-sm"><div class="text-text-tertiary font-body-sm text-body-sm">Loading profiles…</div></div>
+        </article>
+        <article class="bg-surface-container rounded-xl overflow-hidden shadow-lg">
+          <header class="px-space-md py-space-sm bg-surface-container-low flex items-center justify-between"><div><h2 class="font-headline-sm text-headline-sm text-text-primary">Recent Hermes sessions</h2><p class="font-code-xs text-code-xs text-text-tertiary">Read from /hermes/api/sessions</p></div><a href="/hermes/sessions?profile=default" target="_blank" rel="noreferrer" class="font-code-xs text-code-xs text-primary hover:underline">Manage in Hermes ↗</a></header>
+          <div id="sessions-list" class="divide-y divide-border-muted/30 max-h-[420px] overflow-y-auto"><div class="p-space-md text-text-tertiary font-body-sm text-body-sm">Loading sessions…</div></div>
+        </article>
+      </section>
 
+      <section class="px-space-lg pb-space-lg grid grid-cols-1 xl:grid-cols-2 gap-space-md">
+        <article class="bg-surface-container rounded-xl overflow-hidden shadow-lg"><header class="px-space-md py-space-sm bg-surface-container-low"><h2 class="font-headline-sm text-headline-sm text-text-primary">Runtime status</h2><p class="font-code-xs text-code-xs text-text-tertiary">Selected fields from /hermes/api/status</p></header><dl id="runtime-fields" class="p-space-md grid grid-cols-1 sm:grid-cols-2 gap-space-sm"></dl></article>
+        <article class="bg-surface-container rounded-xl overflow-hidden shadow-lg"><header class="px-space-md py-space-sm bg-surface-container-low"><h2 class="font-headline-sm text-headline-sm text-text-primary">System statistics</h2><p class="font-code-xs text-code-xs text-text-tertiary">Available scalar fields from /hermes/api/system/stats</p></header><dl id="stats-fields" class="p-space-md grid grid-cols-1 sm:grid-cols-2 gap-space-sm"></dl></article>
+      </section>
 
+      <footer class="px-space-lg pb-space-lg"><div class="bg-surface-container p-space-md rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-space-md"><div class="flex items-start gap-space-sm"><span class="material-symbols-outlined text-primary">visibility</span><div><div class="font-body-medium text-text-primary">Read-only operational view</div><p class="font-body-sm text-body-sm text-text-secondary">This page performs GET requests only. Configuration, gateway control, session deletion, and security policy changes remain in the real Hermes and Tailscale administration tools.</p></div></div><a href="/hermes/" target="_blank" rel="noreferrer" class="shrink-0 px-space-md py-2 rounded-lg bg-surface-secondary hover:bg-surface-bright text-primary font-body-medium text-body-sm">Open Hermes admin</a></div></footer>
+    </main>
+  </div>
 
+  <script>
+    (() => {
+      "use strict";
+      const endpoints = [
+        {key:"portal",label:"Portal health",url:"/api/health"},
+        {key:"health",label:"Hermes health",url:"/hermes/api/health"},
+        {key:"status",label:"Hermes status",url:"/hermes/api/status"},
+        {key:"profiles",label:"Profiles",url:"/hermes/api/profiles"},
+        {key:"stats",label:"System statistics",url:"/hermes/api/system/stats"},
+        {key:"sessions",label:"Recent sessions",url:"/hermes/api/sessions?limit=20&order=recent&min_messages=1"}
+      ];
+      const $ = (id) => document.getElementById(id);
+      const setText = (id,value) => {const node=$(id);if(node)node.textContent=value};
+      const asArray = (value,key) => Array.isArray(value)?value:(Array.isArray(value?.[key])?value[key]:[]);
+      const first = (...values) => values.find((value)=>value!==undefined&&value!==null&&value!=="");
+      const printable = (value) => typeof value==="boolean"?(value?"Yes":"No"):typeof value==="number"?(Number.isInteger(value)?String(value):value.toFixed(2)):typeof value==="string"?value:"";
+      const make = (tag,className,text) => {const node=document.createElement(tag);if(className)node.className=className;if(text!==undefined)node.textContent=text;return node};
+      const errorMessage = (result) => result.status===401||result.status===403?"Authentication required":result.status?`HTTP ${result.status}`:result.error||"Request unavailable";
 
-<script>window.currentPage="mesh-topology"</script><script src="shell-data.js"></script><script src="shell.js"></script><link rel="stylesheet" href="prototype.css"></body></html>
+      async function getEndpoint(endpoint){
+        const started=performance.now();
+        try{
+          const response=await fetch(endpoint.url,{method:"GET",credentials:"same-origin",headers:{Accept:"application/json"},cache:"no-store"});
+          const elapsed=Math.round(performance.now()-started);
+          let data=null;try{data=await response.json()}catch(_){}
+          return {...endpoint,ok:response.ok,status:response.status,elapsed,data};
+        }catch(error){
+          return {...endpoint,ok:false,status:0,elapsed:Math.round(performance.now()-started),error:error instanceof Error?error.message:"Network request failed",data:null};
+        }
+      }
+
+      function renderEndpoints(results){
+        const target=$("endpoint-list");target.replaceChildren();
+        results.forEach((result)=>{
+          const row=make("div","endpoint-row py-space-sm border-b border-border-muted/30 flex items-center justify-between gap-space-sm");
+          const left=make("div","min-w-0");left.append(make("div","font-body-medium text-body-sm text-text-primary",result.label),make("div","font-code-xs text-code-xs text-text-quaternary truncate",result.url));
+          const right=make("div","text-right shrink-0");right.append(make("div",`font-code-xs text-code-xs font-semibold ${result.ok?"text-success":"text-danger"}`,result.ok?`HTTP ${result.status}`:errorMessage(result)),make("div","font-code-xs text-[10px] text-text-quaternary",`${result.elapsed} ms browser round-trip`));
+          row.append(left,right);target.append(row);
+        });
+      }
+
+      const secretKey=/(?:api[_-]?key|secret|token|password|passwd|credential|authorization|cookie|private[_-]?key|bearer)/i;
+      function fieldEntries(value,prefix="",depth=0){
+        if(!value||typeof value!=="object"||depth>2)return[];
+        const rows=[];Object.entries(value).forEach(([key,item])=>{if(secretKey.test(key))return;const label=prefix?`${prefix}.${key}`:key;if(["string","number","boolean"].includes(typeof item))rows.push([label,printable(item)]);else if(item&&typeof item==="object"&&!Array.isArray(item))rows.push(...fieldEntries(item,label,depth+1))});
+        return rows.slice(0,16);
+      }
+
+      function renderFields(targetId,data,emptyMessage){
+        const target=$(targetId);target.replaceChildren();const entries=fieldEntries(data);
+        if(!entries.length){target.append(make("div","sm:col-span-2 p-space-md rounded-lg bg-surface-container-low text-text-tertiary font-body-sm text-body-sm",emptyMessage));return}
+        entries.forEach(([label,value])=>{const wrap=make("div","p-space-sm rounded-lg bg-surface-container-low min-w-0");wrap.append(make("dt","font-code-xs text-code-xs text-text-quaternary truncate",label),make("dd","font-code-mono text-code-sm text-text-primary mt-0.5 break-words",value));target.append(wrap)});
+      }
+
+      function renderProfiles(result){
+        const target=$("profiles-list");target.replaceChildren();
+        if(!result.ok){setText("profiles-value","Unavailable");setText("profiles-detail",errorMessage(result));setText("profiles-badge","Unavailable");target.append(make("div","md:col-span-2 p-space-md rounded-lg bg-danger/10 text-danger font-body-sm text-body-sm",`Profiles unavailable: ${errorMessage(result)}.`));return}
+        const profiles=asArray(result.data,"profiles");const running=profiles.filter((p)=>typeof p==="object"&&p.gateway_running===true).length;
+        setText("profiles-value",String(profiles.length));setText("profiles-detail",`${running} gateway${running===1?"":"s"} reported running`);setText("profiles-badge",`${profiles.length} returned`);
+        if(!profiles.length){target.append(make("div","md:col-span-2 p-space-md rounded-lg bg-surface-container-low text-text-tertiary font-body-sm text-body-sm","Hermes returned no configured profiles."));return}
+        profiles.forEach((profileValue)=>{
+          const profile=typeof profileValue==="string"?{name:profileValue}:profileValue;const id=first(profile.id,profile.name,profile.slug,"Unnamed profile");
+          const card=make("div","p-space-md rounded-lg bg-surface-container-low border border-border-muted/30");const top=make("div","flex items-center justify-between gap-2");const identity=make("div","min-w-0");
+          identity.append(make("div","font-body-medium text-body-sm text-text-primary truncate",first(profile.bot_title,profile.display_name,id)),make("div","font-code-xs text-code-xs text-text-quaternary truncate",`@${id}`));
+          const known=typeof profile.gateway_running==="boolean";const badge=make("span",`shrink-0 px-1.5 py-0.5 rounded font-code-xs text-[10px] uppercase ${known?(profile.gateway_running?"bg-success/20 text-success":"bg-surface-secondary text-text-tertiary"):"bg-warning/10 text-warning"}`,known?(profile.gateway_running?"Gateway running":"Gateway stopped"):"Gateway unknown");
+          top.append(identity,badge);card.append(top,make("div","font-code-xs text-code-xs text-text-secondary mt-space-sm break-words",first(profile.model,profile.provider,profile.description,"No model metadata returned")));target.append(card);
+        });
+      }
+
+      function sessionTitle(session){return first(session.title,session.name,session.preview,session.first_message,`Session ${String(first(session.session_id,session.id,"unknown")).slice(0,10)}`)}
+      function renderSessions(result){
+        const target=$("sessions-list");target.replaceChildren();
+        if(!result.ok){setText("sessions-value","Unavailable");setText("sessions-detail",errorMessage(result));target.append(make("div","p-space-md text-danger font-body-sm text-body-sm",`Sessions unavailable: ${errorMessage(result)}.`));return}
+        const sessions=asArray(result.data,"sessions");const active=sessions.filter((session)=>session?.is_active===true).length;setText("sessions-value",String(sessions.length));setText("sessions-detail",`${active} currently marked active`);
+        if(!sessions.length){target.append(make("div","p-space-md text-text-tertiary font-body-sm text-body-sm","Hermes returned no recent sessions."));return}
+        sessions.forEach((session)=>{const row=make("div","p-space-md flex items-start justify-between gap-space-sm");const left=make("div","min-w-0");left.append(make("div","font-body-medium text-body-sm text-text-primary truncate",sessionTitle(session)),make("div","font-code-xs text-code-xs text-text-quaternary mt-0.5",`${first(session.profile,"default")} profile`));const meta=make("div","shrink-0 text-right");meta.append(make("div","font-code-xs text-code-xs text-text-secondary",`${first(session.message_count,0)} messages`));if(session.is_active===true)meta.append(make("div","font-code-xs text-[10px] text-success uppercase","Active"));row.append(left,meta);target.append(row)});
+      }
+
+      function renderHealth(result){
+        const icon=$("health-icon");
+        if(!result.ok){setText("health-value","Unavailable");setText("health-detail",errorMessage(result));icon.textContent="error";icon.className="material-symbols-outlined text-[18px] text-danger";return}
+        const health=result.data||{};setText("health-value",first(health.status,health.state,"Reachable"));setText("health-detail",`Version ${first(health.displayVersion,health.version,"not reported")}`);icon.textContent="check_circle";icon.className="material-symbols-outlined text-[18px] text-success";
+      }
+
+      function renderStats(result){
+        if(!result.ok){setText("stats-value","Unavailable");setText("stats-detail",errorMessage(result));renderFields("stats-fields",null,`System statistics unavailable: ${errorMessage(result)}.`);return}
+        const stats=result.data||{};const entries=fieldEntries(stats);setText("stats-value",entries.length?"Live data":"No fields");setText("stats-detail",entries.length?`${entries.length} scalar fields shown`:"Endpoint returned no displayable values");renderFields("stats-fields",stats,"Hermes returned no displayable scalar statistics.");
+      }
+
+      function renderMap(portal,health){
+        $("portal-dot").className=`w-2 h-2 rounded-full ${portal.ok?"bg-success":"bg-danger"}`;$("hermes-dot").className=`w-2 h-2 rounded-full ${health.ok?"bg-success":"bg-danger"}`;
+        $("portal-line").dataset.state=portal.ok?"ok":"error";$("hermes-line").dataset.state=health.ok?"ok":"error";
+        setText("portal-map-detail",portal.ok?`Healthy · ${portal.elapsed} ms`:errorMessage(portal));setText("hermes-map-detail",health.ok?`Reachable · ${health.elapsed} ms`:errorMessage(health));
+      }
+
+      async function refresh(){
+        const button=$("refresh-btn");button.disabled=true;button.classList.add("opacity-60");setText("page-state","Refreshing live services");
+        const results=await Promise.all(endpoints.map(getEndpoint));const byKey=Object.fromEntries(results.map((result)=>[result.key,result]));
+        renderEndpoints(results);renderHealth(byKey.health);renderProfiles(byKey.profiles);renderSessions(byKey.sessions);renderStats(byKey.stats);
+        renderFields("runtime-fields",byKey.status.ok?byKey.status.data:null,byKey.status.ok?"Hermes returned no displayable status fields.":`Runtime status unavailable: ${errorMessage(byKey.status)}.`);renderMap(byKey.portal,byKey.health);
+        const authRequired=results.some((result)=>result.status===401||result.status===403);$("auth-notice").classList.toggle("hidden",!authRequired);$("auth-notice").classList.toggle("flex",authRequired);
+        const successful=results.filter((result)=>result.ok).length;const state=$("page-state");state.replaceChildren();const dot=make("span",`w-1.5 h-1.5 rounded-full ${successful===results.length?"bg-success":successful?"bg-warning":"bg-danger"}`);state.append(dot,document.createTextNode(successful===results.length?"All observed APIs reachable":`${successful}/${results.length} endpoints reachable`));state.className=`font-code-xs text-code-xs flex items-center gap-1.5 ${successful===results.length?"text-success":successful?"text-warning":"text-danger"}`;
+        setText("last-updated",`Updated ${new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit",second:"2-digit"})}`);button.disabled=false;button.classList.remove("opacity-60");
+      }
+      $("refresh-btn").addEventListener("click",refresh);refresh();window.setInterval(refresh,30000);
+    })();
+  </script>
+  <script>window.currentPage="mesh-topology";</script>
+  <script src="shell-data.js?v=20261015g"></script>
+  <script src="shell.js?v=20261015g"></script>
+  <link rel="stylesheet" href="prototype.css">
+</body>
+</html>

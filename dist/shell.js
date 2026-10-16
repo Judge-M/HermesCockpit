@@ -1,26 +1,79 @@
-(async()=>{
- const shell=window.__HERMES_SHELL__||await fetch('shell.json').then(r=>r.json());
- document.getElementById('shared-header').innerHTML=shell.header;
- document.getElementById('shared-sidebar').innerHTML=shell.aside;
- const paths=['live-control','mesh-topology','tool-registry','acp-telemetry','runtime-config-settings'];
- document.querySelectorAll('#shared-sidebar a').forEach(a=>{
- const active=a.dataset.path===window.currentPage;
- a.href=a.dataset.path+'.html';a.className='flex items-center justify-center w-10 h-10 rounded-lg transition-all '+(active?'bg-surface-secondary text-primary font-bold shadow-sm':'text-text-secondary hover:bg-surface-container-high hover:text-text-primary');
- a.firstElementChild.className='material-symbols-outlined text-[20px] '+(active?'text-primary':'text-text-quaternary hover:text-text-primary');
- if(active)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');
- });
- document.addEventListener('keydown',e=>{const n=Number(e.key.slice(1));if(/^F[1-5]$/.test(e.key)){e.preventDefault();location.href=paths[n-1]+'.html';}});
- const liveClient=document.body?.dataset.hermesClient==='true';
- const notice=document.createElement('div');notice.id='demo-notice';notice.textContent=liveClient?'Connecting to Hermes…':'Frontend preview · sample data';notice.title=liveClient?'Waiting for the Hermes API.':'No Hermes instance is connected. Controls change this preview only.';document.body.append(notice);
- const toast=document.createElement('div');toast.id='toast';toast.setAttribute('role','status');document.body.append(toast);
- function tell(t){toast.textContent=t;toast.classList.add('visible');clearTimeout(window.toastTimer);window.toastTimer=setTimeout(()=>toast.classList.remove('visible'),3500)}
- if(!liveClient)document.querySelectorAll('#shared-header button').forEach(b=>b.addEventListener('click',()=>{
- const text=b.textContent.trim();
- if(text==='Node'){const name=prompt('Add a demo agent session name','Agent-Gamma');if(name){const tab=document.createElement('button');tab.textContent=name;tab.className='px-3 py-1 text-xs text-primary border border-border rounded';b.before(tab);tell('Demo session added: '+name)}}
- else if(b.title?.includes('Terminal')||text==='terminal'){const t=document.querySelector('main [id*="terminal"],main [id*="Terminal"]');if(t)t.hidden=!t.hidden;else tell('Terminal drawer is available on Live Control.');}
- else tell('Preview control — backend connection will be added later.');
- }));
- const storage=liveClient?null:(()=>{try{return window.localStorage}catch{return null}})();
- document.querySelectorAll('input,select,textarea').forEach((el,i)=>{const key=currentPage+':'+(el.id||i);const v=storage?.getItem(key);if(v!==null&&v!==undefined){if(el.type==='checkbox')el.checked=v==='true';else el.value=v}if(storage)el.addEventListener('change',()=>storage.setItem(key,el.type==='checkbox'?el.checked:el.value))});
- if(!liveClient)document.querySelectorAll('main button').forEach(b=>{if(!b.onclick)b.addEventListener('click',()=>{if(/Save|Reload Engine/.test(b.textContent))tell('Preview settings saved locally. No engine is connected.');if(/Export/.test(b.textContent)){const data=JSON.stringify({prototype:true,page:currentPage,settings:Object.fromEntries(Object.entries(storage||{}).filter(([k])=>k.startsWith(currentPage)))},null,2);const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([data],{type:'application/json'}));a.download='hermes-preview.json';a.click();URL.revokeObjectURL(a.href)}})});
-})().catch(console.error);
+(async () => {
+  const HERMES_BASE = "/hermes";
+  const shell = window.__HERMES_SHELL__ || await fetch("shell.json").then((response) => response.json());
+  document.getElementById("shared-header").innerHTML = shell.header;
+  document.getElementById("shared-sidebar").innerHTML = shell.aside;
+
+  const pages = ["live-control", "mesh-topology", "tool-registry", "acp-telemetry", "runtime-config-settings"];
+  document.querySelectorAll("#shared-sidebar a").forEach((link) => {
+    const active = link.dataset.path === window.currentPage;
+    link.href = `${link.dataset.path}.html`;
+    link.className = `flex items-center justify-center w-10 h-10 rounded-lg transition-all ${active ? "bg-surface-secondary text-primary font-bold shadow-sm" : "text-text-secondary hover:bg-surface-container-high hover:text-text-primary"}`;
+    link.firstElementChild.className = `material-symbols-outlined text-[20px] ${active ? "text-primary" : "text-text-quaternary hover:text-text-primary"}`;
+    if (active) link.setAttribute("aria-current", "page");
+    else link.removeAttribute("aria-current");
+  });
+
+  document.addEventListener("keydown", (event) => {
+    const number = Number(event.key.slice(1));
+    if (/^F[1-5]$/.test(event.key)) {
+      event.preventDefault();
+      location.href = `${pages[number - 1]}.html`;
+    }
+  });
+
+  const header = document.querySelector("#shared-header header");
+  if (header?.children.length >= 3) {
+    const badge = header.children[0].querySelector("span:last-child");
+    if (badge) badge.textContent = "beta";
+    header.children[1].innerHTML = `
+      <div class="cockpit-header-live">
+        <span class="cockpit-status-dot"></span>
+        <span>Hermes</span>
+        <span id="shared-hermes-status" data-state="connecting">Connecting…</span>
+      </div>`;
+    header.children[2].innerHTML = `
+      <a class="cockpit-admin-link" href="${HERMES_BASE}/" target="_blank" rel="noreferrer">Hermes admin ↗</a>`;
+  }
+
+  const oldDaemonBadge = document.querySelector("#shared-sidebar aside > div:last-child");
+  if (oldDaemonBadge) {
+    oldDaemonBadge.innerHTML = `
+      <div class="relative flex items-center justify-center w-8 h-8 rounded-lg bg-surface-container-lowest border border-border-muted/50" title="Hermes API status">
+        <span class="material-symbols-outlined text-[16px] text-primary">bolt</span>
+        <span id="shared-hermes-dot" class="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-warning"></span>
+      </div>
+      <span id="shared-hermes-version" class="font-code-xs text-[10px] text-text-quaternary">…</span>`;
+  }
+
+  const notice = document.createElement("div");
+  notice.id = "demo-notice";
+  notice.textContent = "Connecting to Hermes…";
+  notice.title = "Live Hermes API status";
+  document.body.append(notice);
+
+  const setSharedStatus = (state, label, version = "") => {
+    const status = document.getElementById("shared-hermes-status");
+    if (status) {
+      status.textContent = label;
+      status.dataset.state = state;
+    }
+    const dot = document.getElementById("shared-hermes-dot");
+    if (dot) dot.className = `absolute top-1 right-1 w-1.5 h-1.5 rounded-full ${state === "connected" ? "bg-success" : "bg-error"}`;
+    const versionNode = document.getElementById("shared-hermes-version");
+    if (versionNode) versionNode.textContent = version || (state === "connected" ? "online" : "offline");
+    if (document.body?.dataset.hermesClient !== "true") notice.textContent = state === "connected" ? "Live Hermes data" : label;
+  };
+
+  try {
+    const response = await fetch(`${HERMES_BASE}/api/health`, { credentials: "include" });
+    if (response.status === 401) setSharedStatus("offline", "Sign in required");
+    else if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    else {
+      const health = await response.json();
+      setSharedStatus("connected", "Connected", health.displayVersion || health.version || "online");
+    }
+  } catch (_) {
+    setSharedStatus("offline", "Hermes unavailable");
+  }
+})();

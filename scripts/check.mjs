@@ -32,7 +32,7 @@ for (const screen of screens) {
   assert.ok(html.includes('vendor/material-symbols.css'), `${screen}: missing local icon stylesheet`);
   for (const match of html.matchAll(/(?:src|href)="([^"#]+)"/g)) {
     const ref = match[1];
-    if (/^(?:https?:|data:|javascript:)/.test(ref)) continue;
+    if (/^(?:https?:|data:|javascript:|\/)/.test(ref)) continue;
     assert.ok(existsSync(path.join(root, 'dist', ref.split(/[?#]/)[0])), `Missing local reference: ${screen}: ${ref}`);
   }
   for (const match of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g)) {

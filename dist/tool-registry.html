@@ -1,761 +1,153 @@
-<!DOCTYPE html><html class="dark" lang="en" style=""><head><link href="vendor/fonts.css" rel="stylesheet"><link href="vendor/material-symbols.css" rel="stylesheet"><meta charset="utf-8"><meta content="width=device-width, initial-scale=1.0" name="viewport"><meta content="web_dashboard" name="shell-type">
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <meta content="web_dashboard" name="shell-type">
+  <link href="vendor/fonts.css" rel="stylesheet">
+  <link href="vendor/material-symbols.css" rel="stylesheet">
+  <style>@layer base{html,body{margin:0;padding:0}body{overscroll-behavior:none}}::-webkit-scrollbar{display:none}</style>
+  <script src="vendor/tailwindcss-cdn.js"></script>
+  <script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{colors:{"surface-container-low":"#1a1a2a","surface-bright":"#383849","orange":"#D08770","success":"#A3BE8C","surface-dim":"#121221","primary":"#a3dcec","text-quaternary":"#616E88","surface":"#282A36","surface-container":"#1e1e2e","primary-container":"#88c0d0","error":"#ffb4ab","secondary":"#a9caeb","text-primary":"#ECEFF4","surface-secondary":"#3B4252","text-tertiary":"#94A3B8","text-secondary":"#D8DEE9","surface-container-lowest":"#0d0d1c","background":"#121221","surface-container-high":"#292839","warning":"#EBCB8B"},borderRadius:{DEFAULT:"0.125rem",lg:"0.25rem",xl:"0.5rem",full:"0.75rem"},spacing:{"space-xl":"1.5rem","space-lg":"1rem","space-xs":"0.25rem","space-sm":"0.5rem","space-md":"0.75rem"},fontFamily:{"label-caps":["Inter"],"body-base":["Inter"],"body-medium":["Inter"],"headline-md":["Inter"],"headline-sm":["Inter"],"headline-lg":["Inter"],"code-mono":["JetBrains Mono"],"code-xs":["JetBrains Mono"]},fontSize:{"label-caps":["11px",{lineHeight:"14px",letterSpacing:"0.06em",fontWeight:"600"}],"body-base":["14px",{lineHeight:"22px"}],"headline-md":["20px",{lineHeight:"28px",fontWeight:"600"}],"body-medium":["14px",{lineHeight:"22px",fontWeight:"500"}],"headline-sm":["16px",{lineHeight:"24px",fontWeight:"600"}],"headline-lg":["28px",{lineHeight:"36px",fontWeight:"700"}],"body-sm":["12px",{lineHeight:"18px"}],"code-xs":["11px",{lineHeight:"16px",fontWeight:"500"}]}}}};</script>
+  <title>Hermes Cockpit — Tool Registry</title>
+</head>
+<body class="bg-background font-body-base text-body-base text-text-primary min-h-screen selection:bg-surface-secondary">
+  <div id="shared-header"></div><div id="shared-sidebar"></div>
+  <div class="pl-16"><main data-workspace="true" class="relative min-h-screen bg-background" style="padding-top:48px">
+    <div class="p-space-md lg:p-space-lg flex flex-col gap-space-lg max-w-[1600px] mx-auto">
+      <section class="flex flex-col lg:flex-row lg:items-center justify-between gap-space-md bg-surface-container-low p-space-md rounded-xl">
+        <div class="flex flex-col gap-1">
+          <div class="flex items-center gap-space-xs flex-wrap"><span class="font-code-xs text-code-xs text-primary px-space-xs py-0.5 rounded bg-surface">HERMES::REGISTRY</span><span id="lastUpdated" class="font-code-xs text-code-xs text-text-quaternary">Waiting for live data</span></div>
+          <h1 class="font-headline-md text-headline-md text-text-primary tracking-tight">Tool Registry</h1>
+          <p class="font-body-sm text-body-sm text-text-tertiary">Live inventory and native management for this Hermes instance.</p>
+        </div>
+        <div class="flex items-center gap-space-sm flex-wrap">
+          <label class="relative min-w-[220px]"><span class="material-symbols-outlined absolute left-2.5 top-2 text-[18px] text-text-quaternary">search</span><input id="registryFilter" class="w-full bg-surface-container-lowest text-text-primary font-code-xs text-code-xs pl-8 pr-space-md py-2 rounded-lg placeholder:text-text-quaternary focus:outline-none focus:ring-1 focus:ring-primary" placeholder="Filter loaded entries" type="search"></label>
+          <button id="refreshRegistry" class="flex items-center gap-1.5 px-space-md py-2 rounded-lg bg-surface-secondary hover:bg-surface-bright text-text-primary font-body-medium text-body-sm transition-colors" type="button"><span class="material-symbols-outlined text-[16px] text-primary">refresh</span><span>Refresh</span></button>
+          <a class="flex items-center gap-1.5 px-space-md py-2 rounded-lg bg-primary-container text-surface-container-lowest font-body-medium text-body-sm hover:opacity-95" href="/hermes/" target="_blank" rel="noreferrer"><span class="material-symbols-outlined text-[16px]">open_in_new</span><span>Hermes admin</span></a>
+        </div>
+      </section>
 
-<style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="vendor/tailwindcss-cdn.js"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{colors:{"surface-container-low":"#1a1a2a","tertiary-fixed-dim":"#e3badb","on-secondary-fixed-variant":"#294965","inverse-surface":"#e3e0f7","on-surface":"#e3e0f7","on-tertiary-fixed":"#2c122a","on-primary-fixed":"#001f26","on-tertiary-container":"#5d3e59","surface-bright":"#383849","border-muted":"#3B4252","orange":"#D08770","on-secondary-fixed":"#001d32","success":"#A3BE8C","surface-dim":"#121221","on-surface-variant":"#c0c8cb","primary":"#a3dcec","text-quaternary":"#616E88","surface":"#282A36","on-secondary-container":"#9bbcdd","on-primary":"#003640","surface-container":"#1e1e2e","primary-container":"#88c0d0","error":"#ffb4ab","outline-variant":"#40484b","on-error-container":"#ffdad6","on-primary-fixed-variant":"#094e5c","secondary":"#a9caeb","on-error":"#690005","tertiary-container":"#d3abcb","on-tertiary":"#432740","surface-tint":"#97cfe0","inverse-primary":"#2b6674","text-primary":"#ECEFF4","surface-secondary":"#3B4252","on-tertiary-fixed-variant":"#5b3d57","surface-container-lowest":"#0d0d1c","primary-fixed-dim":"#97cfe0","secondary-container":"#2b4c68","secondary-fixed-dim":"#a9caeb","text-tertiary":"#94A3B8","primary-fixed":"#b3ecfc","text-secondary":"#D8DEE9","text-mono":"#E5E9F0","on-secondary":"#0e334e","outline":"#8a9295","on-background":"#e3e0f7","surface-container-highest":"#333344","surface-variant":"#333344","background":"#121221","tertiary":"#f0c6e7","inverse-on-surface":"#2f2f40","surface-container-high":"#292839","on-primary-container":"#0c4f5d","error-container":"#93000a","tertiary-fixed":"#ffd7f6","border":"#4C566A","danger":"#BF616A","secondary-fixed":"#cee5ff","warning":"#EBCB8B"},borderRadius:{"DEFAULT":"0.125rem","lg":"0.25rem","xl":"0.5rem","full":"0.75rem"},spacing:{"space-xl":"1.5rem","margin":"1rem","space-lg":"1rem","space-xs":"0.25rem","gutter":"1rem","space-sm":"0.5rem","space-md":"0.75rem"},fontFamily:{"label-caps":["Inter"],"body-base":["Inter"],"headline-md":["Inter"],"body-medium":["Inter"],"headline-sm":["Inter"],"code-mono":["JetBrains Mono"],"headline-lg":["Inter"],"body-sm":["Inter"],"code-xs":["JetBrains Mono"],"code-sm":["JetBrains Mono"]},fontSize:{"label-caps":["11px",{"lineHeight":"14px","letterSpacing":"0.06em","fontWeight":"600"}],"body-base":["14px",{"lineHeight":"22px","fontWeight":"400"}],"headline-md":["20px",{"lineHeight":"28px","letterSpacing":"-0.01em","fontWeight":"600"}],"body-medium":["14px",{"lineHeight":"22px","fontWeight":"500"}],"headline-sm":["16px",{"lineHeight":"24px","letterSpacing":"-0.005em","fontWeight":"600"}],"code-mono":["13px",{"lineHeight":"20px","fontWeight":"400"}],"headline-lg":["28px",{"lineHeight":"36px","letterSpacing":"-0.02em","fontWeight":"700"}],"body-sm":["12px",{"lineHeight":"18px","fontWeight":"400"}],"code-xs":["11px",{"lineHeight":"16px","letterSpacing":"0.02em","fontWeight":"500"}],"code-sm":["12px",{"lineHeight":"18px","fontWeight":"400"}]}}}};</script><title>Hermes Copilot — tool-registry</title></head><body class="bg-background font-body-base text-body-base text-text-primary min-h-screen selection:bg-secondary-container selection:text-text-primary"><div id="shared-header"></div><div id="shared-sidebar"></div><div class="pl-16"><main data-workspace="true" class="relative min-h-screen bg-background" style="padding-top: 48px;"><div class="flex flex-col w-full">
-<div class="flex flex-col xl:flex-row flex-1">
-<!-- Main Workbench Area -->
-<div class="flex-1 min-w-0 p-space-md lg:p-space-lg flex flex-col gap-space-lg">
-<!-- Top Context Header -->
-<section class="flex flex-col md:flex-row md:items-center justify-between gap-space-md bg-surface-container-low p-space-md rounded-xl">
-<div class="flex flex-col gap-0.5">
-<div class="flex items-center gap-space-xs">
-<span class="font-code-xs text-code-xs text-primary px-space-xs py-0.5 rounded bg-surface">MCP::REGISTRY</span>
-<span class="font-code-xs text-code-xs text-text-quaternary">RPC Socket: /var/run/hermes/mcp.sock</span>
-</div>
-<h1 class="font-headline-md text-headline-md text-text-primary tracking-tight">Model Context Protocol (MCP) &amp; Tool Registry</h1>
-<p class="font-body-sm text-body-sm text-text-tertiary">Catalog of installed MCP servers, native CLI plugins, execution sandboxes, and JSON schemas.</p>
-</div>
-<div class="flex items-center gap-space-sm flex-wrap">
-<button class="flex items-center gap-1.5 px-space-md py-1.5 rounded-lg bg-surface-secondary hover:bg-surface-bright text-text-primary font-body-medium text-body-sm transition-colors shadow-sm" id="reloadManifestsBtn" type="button">
-<span class="material-symbols-outlined text-[16px] text-primary">sync</span>
-<span class="">Reload Manifests</span>
-</button>
-<button class="flex items-center gap-1.5 px-space-md py-1.5 rounded-lg bg-primary-container text-on-primary font-body-medium text-body-sm hover:opacity-95 transition-opacity shadow-sm" id="openAddModalBtn" type="button">
-<span class="material-symbols-outlined text-[16px]">add</span>
-<span class="">Add MCP Server</span>
-</button>
-</div>
-</section>
-<!-- Telemetry Overview Bento Grid -->
-<section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-space-md">
-<!-- Card 1 -->
-<div class="bg-surface-container p-space-md rounded-xl flex flex-col justify-between relative overflow-hidden group">
-<div class="flex items-center justify-between">
-<span class="font-label-caps text-label-caps text-text-quaternary uppercase tracking-wider">Active MCP Servers</span>
-<span class="material-symbols-outlined text-primary text-[20px]">hub</span>
-</div>
-<div class="my-space-sm flex items-baseline gap-space-xs">
-<span class="font-headline-lg text-headline-lg text-text-primary font-code-mono leading-none">5</span>
-<span class="font-body-sm text-body-sm text-text-quaternary">/ 6 bound</span>
-</div>
-<div class="flex items-center justify-between font-code-xs text-code-xs">
-<span class="inline-flex items-center gap-1 text-success">
-<span class="w-1.5 h-1.5 rounded-full bg-success"></span> 5 Running
-            </span>
-<span class="inline-flex items-center gap-1 text-warning">
-<span class="w-1.5 h-1.5 rounded-full bg-warning"></span> 1 Degraded
-            </span>
-</div>
-</div>
-<!-- Card 2 -->
-<div class="bg-surface-container p-space-md rounded-xl flex flex-col justify-between">
-<div class="flex items-center justify-between">
-<span class="font-label-caps text-label-caps text-text-quaternary uppercase tracking-wider">Registered Tools</span>
-<span class="material-symbols-outlined text-secondary text-[20px]">construction</span>
-</div>
-<div class="my-space-sm flex items-baseline gap-space-xs">
-<span class="font-headline-lg text-headline-lg text-text-primary font-code-mono leading-none">24</span>
-<span class="font-body-sm text-body-sm text-text-quaternary">Executable</span>
-</div>
-<div class="flex items-center gap-space-xs font-code-xs text-code-xs text-text-tertiary">
-<span class="px-1 py-0.5 rounded bg-surface text-primary">v2024.11-acp</span>
-<span class="">All typed schemas valid</span>
-</div>
-</div>
-<!-- Card 3 -->
-<div class="bg-surface-container p-space-md rounded-xl flex flex-col justify-between">
-<div class="flex items-center justify-between">
-<span class="font-label-caps text-label-caps text-text-quaternary uppercase tracking-wider">Sandbox Enforcement</span>
-<span class="material-symbols-outlined text-success text-[20px]">verified_user</span>
-</div>
-<div class="my-space-sm flex items-baseline gap-space-xs">
-<span class="font-headline-lg text-headline-lg text-success font-code-mono leading-none">100%</span>
-<span class="font-body-sm text-body-sm text-text-quaternary">POSIX Jail</span>
-</div>
-<div class="w-full bg-surface-container-low rounded-full h-1.5 overflow-hidden">
-<div class="bg-success h-full w-full"></div>
-</div>
-</div>
-<!-- Card 4 -->
-<div class="bg-surface-container p-space-md rounded-xl flex flex-col justify-between">
-<div class="flex items-center justify-between">
-<span class="font-label-caps text-label-caps text-text-quaternary uppercase tracking-wider">Executions (24h)</span>
-<span class="material-symbols-outlined text-orange text-[20px]">speed</span>
-</div>
-<div class="my-space-sm flex items-baseline gap-space-xs">
-<span class="font-headline-lg text-headline-lg text-text-primary font-code-mono leading-none">1,842</span>
-<span class="font-code-xs text-code-xs text-success">99.4% ok</span>
-</div>
-<div class="flex items-center justify-between font-code-xs text-code-xs text-text-quaternary">
-<span class="">Median latency:</span>
-<span class="text-text-primary font-code-mono">14.2ms</span>
-</div>
-</div>
-</section>
-<!-- Action & Filter Bar -->
-<section class="bg-surface-container-low p-space-sm rounded-xl flex flex-col md:flex-row items-stretch md:items-center justify-between gap-space-sm">
-<div class="relative flex-1 max-w-lg">
-<span class="material-symbols-outlined absolute left-2.5 top-2 text-[18px] text-text-quaternary">search</span>
-<input class="w-full bg-surface-container-lowest text-text-primary font-code-xs text-code-xs pl-8 pr-space-md py-1.5 rounded-lg placeholder:text-text-quaternary focus:outline-none focus:bg-surface transition-colors" id="toolFilterInput" placeholder="Filter tools by name, MCP server, or permission..." type="text">
-</div>
-<div class="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0" id="filterPills">
-<button class="filter-pill active px-space-sm py-1 rounded-lg font-code-xs text-code-xs bg-primary-container text-on-primary" data-cat="all">All (24)</button>
-<button class="filter-pill px-space-sm py-1 rounded-lg font-code-xs text-code-xs bg-surface text-text-secondary hover:text-text-primary transition-colors" data-cat="core">Core CLI (6)</button>
-<button class="filter-pill px-space-sm py-1 rounded-lg font-code-xs text-code-xs bg-surface text-text-secondary hover:text-text-primary transition-colors" data-cat="mcp">Loaded MCP (8)</button>
-<button class="filter-pill px-space-sm py-1 rounded-lg font-code-xs text-code-xs bg-surface text-text-secondary hover:text-text-primary transition-colors" data-cat="community">Community (10)</button>
-</div>
-</section>
-<!-- Tools Registry Stack / Table List -->
-<section class="flex flex-col gap-space-sm" id="toolsList">
-<!-- Tool Row 1: BashExecution -->
-<article class="tool-card bg-surface-container hover:bg-surface-container-high transition-colors p-space-md rounded-xl flex flex-col gap-space-sm cursor-pointer" data-category="core" data-name="bashexecution" onclick="selectTool('bashexecution')">
-<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-space-sm">
-<div class="flex items-start gap-space-md">
-<div class="w-10 h-10 rounded-lg bg-surface flex items-center justify-center shrink-0">
-<span class="material-symbols-outlined text-primary text-[22px]">terminal</span>
-</div>
-<div class="flex flex-col">
-<div class="flex items-center gap-space-xs flex-wrap">
-<h2 class="font-headline-sm text-headline-sm text-text-primary">BashExecution</h2>
-<span class="font-code-xs text-code-xs text-text-quaternary">(Sandboxed PTY)</span>
-<span class="px-1.5 py-0.5 rounded bg-success/15 text-success font-code-xs text-code-xs flex items-center gap-1">
-<span class="w-1.5 h-1.5 rounded-full bg-success"></span> ACTIVE
-                  </span>
-<span class="px-1.5 py-0.5 rounded bg-surface text-primary font-code-xs text-code-xs">rpc://local/pty-runner</span>
-</div>
-<p class="font-body-sm text-body-sm text-text-tertiary">Execute arbitrary shell commands in non-interactive spawned pseudoterminal with worktree sandboxing and timeout enforcement.</p>
-</div>
-</div>
-<div class="flex items-center gap-space-md shrink-0 self-end lg:self-center">
-<label class="flex items-center gap-2 cursor-pointer select-none" onclick="event.stopPropagation()">
-<span class="font-code-xs text-code-xs text-text-quaternary">Enabled</span>
-<input checked="" class="sr-only toggle-switch" type="checkbox">
-<div class="w-9 h-5 bg-primary-container rounded-full relative transition-colors">
-<div class="w-3.5 h-3.5 bg-surface-container-lowest rounded-full absolute top-[3px] right-[3px] transition-transform"></div>
-</div>
-</label>
-<div class="flex items-center gap-1">
-<button class="px-space-sm py-1 rounded bg-surface hover:bg-surface-bright text-text-primary font-code-xs text-code-xs transition-colors flex items-center gap-1" onclick="event.stopPropagation(); triggerTestRun('bashexecution')" type="button">
-<span class="material-symbols-outlined text-[14px] text-success">play_arrow</span>
-<span class="">Test Call</span>
-</button>
-<button class="px-space-sm py-1 rounded bg-surface hover:bg-surface-bright text-primary font-code-xs text-code-xs transition-colors" onclick="event.stopPropagation(); selectTool('bashexecution')" type="button">
-                  View Schema
-                </button>
-</div>
-</div>
-</div>
-<div class="flex items-center justify-between pt-space-xs bg-surface-container-lowest/50 p-space-sm rounded-lg flex-wrap gap-2">
-<div class="flex items-center gap-space-xs font-code-xs text-code-xs text-text-secondary flex-wrap">
-<span class="text-text-quaternary font-label-caps text-label-caps">PARAMS:</span>
-<code class="px-1 py-0.5 rounded bg-surface text-primary">cmd: string (required)</code>
-<code class="px-1 py-0.5 rounded bg-surface text-text-secondary">worktree?: string</code>
-<code class="px-1 py-0.5 rounded bg-surface text-text-secondary">timeout?: int [def: 30000ms]</code>
-</div>
-<div class="flex items-center gap-2 font-code-xs text-code-xs text-text-quaternary">
-<span class="material-symbols-outlined text-[14px] text-success">gavel</span>
-<span class="">POSIX Security Jail: STRICT</span>
-</div>
-</div>
-</article>
-<!-- Tool Row 2: FileRead / FileWrite -->
-<article class="tool-card bg-surface-container hover:bg-surface-container-high transition-colors p-space-md rounded-xl flex flex-col gap-space-sm cursor-pointer" data-category="core" data-name="posix fs fileread filewrite" onclick="selectTool('posix_fs')">
-<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-space-sm">
-<div class="flex items-start gap-space-md">
-<div class="w-10 h-10 rounded-lg bg-surface flex items-center justify-center shrink-0">
-<span class="material-symbols-outlined text-secondary text-[22px]">folder_code</span>
-</div>
-<div class="flex flex-col">
-<div class="flex items-center gap-space-xs flex-wrap">
-<h2 class="font-headline-sm text-headline-sm text-text-primary">FileRead / FileWrite</h2>
-<span class="font-code-xs text-code-xs text-text-quaternary">(POSIX FS)</span>
-<span class="px-1.5 py-0.5 rounded bg-success/15 text-success font-code-xs text-code-xs flex items-center gap-1">
-<span class="w-1.5 h-1.5 rounded-full bg-success"></span> ACTIVE
-                  </span>
-<span class="px-1.5 py-0.5 rounded bg-surface text-secondary font-code-xs text-code-xs">@hermes/posix-fs</span>
-</div>
-<p class="font-body-sm text-body-sm text-text-tertiary">Structured filesystem access strictly locked to repository root directory with atomic write transactions.</p>
-</div>
-</div>
-<div class="flex items-center gap-space-md shrink-0 self-end lg:self-center">
-<label class="flex items-center gap-2 cursor-pointer select-none" onclick="event.stopPropagation()">
-<span class="font-code-xs text-code-xs text-text-quaternary">Enabled</span>
-<input checked="" class="sr-only toggle-switch" type="checkbox">
-<div class="w-9 h-5 bg-primary-container rounded-full relative transition-colors">
-<div class="w-3.5 h-3.5 bg-surface-container-lowest rounded-full absolute top-[3px] right-[3px] transition-transform"></div>
-</div>
-</label>
-<div class="flex items-center gap-1">
-<button class="px-space-sm py-1 rounded bg-surface hover:bg-surface-bright text-text-primary font-code-xs text-code-xs transition-colors flex items-center gap-1" onclick="event.stopPropagation(); triggerTestRun('posix_fs')" type="button">
-<span class="material-symbols-outlined text-[14px] text-success">play_arrow</span>
-<span class="">Test Call</span>
-</button>
-<button class="px-space-sm py-1 rounded bg-surface hover:bg-surface-bright text-primary font-code-xs text-code-xs transition-colors" onclick="event.stopPropagation(); selectTool('posix_fs')" type="button">
-                  View Schema
-                </button>
-</div>
-</div>
-</div>
-<div class="flex items-center justify-between pt-space-xs bg-surface-container-lowest/50 p-space-sm rounded-lg flex-wrap gap-2">
-<div class="flex items-center gap-space-xs font-code-xs text-code-xs text-text-secondary flex-wrap">
-<span class="text-text-quaternary font-label-caps text-label-caps">PARAMS:</span>
-<code class="px-1 py-0.5 rounded bg-surface text-primary">path: string</code>
-<code class="px-1 py-0.5 rounded bg-surface text-text-secondary">offset?: int</code>
-<code class="px-1 py-0.5 rounded bg-surface text-text-secondary">length?: int</code>
-<code class="px-1 py-0.5 rounded bg-surface text-text-secondary">content?: string</code>
-</div>
-<div class="flex items-center gap-2 font-code-xs text-code-xs text-text-quaternary">
-<span class="material-symbols-outlined text-[14px] text-primary">lock</span>
-<span class="">Root Boundary: /workspace/project-root</span>
-</div>
-</div>
-</article>
-<!-- Tool Row 3: GitHub MCP Server -->
-<article class="tool-card bg-surface-container hover:bg-surface-container-high transition-colors p-space-md rounded-xl flex flex-col gap-space-sm cursor-pointer" data-category="mcp" data-name="github mcp server octokit" onclick="selectTool('github_mcp')">
-<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-space-sm">
-<div class="flex items-start gap-space-md">
-<div class="w-10 h-10 rounded-lg bg-surface flex items-center justify-center shrink-0">
-<span class="material-symbols-outlined text-text-primary text-[22px]">source_environment</span>
-</div>
-<div class="flex flex-col">
-<div class="flex items-center gap-space-xs flex-wrap">
-<h2 class="font-headline-sm text-headline-sm text-text-primary">GitHub MCP Server</h2>
-<span class="font-code-xs text-code-xs text-text-quaternary">(Docker Container)</span>
-<span class="px-1.5 py-0.5 rounded bg-success/15 text-success font-code-xs text-code-xs flex items-center gap-1">
-<span class="w-1.5 h-1.5 rounded-full bg-success"></span> CONNECTED (18ms)
-                  </span>
-<span class="px-1.5 py-0.5 rounded bg-surface text-secondary font-code-xs text-code-xs">rpc://remote/octokit</span>
-</div>
-<p class="font-body-sm text-body-sm text-text-tertiary">Autonomous GitHub API interaction: Issue creation, PR review threads, tree traversal, and branch synthesis.</p>
-</div>
-</div>
-<div class="flex items-center gap-space-md shrink-0 self-end lg:self-center">
-<label class="flex items-center gap-2 cursor-pointer select-none" onclick="event.stopPropagation()">
-<span class="font-code-xs text-code-xs text-text-quaternary">Enabled</span>
-<input checked="" class="sr-only toggle-switch" type="checkbox">
-<div class="w-9 h-5 bg-primary-container rounded-full relative transition-colors">
-<div class="w-3.5 h-3.5 bg-surface-container-lowest rounded-full absolute top-[3px] right-[3px] transition-transform"></div>
-</div>
-</label>
-<div class="flex items-center gap-1">
-<button class="px-space-sm py-1 rounded bg-surface hover:bg-surface-bright text-text-primary font-code-xs text-code-xs transition-colors flex items-center gap-1" onclick="event.stopPropagation(); triggerTestRun('github_mcp')" type="button">
-<span class="material-symbols-outlined text-[14px] text-success">play_arrow</span>
-<span class="">Test Call</span>
-</button>
-<button class="px-space-sm py-1 rounded bg-surface hover:bg-surface-bright text-primary font-code-xs text-code-xs transition-colors" onclick="event.stopPropagation(); selectTool('github_mcp')" type="button">
-                  View Schema
-                </button>
-</div>
-</div>
-</div>
-<div class="flex items-center justify-between pt-space-xs bg-surface-container-lowest/50 p-space-sm rounded-lg flex-wrap gap-2">
-<div class="flex items-center gap-space-xs font-code-xs text-code-xs text-text-secondary flex-wrap">
-<span class="text-text-quaternary font-label-caps text-label-caps">CAPABILITIES:</span>
-<span class="px-1.5 py-0.5 rounded bg-surface text-primary-fixed-dim">gh_create_issue</span>
-<span class="px-1.5 py-0.5 rounded bg-surface text-primary-fixed-dim">gh_pull_request_review</span>
-<span class="px-1.5 py-0.5 rounded bg-surface text-primary-fixed-dim">gh_get_tree</span>
-<span class="px-1.5 py-0.5 rounded bg-surface text-primary-fixed-dim">gh_list_commits</span>
-</div>
-<div class="flex items-center gap-2 font-code-xs text-code-xs text-text-quaternary">
-<span class="material-symbols-outlined text-[14px] text-secondary">token</span>
-<span class="">OAuth Scope: repo, read:org</span>
-</div>
-</div>
-</article>
-<!-- Tool Row 4: Postgres Vector MCP -->
-<article class="tool-card bg-surface-container hover:bg-surface-container-high transition-colors p-space-md rounded-xl flex flex-col gap-space-sm cursor-pointer" data-category="mcp" data-name="postgres vector pgvector database" onclick="selectTool('pg_vector')">
-<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-space-sm">
-<div class="flex items-start gap-space-md">
-<div class="w-10 h-10 rounded-lg bg-surface flex items-center justify-center shrink-0">
-<span class="material-symbols-outlined text-primary-container text-[22px]">database</span>
-</div>
-<div class="flex flex-col">
-<div class="flex items-center gap-space-xs flex-wrap">
-<h2 class="font-headline-sm text-headline-sm text-text-primary">Postgres Vector MCP</h2>
-<span class="font-code-xs text-code-xs text-text-quaternary">(pgvector pool)</span>
-<span class="px-1.5 py-0.5 rounded bg-success/15 text-success font-code-xs text-code-xs flex items-center gap-1">
-<span class="w-1.5 h-1.5 rounded-full bg-success"></span> CONNECTED
-                  </span>
-<span class="px-1.5 py-0.5 rounded bg-surface text-primary font-code-xs text-code-xs">rpc://db/pg-vector-pool</span>
-</div>
-<p class="font-body-sm text-body-sm text-text-tertiary">Vector similarity lookup, episodic memory search over past conversations, and semantic symbol retrieval.</p>
-</div>
-</div>
-<div class="flex items-center gap-space-md shrink-0 self-end lg:self-center">
-<label class="flex items-center gap-2 cursor-pointer select-none" onclick="event.stopPropagation()">
-<span class="font-code-xs text-code-xs text-text-quaternary">Enabled</span>
-<input checked="" class="sr-only toggle-switch" type="checkbox">
-<div class="w-9 h-5 bg-primary-container rounded-full relative transition-colors">
-<div class="w-3.5 h-3.5 bg-surface-container-lowest rounded-full absolute top-[3px] right-[3px] transition-transform"></div>
-</div>
-</label>
-<div class="flex items-center gap-1">
-<button class="px-space-sm py-1 rounded bg-surface hover:bg-surface-bright text-text-primary font-code-xs text-code-xs transition-colors flex items-center gap-1" onclick="event.stopPropagation(); triggerTestRun('pg_vector')" type="button">
-<span class="material-symbols-outlined text-[14px] text-success">play_arrow</span>
-<span class="">Test Call</span>
-</button>
-<button class="px-space-sm py-1 rounded bg-surface hover:bg-surface-bright text-primary font-code-xs text-code-xs transition-colors" onclick="event.stopPropagation(); selectTool('pg_vector')" type="button">
-                  View Schema
-                </button>
-</div>
-</div>
-</div>
-<div class="flex items-center justify-between pt-space-xs bg-surface-container-lowest/50 p-space-sm rounded-lg flex-wrap gap-2">
-<div class="flex items-center gap-space-xs font-code-xs text-code-xs text-text-secondary flex-wrap">
-<span class="text-text-quaternary font-label-caps text-label-caps">METHODS:</span>
-<span class="px-1.5 py-0.5 rounded bg-surface text-primary-fixed-dim">search_vectors(query, k=5)</span>
-<span class="px-1.5 py-0.5 rounded bg-surface text-primary-fixed-dim">upsert_embedding(id, vec)</span>
-</div>
-<div class="flex items-center gap-2 font-code-xs text-code-xs text-text-quaternary">
-<span class="material-symbols-outlined text-[14px] text-primary">grain</span>
-<span class="">1536-dim (text-embedding-3-small)</span>
-</div>
-</div>
-</article>
-<!-- Tool Row 5: WebSearch -->
-<article class="tool-card bg-surface-container hover:bg-surface-container-high transition-colors p-space-md rounded-xl flex flex-col gap-space-sm cursor-pointer" data-category="community" data-name="websearch brave search api scraper" onclick="selectTool('web_search')">
-<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-space-sm">
-<div class="flex items-start gap-space-md">
-<div class="w-10 h-10 rounded-lg bg-surface flex items-center justify-center shrink-0">
-<span class="material-symbols-outlined text-orange text-[22px]">travel_explore</span>
-</div>
-<div class="flex flex-col">
-<div class="flex items-center gap-space-xs flex-wrap">
-<h2 class="font-headline-sm text-headline-sm text-text-primary">WebSearch (Brave Search API)</h2>
-<span class="font-code-xs text-code-xs text-text-quaternary">(External API)</span>
-<span class="px-1.5 py-0.5 rounded bg-success/15 text-success font-code-xs text-code-xs flex items-center gap-1">
-<span class="w-1.5 h-1.5 rounded-full bg-success"></span> ACTIVE
-                  </span>
-<span class="px-1.5 py-0.5 rounded bg-surface text-orange font-code-xs text-code-xs">rpc://remote/brave-v1</span>
-</div>
-<p class="font-body-sm text-body-sm text-text-tertiary">Real-time web queries, news index lookups, and headless sanitized Markdown page extraction.</p>
-</div>
-</div>
-<div class="flex items-center gap-space-md shrink-0 self-end lg:self-center">
-<label class="flex items-center gap-2 cursor-pointer select-none" onclick="event.stopPropagation()">
-<span class="font-code-xs text-code-xs text-text-quaternary">Enabled</span>
-<input checked="" class="sr-only toggle-switch" type="checkbox">
-<div class="w-9 h-5 bg-primary-container rounded-full relative transition-colors">
-<div class="w-3.5 h-3.5 bg-surface-container-lowest rounded-full absolute top-[3px] right-[3px] transition-transform"></div>
-</div>
-</label>
-<div class="flex items-center gap-1">
-<button class="px-space-sm py-1 rounded bg-surface hover:bg-surface-bright text-text-primary font-code-xs text-code-xs transition-colors flex items-center gap-1" onclick="event.stopPropagation(); triggerTestRun('web_search')" type="button">
-<span class="material-symbols-outlined text-[14px] text-success">play_arrow</span>
-<span class="">Test Call</span>
-</button>
-<button class="px-space-sm py-1 rounded bg-surface hover:bg-surface-bright text-primary font-code-xs text-code-xs transition-colors" onclick="event.stopPropagation(); selectTool('web_search')" type="button">
-                  View Schema
-                </button>
-</div>
-</div>
-</div>
-<div class="flex items-center justify-between pt-space-xs bg-surface-container-lowest/50 p-space-sm rounded-lg flex-wrap gap-2">
-<div class="flex items-center gap-space-xs font-code-xs text-code-xs text-text-secondary flex-wrap">
-<span class="text-text-quaternary font-label-caps text-label-caps">ACTIONS:</span>
-<span class="px-1.5 py-0.5 rounded bg-surface text-text-secondary">web_search(q, count)</span>
-<span class="px-1.5 py-0.5 rounded bg-surface text-text-secondary">scrape_markdown(url)</span>
-</div>
-<div class="flex items-center gap-2 font-code-xs text-code-xs text-text-quaternary">
-<span class="material-symbols-outlined text-[14px] text-warning">vpn_lock</span>
-<span class="">Rate Limit: 10 req/min</span>
-</div>
-</div>
-</article>
-<!-- Tool Row 6: LSP Diagnostic Engine -->
-<article class="tool-card bg-surface-container hover:bg-surface-container-high transition-colors p-space-md rounded-xl flex flex-col gap-space-sm cursor-pointer" data-category="community" data-name="lsp diagnostic engine language server" onclick="selectTool('lsp_engine')">
-<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-space-sm">
-<div class="flex items-start gap-space-md">
-<div class="w-10 h-10 rounded-lg bg-surface flex items-center justify-center shrink-0">
-<span class="material-symbols-outlined text-primary text-[22px]">code_blocks</span>
-</div>
-<div class="flex flex-col">
-<div class="flex items-center gap-space-xs flex-wrap">
-<h2 class="font-headline-sm text-headline-sm text-text-primary">LSP Diagnostic Engine</h2>
-<span class="font-code-xs text-code-xs text-text-quaternary">(Language Server Protocol)</span>
-<span class="px-1.5 py-0.5 rounded bg-success/15 text-success font-code-xs text-code-xs flex items-center gap-1">
-<span class="w-1.5 h-1.5 rounded-full bg-success"></span> CONNECTED
-                  </span>
-<span class="px-1.5 py-0.5 rounded bg-surface text-primary font-code-xs text-code-xs">rpc://local/lsp-bridge</span>
-</div>
-<p class="font-body-sm text-body-sm text-text-tertiary">Real-time compiler diagnostics, type-inference hints, hover symbol documentation, and workspace symbol lookup.</p>
-</div>
-</div>
-<div class="flex items-center gap-space-md shrink-0 self-end lg:self-center">
-<label class="flex items-center gap-2 cursor-pointer select-none" onclick="event.stopPropagation()">
-<span class="font-code-xs text-code-xs text-text-quaternary">Enabled</span>
-<input checked="" class="sr-only toggle-switch" type="checkbox">
-<div class="w-9 h-5 bg-primary-container rounded-full relative transition-colors">
-<div class="w-3.5 h-3.5 bg-surface-container-lowest rounded-full absolute top-[3px] right-[3px] transition-transform"></div>
-</div>
-</label>
-<div class="flex items-center gap-1">
-<button class="px-space-sm py-1 rounded bg-surface hover:bg-surface-bright text-text-primary font-code-xs text-code-xs transition-colors flex items-center gap-1" onclick="event.stopPropagation(); triggerTestRun('lsp_engine')" type="button">
-<span class="material-symbols-outlined text-[14px] text-success">play_arrow</span>
-<span class="">Test Call</span>
-</button>
-<button class="px-space-sm py-1 rounded bg-surface hover:bg-surface-bright text-primary font-code-xs text-code-xs transition-colors" onclick="event.stopPropagation(); selectTool('lsp_engine')" type="button">
-                  View Schema
-                </button>
-</div>
-</div>
-</div>
-<div class="flex items-center justify-between pt-space-xs bg-surface-container-lowest/50 p-space-sm rounded-lg flex-wrap gap-2">
-<div class="flex items-center gap-space-xs font-code-xs text-code-xs text-text-secondary flex-wrap">
-<span class="text-text-quaternary font-label-caps text-label-caps">LSP SERVERS:</span>
-<span class="px-1.5 py-0.5 rounded bg-surface text-text-secondary">rust-analyzer</span>
-<span class="px-1.5 py-0.5 rounded bg-surface text-text-secondary">tsserver</span>
-<span class="px-1.5 py-0.5 rounded bg-surface text-text-secondary">gopls</span>
-<span class="px-1.5 py-0.5 rounded bg-surface text-text-secondary">pyright</span>
-</div>
-<div class="flex items-center gap-2 font-code-xs text-code-xs text-text-quaternary">
-<span class="material-symbols-outlined text-[14px] text-success">check_circle</span>
-<span class="">IPC Health: 0 queued buffers</span>
-</div>
-</div>
-</article>
-</section>
-</div>
-<!-- Right Sidebar Drawer: Schema Inspector & Test Runner -->
+      <section id="serviceBanner" class="bg-surface-container p-space-md rounded-xl flex items-start gap-space-md" aria-live="polite">
+        <span id="serviceIcon" class="material-symbols-outlined text-text-quaternary text-[22px]">hourglass_top</span>
+        <div class="min-w-0"><div id="serviceTitle" class="font-body-medium text-text-primary">Checking Hermes</div><div id="serviceDetail" class="font-code-xs text-code-xs text-text-tertiary mt-1">Requesting health and status from the same-origin Hermes API.</div></div>
+      </section>
 
-</div>
-<!-- Modal: Add New MCP Server -->
-<div class="hidden fixed inset-0 bg-surface-dim/80 backdrop-blur-sm z-50 flex items-center justify-center p-space-md" id="addServerModal">
-<div class="bg-surface-container w-full max-w-lg rounded-2xl p-space-lg flex flex-col gap-space-md shadow-2xl">
-<div class="flex items-center justify-between">
-<div class="flex items-center gap-space-xs">
-<span class="material-symbols-outlined text-primary text-[24px]">cloud_sync</span>
-<h2 class="font-headline-sm text-headline-sm text-text-primary">Mount New MCP Server</h2>
-</div>
-<button class="text-text-quaternary hover:text-text-primary" id="closeModalBtn" type="button">
-<span class="material-symbols-outlined text-[20px]">close</span>
-</button>
-</div>
-<p class="font-body-sm text-body-sm text-text-tertiary">Provide an RPC socket endpoint, Docker container image, or native binary path adhering to the Model Context Protocol v1.x specification.</p>
-<form class="flex flex-col gap-space-sm" id="newServerForm">
-<div class="flex flex-col gap-1">
-<label class="font-label-caps text-label-caps text-text-quaternary uppercase">Server Name</label>
-<input class="bg-surface-container-lowest text-text-primary font-body-sm text-body-sm px-3 py-2 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary" placeholder="e.g. Sentry Error Reporter MCP" required="" type="text">
-</div>
-<div class="flex flex-col gap-1">
-<label class="font-label-caps text-label-caps text-text-quaternary uppercase">Transport Protocol</label>
-<select class="bg-surface-container-lowest text-text-primary font-code-xs text-code-xs px-3 py-2 rounded-lg focus:outline-none">
-<option>JSON-RPC via stdio (Process Spawner)</option>
-<option>SSE over HTTP (Server-Sent Events)</option>
-<option>UNIX Domain Socket (/var/run/...)</option>
-<option>Tailscale P2P Wireguard Mesh Bridge</option>
-</select>
-</div>
-<div class="flex flex-col gap-1">
-<label class="font-label-caps text-label-caps text-text-quaternary uppercase">URI / Binary Executable Path</label>
-<input class="bg-surface-container-lowest text-text-primary font-code-mono text-code-xs px-3 py-2 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary" placeholder="npx -y @modelcontextprotocol/server-sentry" required="" type="text">
-</div>
-<div class="flex items-center gap-2 pt-2">
-<input checked="" class="rounded bg-surface-container-lowest text-primary" id="enforceJail" type="checkbox">
-<label class="font-body-sm text-body-sm text-text-secondary select-none" for="enforceJail">Enforce strict POSIX jail sandbox on child process</label>
-</div>
-<div class="flex items-center justify-end gap-space-sm mt-space-sm">
-<button class="px-space-md py-2 rounded-lg bg-surface hover:bg-surface-bright text-text-secondary font-body-medium text-body-sm" id="cancelModalBtn" type="button">Cancel</button>
-<button class="px-space-md py-2 rounded-lg bg-primary-container text-on-primary font-body-medium text-body-sm hover:opacity-90" type="submit">Mount &amp; Introspect</button>
-</div>
-</form>
-</div>
-</div>
-<!-- Interactive JavaScript Engine -->
-<script>
-    (function initRegistryWorkbench() {
-      // Tools Data Registry
-      const toolSchemas = {
-        bashexecution: {
-          badge: "BashExecution",
-          schema: `{
-  "name": "bash_execution",
-  "description": "Executes command within an isolated shell PTY.",
-  "parameters": {
-    "type": "object",
-    "properties": {
-      "cmd": {
-        "type": "string",
-        "description": "The shell command to invoke."
-      },
-      "worktree": {
-        "type": "string",
-        "description": "Optional sub-directory workspace path."
-      },
-      "timeout": {
-        "type": "integer",
-        "default": 30000
-      }
-    },
-    "required": ["cmd"]
-  }
-}`,
-          defaultCmd: "ls -la /workspace | head -n 5",
-          simulatedStdout: `$ hermes-pty --exec "ls -la /workspace"\ntotal 48\ndrwxr-xr-x 12 agent hermes  4096 Nov 12 04:12 .\ndrwxr-xr-x  3 root  root    4096 Nov 12 04:00 ..\n-rw-r--r--  1 agent hermes   248 Nov 12 04:10 Cargo.toml\ndrwxr-xr-x  4 agent hermes  4096 Nov 12 04:11 src\n[EXIT CODE 0] Execution completed in 11ms`
-        },
-        posix_fs: {
-          badge: "FileRead / FileWrite",
-          schema: `{
-  "name": "posix_fs",
-  "description": "Atomic POSIX filesystem access scoped to repository boundary.",
-  "parameters": {
-    "type": "object",
-    "properties": {
-      "action": {
-        "type": "string",
-        "enum": ["read", "write", "list", "stat"]
-      },
-      "path": {
-        "type": "string",
-        "description": "Target relative file path."
-      },
-      "content": {
-        "type": "string",
-        "description": "Buffer to write (if action=write)."
-      }
-    },
-    "required": ["action", "path"]
-  }
-}`,
-          defaultCmd: 'posix_fs read path="src/main.rs"',
-          simulatedStdout: `$ hermes-fs --read "src/main.rs"\nfn main() {\n    println!("Hermes Agent Ready.");\n}\n\n[SUCCESS] 42 bytes read. EOF reached.`
-        },
-        github_mcp: {
-          badge: "GitHub MCP Server",
-          schema: `{
-  "name": "github_mcp",
-  "description": "Interacts with GitHub GraphQL & REST API endpoints.",
-  "parameters": {
-    "type": "object",
-    "properties": {
-      "endpoint": {
-        "type": "string",
-        "enum": ["list_issues", "create_pr", "get_commit_history"]
-      },
-      "repo": {
-        "type": "string",
-        "description": "Target repository (e.g. hermes/core)."
-      }
-    },
-    "required": ["endpoint", "repo"]
-  }
-}`,
-          defaultCmd: 'octokit list_issues repo="hermes/agent"',
-          simulatedStdout: `$ octokit --query list_issues "hermes/agent"\n[\n  { "id": 104, "title": "Implement ACP SSE stream", "state": "open" },\n  { "id": 109, "title": "Memory leak in Pty process spawner", "state": "open" }\n]\n[RPC 200 OK] Fetched 2 issues in 19ms`
-        },
-        pg_vector: {
-          badge: "Postgres Vector MCP",
-          schema: `{
-  "name": "pg_vector",
-  "description": "Vector similarity embedding retrieval & session episodic recall.",
-  "parameters": {
-    "type": "object",
-    "properties": {
-      "query_text": { "type": "string" },
-      "limit": { "type": "integer", "default": 5 },
-      "similarity_metric": { "type": "string", "enum": ["cosine", "l2", "inner_product"] }
-    },
-    "required": ["query_text"]
-  }
-}`,
-          defaultCmd: 'pgvector search "agent crash recovery routine"',
-          simulatedStdout: `$ pg-pool SELECT * FROM memory ORDER BY embedding <=> $1 LIMIT 1;\nMatch [score: 0.9412]: "Session 881: Recovered after SIGTERM using journal backup."\n[OK] Found 1 matching vector records.`
-        },
-        web_search: {
-          badge: "WebSearch API",
-          schema: `{
-  "name": "web_search",
-  "description": "Live web querying and sanitized HTML to markdown extraction.",
-  "parameters": {
-    "type": "object",
-    "properties": {
-      "q": { "type": "string" },
-      "freshness": { "type": "string", "enum": ["24h", "week", "month", "all"] }
-    },
-    "required": ["q"]
-  }
-}`,
-          defaultCmd: 'brave_search "Latest ACP protocol specifications"',
-          simulatedStdout: `$ brave-v1 query "Latest ACP protocol specifications"\n1. ACP Spec v1.4 - Decentralized Agent Protocol (2024)\n2. Agent Connection Protocol Wire Format RFC-98\n[STATUS 200] 2 results parsed.`
-        },
-        lsp_engine: {
-          badge: "LSP Diagnostics",
-          schema: `{
-  "name": "lsp_diagnostics",
-  "description": "Language Server Protocol diagnostic extraction.",
-  "parameters": {
-    "type": "object",
-    "properties": {
-      "file_path": { "type": "string" },
-      "action": { "type": "string", "enum": ["diagnostics", "hover", "definition"] }
-    },
-    "required": ["file_path", "action"]
-  }
-}`,
-          defaultCmd: 'lsp diagnostics file="src/main.rs"',
-          simulatedStdout: `$ rust-analyzer diagnostics "src/main.rs"\n[No compile warnings or errors detected]\nType inference complete: 0 errors.`
-        }
-      };
+      <section id="operationResult" class="hidden bg-surface-container p-space-md rounded-xl" aria-live="polite" aria-atomic="true"></section>
 
-      // Select Tool and Populate Schema Viewer
-      window.selectTool = function(toolKey) {
-        const data = toolSchemas[toolKey];
-        if (!data) return;
+      <section class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-space-md" id="summaryGrid" aria-label="Live registry summary"></section>
 
-        const badge = document.getElementById('activeToolBadge');
-        const codeBlock = document.getElementById('jsonSchemaBlock');
-        const cmdInput = document.getElementById('testCommandInput');
-        const consoleOut = document.getElementById('testOutputConsole');
+      <nav class="flex items-center gap-space-xs overflow-x-auto bg-surface-container-low p-space-xs rounded-xl" id="registryTabs" aria-label="Registry sections">
+        <button class="registry-tab" data-section="servers" type="button">MCP servers <span data-count="servers">—</span></button>
+        <button class="registry-tab" data-section="toolsets" type="button">Toolsets <span data-count="toolsets">—</span></button>
+        <button class="registry-tab" data-section="skills" type="button">Skills <span data-count="skills">—</span></button>
+        <button class="registry-tab" data-section="profiles" type="button">Profiles <span data-count="profiles">—</span></button>
+      </nav>
 
-        if (badge) badge.innerText = data.badge;
-        if (codeBlock) {
-          // Syntax highlight simulation
-          const highlighted = data.schema
-            .replace(/"(.*?)":/g, '<span class="text-primary">"$1"</span>:')
-            .replace(/: "(.*?)"/g, ': <span class="text-success">"$1"</span>')
-            .replace(/: (\d+)/g, ': <span class="text-orange">$1</span>');
-          codeBlock.innerHTML = `<code>${highlighted}</code>`;
-        }
-        if (cmdInput) cmdInput.value = data.defaultCmd;
-        if (consoleOut) consoleOut.innerHTML = `<span class="text-text-quaternary">Schema loaded. Click 'Execute' to run test against ${data.badge}.</span>`;
-      };
+      <section class="flex flex-col gap-space-sm" id="registryContent" aria-live="polite"></section>
 
-      // Trigger Direct Run
-      window.triggerTestRun = function(toolKey) {
-        window.selectTool(toolKey);
-        const execBtn = document.getElementById('executeTestBtn');
-        if (execBtn) execBtn.click();
-      };
+      <section class="bg-surface-container-low p-space-md rounded-xl flex flex-col lg:flex-row lg:items-center justify-between gap-space-md">
+        <div><h2 class="font-headline-sm text-headline-sm text-text-primary">Manage tools without leaving Cockpit</h2><p class="font-body-sm text-body-sm text-text-tertiary mt-1">Add and test MCP servers, control toolsets, and create or edit eligible skills. Changes are sent directly to Hermes.</p></div>
+        <div class="flex flex-col sm:flex-row gap-space-sm w-full lg:w-auto">
+          <button id="addMcpServer" class="w-full sm:w-auto flex items-center justify-center gap-1.5 px-space-md py-2 rounded-lg bg-primary-container text-surface-container-lowest font-body-medium text-body-sm" type="button"><span class="material-symbols-outlined text-[16px]">add_circle</span>Add MCP server</button>
+          <button id="createSkill" class="w-full sm:w-auto flex items-center justify-center gap-1.5 px-space-md py-2 rounded-lg bg-surface-secondary hover:bg-surface-bright text-text-primary font-body-medium text-body-sm" type="button"><span class="material-symbols-outlined text-[16px] text-primary">note_add</span>Create skill</button>
+          <a class="w-full sm:w-auto flex items-center justify-center gap-1.5 px-space-md py-2 rounded-lg border border-surface-secondary hover:bg-surface text-text-secondary font-body-medium text-body-sm" href="/hermes/" target="_blank" rel="noreferrer">Admin fallback <span class="material-symbols-outlined text-[16px]">arrow_outward</span></a>
+        </div>
+      </section>
+    </div>
+  </main></div>
 
-      // Test Runner Execution simulation
-      const executeBtn = document.getElementById('executeTestBtn');
-      const testInput = document.getElementById('testCommandInput');
-      const testConsole = document.getElementById('testOutputConsole');
-      const latencyBadge = document.getElementById('execLatency');
+  <div id="registryDialog" class="hidden fixed inset-0 z-[100] bg-black/70 p-space-md items-center justify-center" role="dialog" aria-modal="true" aria-labelledby="registryDialogTitle">
+    <form id="registryDialogForm" class="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-surface-container rounded-xl shadow-2xl border border-surface-secondary">
+      <div class="sticky top-0 bg-surface-container px-space-md py-space-md border-b border-surface-secondary flex items-center justify-between gap-space-sm z-10">
+        <h2 id="registryDialogTitle" class="font-headline-sm text-headline-sm text-text-primary"></h2>
+        <button id="closeRegistryDialog" class="p-2 rounded-lg hover:bg-surface-secondary text-text-secondary" type="button" aria-label="Close dialog"><span class="material-symbols-outlined">close</span></button>
+      </div>
+      <div id="registryDialogBody" class="p-space-md flex flex-col gap-space-md"></div>
+      <div class="sticky bottom-0 bg-surface-container px-space-md py-space-md border-t border-surface-secondary flex flex-col-reverse sm:flex-row sm:justify-end gap-space-sm">
+        <button id="cancelRegistryDialog" class="w-full sm:w-auto px-space-md py-2 rounded-lg bg-surface-secondary hover:bg-surface-bright text-text-primary" type="button">Cancel</button>
+        <button id="submitRegistryDialog" class="w-full sm:w-auto px-space-md py-2 rounded-lg bg-primary-container text-surface-container-lowest font-body-medium" type="submit">Save</button>
+      </div>
+    </form>
+  </div>
 
-      if (executeBtn && testInput && testConsole) {
-        executeBtn.addEventListener('click', () => {
-          const val = testInput.value.trim();
-          testConsole.innerHTML = `<span class="text-primary animate-pulse">> Transmitting JSON-RPC frame...</span>`;
-          if (latencyBadge) latencyBadge.innerText = 'Streaming...';
+  <script>
+  (() => {
+    'use strict';
+    const API='/hermes/api';
+    const resources={
+      servers:{label:'MCP servers',endpoint:'/mcp/servers',keys:['servers','mcp_servers','items','results']},
+      toolsets:{label:'Toolsets',endpoint:'/tools/toolsets',keys:['toolsets','tools','items','results']},
+      skills:{label:'Skills',endpoint:'/skills',keys:['skills','items','results']},
+      profiles:{label:'Profiles',endpoint:'/profiles',keys:['profiles','items','results']}
+    };
+    const state={active:'servers',filter:'',loading:false,data:Object.fromEntries(Object.keys(resources).map(key=>[key,{status:'loading',items:[],raw:null,error:''}])),health:{status:'loading',health:null,service:null,errors:[]}};
+    const el=id=>document.getElementById(id);
+    const secretKey=/token|secret|password|passwd|api[_-]?key|credential|authorization|cookie|private[_-]?key/i;
+    const redact=(value,key='')=>{if(secretKey.test(key))return'[redacted]';if(Array.isArray(value))return value.map(item=>redact(item));if(value&&typeof value==='object')return Object.fromEntries(Object.entries(value).map(([childKey,childValue])=>[childKey,redact(childValue,childKey)]));if(typeof value==='string'&&/^(?:sk-|ghp_|github_pat_|xox[baprs]-|Bearer\s+)[A-Za-z0-9._-]{8,}/i.test(value))return'[redacted]';return value};
+    const safeString=value=>{if(value===null||value===undefined||value==='')return'';if(typeof value==='string')return value;if(typeof value==='number'||typeof value==='boolean')return String(value);try{return JSON.stringify(value)}catch(_){return String(value)}};
+    const firstValue=(object,keys)=>{if(!object||typeof object!=='object')return'';for(const key of keys){if(object[key]!==undefined&&object[key]!==null&&object[key]!=='')return object[key]}return''};
+    const directArray=(payload,keys)=>{if(Array.isArray(payload))return payload;if(!payload||typeof payload!=='object')return null;for(const key of keys)if(Array.isArray(payload[key]))return payload[key];if(payload.data!==undefined){const nested=directArray(payload.data,keys);if(nested)return nested}return null};
+    const normalizeItems=(payload,keys)=>{const array=directArray(payload,keys);if(array)return array.map((item,index)=>item&&typeof item==='object'?item:{name:safeString(item)||`Item ${index+1}`});if(payload&&typeof payload==='object'){const candidate=payload.data&&typeof payload.data==='object'&&!Array.isArray(payload.data)?payload.data:payload;const matchingKey=keys.find(key=>candidate[key]&&typeof candidate[key]==='object'&&!Array.isArray(candidate[key]));const map=matchingKey?candidate[matchingKey]:null;if(map)return Object.entries(map).map(([name,value])=>value&&typeof value==='object'?{_registryKey:name,...value}:{name,value})}return[]};
+    const requestJSON=async(endpoint,options={})=>{const headers={Accept:'application/json',...(options.body?{'Content-Type':'application/json'}:{}),...(options.headers||{})};const response=await fetch(`${API}${endpoint}`,{credentials:'same-origin',...options,headers});const text=await response.text();let body=text;if(text){try{body=JSON.parse(text)}catch(_){body=text}}else body={ok:response.ok};if(!response.ok){const detail=typeof body==='object'?firstValue(body,['detail','error','message']):body;const error=new Error(safeString(detail)||`${response.status} ${response.statusText}`);error.status=response.status;throw error}return body};
+    const writeJSON=(method,endpoint,body)=>requestJSON(endpoint,{method,body:body===undefined?undefined:JSON.stringify(body)});
+    const node=(tag,className,text)=>{const element=document.createElement(tag);if(className)element.className=className;if(text!==undefined)element.textContent=text;return element};
+    const displayName=(item,fallback)=>safeString(firstValue(item,['display_name','name','title','id','server_name','toolset_name','skill_name','profile_name','_registryKey']))||fallback;
+    const itemStatus=item=>safeString(firstValue(item,['status','state','health','connection_status']))||(typeof item.enabled==='boolean'?(item.enabled?'enabled':'disabled'):'')||(typeof item.running==='boolean'?(item.running?'running':'stopped'):'')||(typeof item.connected==='boolean'?(item.connected?'connected':'disconnected'):'');
+    const description=item=>safeString(firstValue(item,['description','summary','command','transport','provider','model','path']));
+    const interestingFields=item=>{const omit=new Set(['display_name','name','title','id','server_name','toolset_name','skill_name','profile_name','_registryKey','description','summary']);return Object.entries(item||{}).filter(([key,value])=>!omit.has(key)&&!secretKey.test(key)&&value!==null&&value!==undefined&&value!==''&&typeof value!=='object').slice(0,6)};
+    const statusTone=value=>{const normalized=String(value).toLowerCase();if(/running|connected|healthy|ready|enabled|active|ok/.test(normalized))return'text-success bg-success/10';if(/error|failed|unhealthy|disconnected|stopped|disabled/.test(normalized))return'text-error bg-error/10';return'text-warning bg-warning/10'};
+    const itemName=item=>safeString(item&&item.name);
+    const provenance=item=>safeString(firstValue(item,['provenance','source','origin','installed_from','provider'])).toLowerCase();
+    const isPluginProvided=item=>Boolean(item&&((item.plugin||item.plugin_id||item.plugin_name)||/plugin/.test(provenance(item))));
+    const skillEditable=item=>/agent|external/.test(provenance(item))&&!/bundled|hub|system/.test(provenance(item));
+    const actionButton=(label,icon,handler,tone='secondary')=>{const button=node('button',`w-full sm:w-auto flex items-center justify-center gap-1.5 px-space-md py-2 rounded-lg font-body-medium text-body-sm transition-colors ${tone==='primary'?'bg-primary-container text-surface-container-lowest':'bg-surface-secondary hover:bg-surface-bright text-text-primary'}`);button.type='button';button.append(node('span','material-symbols-outlined text-[16px]',icon),node('span','',label));button.addEventListener('click',()=>handler(button));return button};
 
-          setTimeout(() => {
-            const ms = Math.floor(Math.random() * 15) + 6;
-            testConsole.innerHTML = `<span class="text-text-quaternary">$ rpc-exec "${val}"</span>\n<span class="text-text-secondary">> Dispatching sandbox POSIX child runner...</span>\n<span class="text-success">[EXIT 0] Buffer returned clean payload: OK</span>\n<span class="text-primary-container">{"status": 200, "ack": true, "timestamp": ${Date.now()}}</span>\n<span class="text-success">Finished execution in ${ms}ms.</span>`;
-            if (latencyBadge) latencyBadge.innerText = `${ms}ms (OK)`;
-          }, 320);
-        });
-      }
+    function showOperation(title,value,tone='success'){const panel=el('operationResult');panel.classList.remove('hidden');panel.replaceChildren();const heading=node('div','flex items-start justify-between gap-space-sm'),copy=node('div','min-w-0'),titleNode=node('div',`font-body-medium ${tone==='error'?'text-error':tone==='warning'?'text-warning':'text-success'}`,title),close=node('button','p-1 rounded hover:bg-surface-secondary text-text-quaternary');close.type='button';close.setAttribute('aria-label','Dismiss message');close.append(node('span','material-symbols-outlined text-[18px]','close'));close.addEventListener('click',()=>panel.classList.add('hidden'));copy.append(titleNode);if(value!==undefined&&value!==''){const pre=node('pre','mt-space-xs overflow-x-auto whitespace-pre-wrap break-words font-code-xs text-code-xs text-text-secondary'),safeValue=redact(value);pre.textContent=typeof safeValue==='string'?safeValue:JSON.stringify(safeValue,null,2);copy.append(pre)}heading.append(copy,close);panel.append(heading)}
+    async function runWrite(button,label,work){const original=button.innerHTML;button.disabled=true;button.classList.add('opacity-60');button.textContent='Working…';try{const result=await work();showOperation(label,result);await loadRegistry()}catch(error){showOperation(`${label} failed`,error.message,'error')}finally{button.disabled=false;button.classList.remove('opacity-60');button.innerHTML=original}}
 
-      // Filter tool list
-      const searchInput = document.getElementById('toolFilterInput');
-      const cards = document.querySelectorAll('.tool-card');
+    const dialog=el('registryDialog'),dialogForm=el('registryDialogForm'),dialogBody=el('registryDialogBody'),dialogSubmit=el('submitRegistryDialog');
+    let dialogHandler=null;
+    const field=(label,name,{type='text',placeholder='',required=false,value='',help='',rows=0}={})=>{const wrap=node('label','flex flex-col gap-space-xs'),caption=node('span','font-body-medium text-body-sm text-text-secondary',label);const input=rows?node('textarea','w-full bg-surface-container-lowest text-text-primary px-space-md py-2 rounded-lg border border-surface-secondary focus:outline-none focus:ring-1 focus:ring-primary min-h-[180px]'):node('input','w-full bg-surface-container-lowest text-text-primary px-space-md py-2 rounded-lg border border-surface-secondary focus:outline-none focus:ring-1 focus:ring-primary');input.name=name;if(!rows)input.type=type;if(rows)input.rows=rows;input.placeholder=placeholder;input.required=required;input.value=value;wrap.append(caption,input);if(help)wrap.append(node('span','font-code-xs text-code-xs text-text-quaternary',help));return wrap};
+    function openDialog(title,submitLabel,content,onSubmit,{danger=false}={}){el('registryDialogTitle').textContent=title;dialogBody.replaceChildren(...content);dialogSubmit.textContent=submitLabel;dialogSubmit.className=`w-full sm:w-auto px-space-md py-2 rounded-lg font-body-medium ${danger?'bg-error text-surface-container-lowest':'bg-primary-container text-surface-container-lowest'}`;dialogHandler=onSubmit;dialog.classList.remove('hidden');dialog.classList.add('flex');document.body.style.overflow='hidden';setTimeout(()=>dialogBody.querySelector('input,textarea,button')?.focus(),0)}
+    function closeDialog(){dialog.classList.add('hidden');dialog.classList.remove('flex');document.body.style.overflow='';dialogHandler=null;dialogForm.reset()}
+    el('closeRegistryDialog').addEventListener('click',closeDialog);el('cancelRegistryDialog').addEventListener('click',closeDialog);dialog.addEventListener('click',event=>{if(event.target===dialog)closeDialog()});document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!dialog.classList.contains('hidden'))closeDialog()});
+    dialogForm.addEventListener('submit',async event=>{event.preventDefault();if(!dialogHandler)return;dialogSubmit.disabled=true;dialogSubmit.classList.add('opacity-60');const label=dialogSubmit.textContent;dialogSubmit.textContent='Working…';try{const result=await dialogHandler(new FormData(dialogForm));closeDialog();showOperation(`${label} succeeded`,result);await loadRegistry()}catch(error){showOperation(`${label} failed`,error.message,'error')}finally{dialogSubmit.disabled=false;dialogSubmit.classList.remove('opacity-60');dialogSubmit.textContent=label}});
 
-      if (searchInput) {
-        searchInput.addEventListener('input', (e) => {
-          const query = e.target.value.toLowerCase();
-          cards.forEach(card => {
-            const name = card.getAttribute('data-name') || '';
-            const text = card.innerText.toLowerCase();
-            if (name.includes(query) || text.includes(query)) {
-              card.classList.remove('hidden');
-            } else {
-              card.classList.add('hidden');
-            }
-          });
-        });
-      }
+    function renderSummary(){const grid=el('summaryGrid');grid.replaceChildren();Object.entries(resources).forEach(([key,config])=>{const result=state.data[key];const card=node('article','bg-surface-container p-space-md rounded-xl flex flex-col gap-space-sm');const heading=node('div','flex items-center justify-between gap-space-sm');heading.append(node('span','font-label-caps text-label-caps text-text-quaternary uppercase tracking-wider',config.label),node('span','material-symbols-outlined text-primary text-[20px]',key==='servers'?'hub':key==='toolsets'?'construction':key==='skills'?'psychology':'manage_accounts'));card.append(heading);if(result.status==='ok'){card.append(node('div','font-headline-lg text-headline-lg text-text-primary font-code-mono',String(result.items.length)),node('div','font-code-xs text-code-xs text-text-tertiary',result.items.length===1?'entry returned by Hermes':'entries returned by Hermes'))}else if(result.status==='loading'){card.append(node('div','font-headline-sm text-headline-sm text-text-quaternary animate-pulse','Loading…'),node('div','font-code-xs text-code-xs text-text-tertiary',config.endpoint))}else{card.append(node('div','font-headline-sm text-headline-sm text-error',result.status==='unsupported'?'Unavailable':'Error'),node('div','font-code-xs text-code-xs text-text-tertiary break-words',result.error))}grid.append(card);document.querySelectorAll(`[data-count="${key}"]`).forEach(count=>{count.textContent=result.status==='ok'?`(${result.items.length})`:'(—)'})})}
 
-      // Filter category pills
-      const pills = document.querySelectorAll('.filter-pill');
-      pills.forEach(pill => {
-        pill.addEventListener('click', () => {
-          pills.forEach(p => {
-            p.classList.remove('bg-primary-container', 'text-on-primary');
-            p.classList.add('bg-surface', 'text-text-secondary');
-          });
-          pill.classList.remove('bg-surface', 'text-text-secondary');
-          pill.classList.add('bg-primary-container', 'text-on-primary');
+    function renderService(){const title=el('serviceTitle'),detail=el('serviceDetail'),icon=el('serviceIcon');if(state.health.status==='loading'){title.textContent='Checking Hermes';detail.textContent='Requesting health and status from the same-origin Hermes API.';icon.textContent='hourglass_top';icon.className='material-symbols-outlined text-text-quaternary text-[22px] animate-pulse';return}const source=state.health.health||state.health.service||{};const reported=safeString(firstValue(source,['status','state','health']))||(state.health.health||state.health.service?'responding':'unavailable');const version=safeString(firstValue(source,['version','hermes_version','api_version']));const healthy=!state.health.errors.length||/ok|healthy|ready|running|responding/i.test(reported);title.textContent=healthy?`Hermes ${reported}`:'Hermes health could not be confirmed';detail.textContent=[version?`Version ${version}`:'',state.health.errors.length?state.health.errors.join(' · '):'Live Hermes API is responding.'].filter(Boolean).join(' · ');icon.textContent=healthy?'check_circle':'warning';icon.className=`material-symbols-outlined text-[22px] ${healthy?'text-success':'text-warning'}`}
 
-          const cat = pill.getAttribute('data-cat');
-          cards.forEach(card => {
-            const cardCat = card.getAttribute('data-category');
-            if (cat === 'all' || cardCat === cat) {
-              card.classList.remove('hidden');
-            } else {
-              card.classList.add('hidden');
-            }
-          });
-        });
-      });
+    function openAddMcp(){openDialog('Add MCP server','Add server',[
+      field('Server name','name',{required:true,placeholder:'my-server'}),
+      field('HTTP URL','url',{type:'url',placeholder:'https://server.example/mcp',help:'Provide either an HTTP URL or a command.'}),
+      field('Local command','command',{placeholder:'npx',help:'Use this instead of a URL for a process-based MCP server.'}),
+      field('Arguments','args',{rows:4,placeholder:'-y\n@scope/package',help:'Optional. Enter one argument per line. Secrets are not collected or stored by this page.'})
+    ],async form=>{const name=String(form.get('name')||'').trim(),url=String(form.get('url')||'').trim(),command=String(form.get('command')||'').trim(),args=String(form.get('args')||'').split(/\r?\n/).map(value=>value.trim()).filter(Boolean);if(Boolean(url)===Boolean(command))throw new Error('Enter either an HTTP URL or a local command, but not both.');return writeJSON('POST','/mcp/servers',{name,...(url?{url}:{command}),args})})}
+    function openCreateSkill(){openDialog('Create skill','Create skill',[
+      field('Skill name','name',{required:true,placeholder:'my-skill'}),
+      field('Category','category',{placeholder:'Optional category'}),
+      field('Skill content','content',{required:true,rows:14,placeholder:'# My skill\n\nInstructions…'})
+    ],form=>{const name=String(form.get('name')||'').trim(),content=String(form.get('content')||''),category=String(form.get('category')||'').trim();return writeJSON('POST','/skills',{name,content,...(category?{category}:{})})})}
+    async function openSkillEditor(item,button){const name=itemName(item);const original=button.innerHTML;button.disabled=true;button.classList.add('opacity-60');button.textContent='Loading…';try{const payload=await requestJSON(`/skills/content?name=${encodeURIComponent(name)}`),content=typeof payload==='string'?payload:safeString(payload&&payload.content!==undefined?payload.content:payload&&payload.data&&payload.data.content!==undefined?payload.data.content:'');openDialog(`Edit skill: ${name}`,'Save skill',[field('Skill content','content',{required:true,rows:20,value:content,help:'Saving replaces the content for this skill in Hermes.'})],form=>writeJSON('PUT','/skills/content',{name,content:String(form.get('content')||'')}))}catch(error){showOperation(`Could not load ${name}`,error.message,'error')}finally{button.disabled=false;button.classList.remove('opacity-60');button.innerHTML=original}}
+    function openDeleteServer(item){const name=itemName(item),warning=node('div','flex flex-col gap-space-sm');warning.append(node('p','font-body-sm text-body-sm text-text-secondary','This permanently removes the MCP server configuration from Hermes.'),node('code','font-code-xs text-code-xs text-error bg-error/10 rounded-lg px-space-md py-2 break-all',name),node('p','font-body-sm text-body-sm text-warning','This action cannot be undone from Cockpit.'));openDialog(`Delete MCP server?`,'Delete server',[warning],()=>writeJSON('DELETE',`/mcp/servers/${encodeURIComponent(name)}`),{danger:true})}
+    function appendActions(card,item){const name=itemName(item);if(!name||state.active==='profiles')return;const actions=node('div','flex flex-col sm:flex-row sm:flex-wrap gap-space-sm pt-space-xs border-t border-surface-secondary/60');if(state.active==='toolsets'&&typeof item.enabled==='boolean'){actions.append(actionButton(item.enabled?'Disable toolset':'Enable toolset',item.enabled?'toggle_off':'toggle_on',(button)=>runWrite(button,`${item.enabled?'Disabled':'Enabled'} ${name}`,()=>writeJSON('PUT',`/tools/toolsets/${encodeURIComponent(name)}`,{enabled:!item.enabled})),item.enabled?'secondary':'primary'))}else if(state.active==='servers'){
+        if(typeof item.enabled==='boolean')actions.append(actionButton(item.enabled?'Disable':'Enable',item.enabled?'toggle_off':'toggle_on',(button)=>runWrite(button,`${item.enabled?'Disabled':'Enabled'} ${name}`,()=>writeJSON('PUT',`/mcp/servers/${encodeURIComponent(name)}/enabled`,{enabled:!item.enabled})),item.enabled?'secondary':'primary'));
+        actions.append(actionButton('Test connection','network_check',(button)=>runWrite(button,`MCP test: ${name}`,()=>writeJSON('POST',`/mcp/servers/${encodeURIComponent(name)}/test`,{}))));
+        if(isPluginProvided(item)){const locked=actionButton('Plugin managed','lock',()=>{});locked.disabled=true;locked.classList.add('opacity-50','cursor-not-allowed');locked.title='Plugin-provided servers must be managed by their plugin.';actions.append(locked)}else actions.append(actionButton('Delete','delete',()=>openDeleteServer(item)));
+      }else if(state.active==='skills'){
+        if(typeof item.enabled==='boolean')actions.append(actionButton(item.enabled?'Disable':'Enable',item.enabled?'toggle_off':'toggle_on',(button)=>runWrite(button,`${item.enabled?'Disabled':'Enabled'} ${name}`,()=>writeJSON('PUT','/skills/toggle',{name,enabled:!item.enabled})),item.enabled?'secondary':'primary'));
+        if(skillEditable(item))actions.append(actionButton('Edit skill','edit',(button)=>openSkillEditor(item,button),'primary'));else{const locked=actionButton('Read-only source','lock',()=>{});locked.disabled=true;locked.classList.add('opacity-50','cursor-not-allowed');locked.title='Only agent or external skills can be edited here.';actions.append(locked)}
+      }if(actions.childElementCount)card.append(actions)}
 
-      // Reload Manifests feedback
-      const reloadBtn = document.getElementById('reloadManifestsBtn');
-      if (reloadBtn) {
-        reloadBtn.addEventListener('click', () => {
-          const original = reloadBtn.innerHTML;
-          reloadBtn.innerHTML = `<span class="material-symbols-outlined text-[16px] animate-spin text-primary">sync</span><span>Syncing...</span>`;
-          setTimeout(() => {
-            reloadBtn.innerHTML = `<span class="material-symbols-outlined text-[16px] text-success">check</span><span>Manifests Fresh</span>`;
-            setTimeout(() => {
-              reloadBtn.innerHTML = original;
-            }, 1800);
-          }, 700);
-        });
-      }
+    function renderContent(){const container=el('registryContent'),config=resources[state.active],result=state.data[state.active];container.replaceChildren();if(result.status==='loading'){const loading=node('div','bg-surface-container p-space-lg rounded-xl text-text-tertiary flex items-center gap-space-sm');loading.append(node('span','material-symbols-outlined animate-spin text-primary','progress_activity'),node('span','',`Loading ${config.label.toLowerCase()} from ${config.endpoint}…`));container.append(loading);return}if(result.status!=='ok'){const error=node('div','bg-surface-container p-space-lg rounded-xl flex flex-col gap-space-sm');error.append(node('div','font-headline-sm text-headline-sm text-error',result.status==='unsupported'?`${config.label} endpoint is not available`:`Could not load ${config.label.toLowerCase()}`),node('div','font-code-xs text-code-xs text-text-tertiary break-words',result.error));const link=node('a','text-primary font-body-sm text-body-sm hover:underline','Open Hermes admin to inspect configuration ↗');link.href='/hermes/';link.target='_blank';link.rel='noreferrer';error.append(link);container.append(error);return}const filtered=result.items.filter(item=>JSON.stringify(redact(item)).toLowerCase().includes(state.filter));if(!filtered.length){container.append(node('div','bg-surface-container p-space-lg rounded-xl text-text-tertiary',result.items.length?'No loaded entries match this filter.':`Hermes returned no ${config.label.toLowerCase()}.`));return}filtered.forEach((item,index)=>{const card=node('article','registry-entry bg-surface-container hover:bg-surface-container-high transition-colors p-space-md rounded-xl flex flex-col gap-space-sm');const row=node('div','flex flex-col md:flex-row md:items-start justify-between gap-space-sm'),identity=node('div','min-w-0 flex items-start gap-space-md'),iconWrap=node('div','w-10 h-10 rounded-lg bg-surface flex items-center justify-center shrink-0'),copy=node('div','min-w-0'),nameRow=node('div','flex items-center gap-space-xs flex-wrap');iconWrap.append(node('span','material-symbols-outlined text-primary text-[22px]',state.active==='servers'?'dns':state.active==='toolsets'?'construction':state.active==='skills'?'neurology':'account_circle'));nameRow.append(node('h2','font-headline-sm text-headline-sm text-text-primary break-words',displayName(item,`${config.label.slice(0,-1)} ${index+1}`)));const status=itemStatus(item);if(status)nameRow.append(node('span',`px-1.5 py-0.5 rounded font-code-xs text-code-xs ${statusTone(status)}`,status));copy.append(nameRow);const detailText=description(item);if(detailText)copy.append(node('p','font-body-sm text-body-sm text-text-tertiary mt-1 break-words',detailText));identity.append(iconWrap,copy);row.append(identity);card.append(row);const fields=interestingFields(item);if(fields.length){const metadata=node('div','flex items-center gap-space-xs flex-wrap pt-space-xs');fields.forEach(([key,value])=>metadata.append(node('span','px-1.5 py-0.5 rounded bg-surface font-code-xs text-code-xs text-text-secondary break-all',`${key}: ${safeString(value)}`)));card.append(metadata)}const details=node('details','bg-surface-container-lowest/50 rounded-lg'),summary=node('summary','cursor-pointer select-none px-space-sm py-1.5 font-code-xs text-code-xs text-text-quaternary hover:text-text-primary','Redacted Hermes response'),pre=node('pre','px-space-sm pb-space-sm overflow-x-auto whitespace-pre-wrap break-words font-code-xs text-code-xs text-text-secondary');pre.textContent=JSON.stringify(redact(item),null,2);details.append(summary,pre);card.append(details);appendActions(card,item);container.append(card)})}
 
-      // Copy schema button
-      const copyBtn = document.getElementById('copySchemaBtn');
-      if (copyBtn) {
-        copyBtn.addEventListener('click', () => {
-          const pre = document.getElementById('jsonSchemaBlock');
-          if (pre) {
-            navigator.clipboard.writeText(pre.innerText).then(() => {
-              copyBtn.innerHTML = `<span class="material-symbols-outlined text-[14px] text-success">check</span><span>Copied!</span>`;
-              setTimeout(() => {
-                copyBtn.innerHTML = `<span class="material-symbols-outlined text-[14px]">content_copy</span><span>Copy</span>`;
-              }, 1500);
-            });
-          }
-        });
-      }
+    async function loadRegistry(){if(state.loading)return;state.loading=true;Object.keys(resources).forEach(key=>{state.data[key]={status:'loading',items:[],raw:null,error:''}});state.health={status:'loading',health:null,service:null,errors:[]};renderSummary();renderService();renderContent();const refresh=el('refreshRegistry');refresh.disabled=true;refresh.classList.add('opacity-60');const registryJobs=Object.entries(resources).map(async([key,config])=>{try{const payload=await requestJSON(config.endpoint);state.data[key]={status:'ok',items:normalizeItems(payload,config.keys),raw:payload,error:''}}catch(error){state.data[key]={status:error.status===404||error.status===405?'unsupported':'error',items:[],raw:null,error:`${config.endpoint}: ${error.message}`}}});const healthJobs=[['/health','health'],['/status','service']].map(async([endpoint,key])=>{try{state.health[key]=await requestJSON(endpoint)}catch(error){state.health.errors.push(`${endpoint}: ${error.message}`)}});await Promise.all([...registryJobs,...healthJobs]);state.health.status=state.health.health||state.health.service?'ok':'error';state.loading=false;refresh.disabled=false;refresh.classList.remove('opacity-60');el('lastUpdated').textContent=`Updated ${new Intl.DateTimeFormat(undefined,{dateStyle:'medium',timeStyle:'medium'}).format(new Date())}`;renderSummary();renderService();renderContent()}
 
-      // Add Modal toggles
-      const addModal = document.getElementById('addServerModal');
-      const openModalBtn = document.getElementById('openAddModalBtn');
-      const closeModalBtn = document.getElementById('closeModalBtn');
-      const cancelModalBtn = document.getElementById('cancelModalBtn');
-      const form = document.getElementById('newServerForm');
-
-      const closeModal = () => { if (addModal) addModal.classList.add('hidden'); };
-      const openModal = () => { if (addModal) addModal.classList.remove('hidden'); };
-
-      if (openModalBtn) openModalBtn.addEventListener('click', openModal);
-      if (closeModalBtn) closeModalBtn.addEventListener('click', closeModal);
-      if (cancelModalBtn) cancelModalBtn.addEventListener('click', closeModal);
-
-      if (form) {
-        form.addEventListener('submit', (e) => {
-          e.preventDefault();
-          closeModal();
-          // Visual confirmation on reload button
-          if (reloadBtn) {
-            reloadBtn.innerHTML = `<span class="material-symbols-outlined text-[16px] text-success">done_all</span><span>Mounted!</span>`;
-            setTimeout(() => { reloadBtn.innerHTML = `<span class="material-symbols-outlined text-[16px] text-primary">sync</span><span>Reload Manifests</span>`; }, 2000);
-          }
-        });
-      }
-    })();
+    document.querySelectorAll('.registry-tab').forEach(button=>{button.className='registry-tab shrink-0 px-space-md py-1.5 rounded-lg font-code-xs text-code-xs transition-colors '+(button.dataset.section===state.active?'bg-primary-container text-surface-container-lowest':'bg-surface text-text-secondary hover:text-text-primary');button.addEventListener('click',()=>{state.active=button.dataset.section;document.querySelectorAll('.registry-tab').forEach(tab=>{const active=tab.dataset.section===state.active;tab.classList.toggle('bg-primary-container',active);tab.classList.toggle('text-surface-container-lowest',active);tab.classList.toggle('bg-surface',!active);tab.classList.toggle('text-text-secondary',!active)});renderContent()})});
+    el('registryFilter').addEventListener('input',event=>{state.filter=event.target.value.trim().toLowerCase();renderContent()});el('refreshRegistry').addEventListener('click',loadRegistry);el('addMcpServer').addEventListener('click',openAddMcp);el('createSkill').addEventListener('click',openCreateSkill);loadRegistry();
+  })();
   </script>
-</div></main></div>
-
-
-
-
-
-
-
-
-
-
-
-<script>window.currentPage="tool-registry"</script><script src="shell-data.js"></script><script src="shell.js"></script><link rel="stylesheet" href="prototype.css"></body></html>
+  <script>window.currentPage="tool-registry"</script><script src="shell-data.js?v=20261015g"></script><script src="shell.js?v=20261015g"></script><link rel="stylesheet" href="prototype.css">
+</body>
+</html>

@@ -1,492 +1,115 @@
-<!DOCTYPE html><html class="dark" lang="en" style=""><head><link href="vendor/fonts.css" rel="stylesheet"><link href="vendor/material-symbols.css" rel="stylesheet"><title>Hermes Copilot — acp-telemetry</title></head><body class="bg-background font-body-base text-body-base text-text-primary min-h-screen selection:bg-secondary-container selection:text-text-primary"><svg aria-hidden="true" class="inline-defs-container" style="position:absolute;width:0;height:0;overflow:hidden"></svg><meta charset="utf-8"><meta content="width=device-width, initial-scale=1.0" name="viewport"><meta content="web_dashboard" name="shell-type">
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <meta content="web_dashboard" name="shell-type">
+  <link href="vendor/fonts.css" rel="stylesheet">
+  <link href="vendor/material-symbols.css" rel="stylesheet">
+  <title>Hermes Cockpit — Live telemetry</title>
+  <style>
+    html,body{margin:0;padding:0}body{overscroll-behavior:none}::-webkit-scrollbar{width:4px;height:4px}::-webkit-scrollbar-thumb{background:#3b4252;border-radius:2px}
+    .metric{font-variant-numeric:tabular-nums}.live-dot{box-shadow:0 0 0 0 rgba(163,190,140,.45);animation:pulse 2s infinite}@keyframes pulse{70%{box-shadow:0 0 0 6px rgba(163,190,140,0)}100%{box-shadow:0 0 0 0 rgba(163,190,140,0)}}
+  </style>
+  <script src="vendor/tailwindcss-cdn-forms.js"></script>
+  <script>tailwind.config={darkMode:"class",theme:{extend:{fontFamily:{sans:["Inter"],mono:["JetBrains Mono"]}}}};</script>
+</head>
+<body class="bg-[#121221] font-sans text-sm text-[#ECEFF4] min-h-screen">
+  <div id="shared-header"></div>
+  <div id="shared-sidebar"></div>
+  <div class="pl-16">
+    <main data-workspace="true" class="relative pt-12 min-h-screen bg-[#121221] p-4 lg:p-6 space-y-5">
+      <section class="flex flex-col xl:flex-row xl:items-center justify-between gap-4 pb-4 border-b border-[#3B4252]/60">
+        <div>
+          <div class="flex flex-wrap items-center gap-2.5">
+            <h1 class="text-lg lg:text-xl font-bold tracking-tight flex items-center gap-2"><span class="material-symbols-outlined text-[#88C0D0] text-[22px]">monitoring</span>Hermes live telemetry</h1>
+            <span id="overall-badge" class="text-[11px] font-mono px-2 py-0.5 rounded bg-[#3B4252] text-[#D8DEE9] border border-[#4C566A]">CONNECTING</span>
+          </div>
+          <p class="text-xs text-[#94A3B8] mt-1">Read-only snapshots from Hermes. Values not exposed by the API are shown as unavailable.</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <span id="last-updated" class="text-[11px] font-mono text-[#94A3B8] px-2">Never updated</span>
+          <button id="pause-button" class="flex items-center gap-1.5 px-3 py-1.5 bg-[#242933] border border-[#3B4252] text-[#D8DEE9] hover:border-[#88C0D0] rounded text-xs font-mono" type="button"><span class="material-symbols-outlined text-[16px]">pause</span><span>Pause polling</span></button>
+          <button id="refresh-button" class="flex items-center gap-1.5 px-3 py-1.5 bg-[#88C0D0]/10 border border-[#88C0D0]/40 text-[#88C0D0] hover:bg-[#88C0D0]/20 rounded text-xs font-mono font-medium" type="button"><span class="material-symbols-outlined text-[16px]">refresh</span><span>Refresh now</span></button>
+          <button id="copy-button" class="flex items-center gap-1.5 px-3 py-1.5 bg-[#242933] border border-[#3B4252] text-[#D8DEE9] hover:border-[#88C0D0] rounded text-xs font-mono" type="button"><span class="material-symbols-outlined text-[16px]">content_copy</span><span>Copy snapshot</span></button>
+        </div>
+      </section>
 
-<style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{width:4px;height:4px;}::-webkit-scrollbar-track{background:transparent;}::-webkit-scrollbar-thumb{background:#3B4252;border-radius:2px;}::-webkit-scrollbar-thumb:hover{background:#4C566A;}</style><script src="vendor/tailwindcss-cdn-forms.js"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{colors:{"surface-container-low":"#1a1a2a","tertiary-fixed-dim":"#e3badb","on-secondary-fixed-variant":"#294965","inverse-surface":"#e3e0f7","on-surface":"#e3e0f7","on-tertiary-fixed":"#2c122a","on-primary-fixed":"#001f26","on-tertiary-container":"#5d3e59","surface-bright":"#383849","border-muted":"#3B4252","orange":"#D08770","on-secondary-fixed":"#001d32","success":"#A3BE8C","surface-dim":"#121221","on-surface-variant":"#c0c8cb","primary":"#a3dcec","text-quaternary":"#616E88","surface":"#282A36","on-secondary-container":"#9bbcdd","on-primary":"#003640","surface-container":"#1e1e2e","primary-container":"#88c0d0","error":"#ffb4ab","outline-variant":"#40484b","on-error-container":"#ffdad6","on-primary-fixed-variant":"#094e5c","secondary":"#a9caeb","on-error":"#690005","tertiary-container":"#d3abcb","on-tertiary":"#432740","surface-tint":"#97cfe0","inverse-primary":"#2b6674","text-primary":"#ECEFF4","surface-secondary":"#3B4252","on-tertiary-fixed-variant":"#5b3d57","surface-container-lowest":"#0d0d1c","primary-fixed-dim":"#97cfe0","secondary-container":"#2b4c68","secondary-fixed-dim":"#a9caeb","text-tertiary":"#94A3B8","primary-fixed":"#b3ecfc","text-secondary":"#D8DEE9","text-mono":"#E5E9F0","on-secondary":"#0e334e","outline":"#8a9295","on-background":"#e3e0f7","surface-container-highest":"#333344","surface-variant":"#333344","background":"#121221","tertiary":"#f0c6e7","inverse-on-surface":"#2f2f40","surface-container-high":"#292839","on-primary-container":"#0c4f5d","error-container":"#93000a","tertiary-fixed":"#ffd7f6","border":"#4C566A","danger":"#BF616A","secondary-fixed":"#cee5ff","warning":"#EBCB8B"},borderRadius:{"DEFAULT":"0.125rem","lg":"0.25rem","xl":"0.5rem","full":"0.75rem"},spacing:{"space-xl":"1.5rem","margin":"1rem","space-lg":"1rem","space-xs":"0.25rem","gutter":"1rem","space-sm":"0.5rem","space-md":"0.75rem"},fontFamily:{"label-caps":["Inter"],"body-base":["Inter"],"headline-md":["Inter"],"body-medium":["Inter"],"headline-sm":["Inter"],"code-mono":["JetBrains Mono"],"headline-lg":["Inter"],"body-sm":["Inter"],"code-xs":["JetBrains Mono"],"code-sm":["JetBrains Mono"]},fontSize:{"label-caps":["11px",{"lineHeight":"14px","letterSpacing":"0.06em","fontWeight":"600"}],"body-base":["14px",{"lineHeight":"22px","fontWeight":"400"}],"headline-md":["20px",{"lineHeight":"28px","letterSpacing":"-0.01em","fontWeight":"600"}],"body-medium":["14px",{"lineHeight":"22px","fontWeight":"500"}],"headline-sm":["16px",{"lineHeight":"24px","letterSpacing":"-0.005em","fontWeight":"600"}],"code-mono":["13px",{"lineHeight":"20px","fontWeight":"400"}],"headline-lg":["28px",{"lineHeight":"36px","letterSpacing":"-0.02em","fontWeight":"700"}],"body-sm":["12px",{"lineHeight":"18px","fontWeight":"400"}],"code-xs":["11px",{"lineHeight":"16px","letterSpacing":"0.02em","fontWeight":"500"}],"code-sm":["12px",{"lineHeight":"18px","fontWeight":"400"}]}}}};</script>
-<!-- Top Navigation Bar -->
-<div id="shared-header"></div>
-<!-- Slim Icon-Only Left Sidebar (w-16 / 64px, sleek no F-keys) -->
-<div id="shared-sidebar"></div>
-<!-- Main Telemetry Workspace Container -->
-<div class="pl-16">
-<main data-workspace="true" class="relative pt-12 min-h-screen bg-background text-[#ECEFF4] p-4 lg:p-6 space-y-5">
-<!-- Header Title Banner & Global Controls -->
-<div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-1 border-b border-[#3B4252]/60">
-<div>
-<div class="flex items-center gap-2.5">
-<h1 class="font-headline-md text-lg lg:text-xl font-bold tracking-tight text-[#ECEFF4] flex items-center gap-2">
-<span class="material-symbols-outlined text-[#88C0D0] text-[22px]">monitoring</span>
-            ACP Telemetry &amp; Event Stream Inspector
-          </h1>
-<span class="text-[11px] font-code-mono px-2 py-0.5 rounded bg-[#88C0D0]/10 text-[#88C0D0] border border-[#88C0D0]/30 font-medium">LIVE TCP-JSONRPC</span>
-</div>
-<p class="text-xs text-text-tertiary mt-0.5">Live JSON-RPC TCP wire monitoring, socket metrics &amp; subagent execution traces</p>
-</div>
-<!-- Control Toolbar -->
-<div class="flex flex-wrap items-center gap-2">
-<!-- Time Range Selector -->
-<div class="bg-[#242933] border border-[#3B4252] rounded flex p-0.5 text-xs font-code-mono">
-<button class="px-2.5 py-1 rounded text-text-tertiary hover:text-text-primary transition-colors">1m</button>
-<button class="px-2.5 py-1 rounded bg-[#3B4252] text-[#88C0D0] font-medium shadow-sm">5m</button>
-<button class="px-2.5 py-1 rounded text-text-tertiary hover:text-text-primary transition-colors">15m</button>
-<button class="px-2.5 py-1 rounded text-text-tertiary hover:text-text-primary transition-colors">1h</button>
-</div>
-<!-- Filter Input -->
-<div class="relative flex items-center">
-<span class="material-symbols-outlined text-[16px] text-[#616E88] absolute left-2 pointer-events-none">filter_list</span>
-<input class="bg-[#242933] border border-[#3B4252] rounded pl-7 pr-3 py-1 text-xs font-code-mono text-[#ECEFF4] placeholder-[#616E88] focus:outline-none focus:border-[#88C0D0] w-40 lg:w-52 transition-colors" placeholder="Filter method: acp/*..." type="text" value="acp/agent">
-</div>
-<!-- Live/Pause Toggle -->
-<button class="flex items-center gap-1.5 px-2.5 py-1 bg-[#242933] border border-[#A3BE8C]/40 text-[#A3BE8C] hover:bg-[#A3BE8C]/10 rounded text-xs font-code-mono font-medium transition-all" type="button">
-<span class="w-2 h-2 rounded-full bg-[#A3BE8C] animate-ping"></span>
-<span class="">LIVE STREAM</span>
-</button>
-<!-- Export Action -->
-<button class="flex items-center gap-1 px-2.5 py-1 bg-[#242933] border border-[#3B4252] text-[#D8DEE9] hover:border-[#88C0D0] hover:text-[#ECEFF4] rounded text-xs font-code-mono transition-colors" type="button">
-<span class="material-symbols-outlined text-[15px]">file_download</span>
-<span class="">Export HAR</span>
-</button>
-</div>
-</div>
-<!-- Live KPI Stat Cards (4 cards) -->
-<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-<!-- KPI 1: Generation Throughput -->
-<div class="bg-[#1E1E2E] border border-[#3B4252] rounded-lg p-3.5 shadow-sm relative overflow-hidden">
-<div class="flex items-center justify-between text-xs text-text-tertiary mb-1">
-<span class="font-medium tracking-wide uppercase text-[11px] text-[#94A3B8]">Generation Throughput</span>
-<span class="text-[#A3BE8C] font-code-mono text-[11px] flex items-center gap-0.5">
-<span class="material-symbols-outlined text-[14px]">trending_up</span> +12.4%
-          </span>
-</div>
-<div class="flex items-baseline gap-2">
-<div class="text-2xl font-bold font-code-mono text-[#ECEFF4]">74.2 <span class="text-xs font-normal text-text-tertiary">tps</span></div>
-</div>
-<div class="mt-2 flex items-center justify-between">
-<span class="text-[11px] font-code-mono text-text-quaternary">Avg: 68.4 • Peak: 92.1</span>
-<!-- Mini SVG Sparkline -->
-<svg class="w-20 h-5" fill="none" viewBox="0 0 80 20">
-<path d="M0 16 L12 14 L24 17 L36 9 L48 12 L60 4 L72 7 L80 2" stroke="#88C0D0" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75"></path>
-</svg>
-</div>
-</div>
-<!-- KPI 2: WireGuard RTT / Latency -->
-<div class="bg-[#1E1E2E] border border-[#3B4252] rounded-lg p-3.5 shadow-sm relative overflow-hidden">
-<div class="flex items-center justify-between text-xs text-text-tertiary mb-1">
-<span class="font-medium tracking-wide uppercase text-[11px] text-[#94A3B8]">WireGuard RTT / Latency</span>
-<span class="w-2 h-2 rounded-full bg-[#A3BE8C]" title="Stable Wire link"></span>
-</div>
-<div class="flex items-baseline gap-2">
-<div class="text-2xl font-bold font-code-mono text-[#ECEFF4]">8.4 <span class="text-xs font-normal text-text-tertiary">ms</span></div>
-</div>
-<div class="mt-2 flex items-center justify-between">
-<span class="text-[11px] font-code-mono text-text-quaternary">P95: 14.1ms • Jitter: 0.8ms</span>
-<svg class="w-20 h-5" fill="none" viewBox="0 0 80 20">
-<path d="M0 10 L15 11 L30 8 L45 13 L60 9 L70 10 L80 9" stroke="#A3BE8C" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75"></path>
-</svg>
-</div>
-</div>
-<!-- KPI 3: Active JSON-RPC Streams -->
-<div class="bg-[#1E1E2E] border border-[#3B4252] rounded-lg p-3.5 shadow-sm relative overflow-hidden">
-<div class="flex items-center justify-between text-xs text-text-tertiary mb-1">
-<span class="font-medium tracking-wide uppercase text-[11px] text-[#94A3B8]">Active JSON-RPC Streams</span>
-<span class="text-[10px] font-code-mono px-1.5 py-0.5 rounded bg-[#3B4252] text-[#D8DEE9]">TCP:8787</span>
-</div>
-<div class="flex items-baseline gap-2">
-<div class="text-2xl font-bold font-code-mono text-[#88C0D0]">6 <span class="text-xs font-normal text-[#D8DEE9]">Open</span></div>
-</div>
-<div class="mt-2 flex items-center justify-between">
-<span class="text-[11px] font-code-mono text-text-quaternary">3 Subagent • 1 Main • 2 MCP</span>
-<div class="flex items-center gap-1">
-<span class="w-1.5 h-1.5 rounded-full bg-[#88C0D0]"></span>
-<span class="w-1.5 h-1.5 rounded-full bg-[#88C0D0]"></span>
-<span class="w-1.5 h-1.5 rounded-full bg-[#88C0D0]"></span>
-<span class="w-1.5 h-1.5 rounded-full bg-[#EBCB8B]"></span>
-</div>
-</div>
-</div>
-<!-- KPI 4: Total Tokens Processed -->
-<div class="bg-[#1E1E2E] border border-[#3B4252] rounded-lg p-3.5 shadow-sm relative overflow-hidden">
-<div class="flex items-center justify-between text-xs text-text-tertiary mb-1">
-<span class="font-medium tracking-wide uppercase text-[11px] text-[#94A3B8]">Total Tokens Processed</span>
-<span class="text-[#EBCB8B] font-code-mono text-[11px]">Session #412</span>
-</div>
-<div class="flex items-baseline gap-2">
-<div class="text-2xl font-bold font-code-mono text-[#ECEFF4]">1.42M <span class="text-xs font-normal text-text-tertiary">tokens</span></div>
-</div>
-<div class="mt-2 flex items-center justify-between">
-<span class="text-[11px] font-code-mono text-text-quaternary">Prompt: 890k • Compl: 530k</span>
-<svg class="w-20 h-5" fill="none" viewBox="0 0 80 20">
-<path d="M0 18 L18 15 L35 12 L52 9 L68 5 L80 2" stroke="#EBCB8B" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75"></path>
-</svg>
-</div>
-</div>
-</div>
-<!-- Charts & Timeline Grid -->
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-<!-- Primary Live Waveform Chart: Real-time Token Generation & Event Rate (2 Cols) -->
-<div class="lg:col-span-2 bg-[#1E1E2E] border border-[#3B4252] rounded-lg p-4 shadow-sm flex flex-col justify-between">
-<div class="flex items-center justify-between pb-3 border-b border-[#3B4252]/40">
-<div>
-<h2 class="font-semibold text-sm text-[#ECEFF4] flex items-center gap-2">
-<span class="material-symbols-outlined text-[18px] text-[#88C0D0]">ssid_chart</span>
-              Real-time Token Generation &amp; RPC Event Rate
-            </h2>
-<p class="text-[11px] text-[#94A3B8] font-code-mono">Sampling window: 100ms intervals | Agent-Alpha &amp; Active Subagents</p>
-</div>
-<div class="flex items-center gap-3 text-xs font-code-mono">
-<div class="flex items-center gap-1.5">
-<span class="w-2.5 h-1 bg-[#88C0D0] rounded-full"></span>
-<span class="text-text-secondary text-[11px]">Tokens/s</span>
-</div>
-<div class="flex items-center gap-1.5">
-<span class="w-2.5 h-1 bg-[#A3BE8C] rounded-full"></span>
-<span class="text-text-secondary text-[11px]">RPC Events/s</span>
-</div>
-<div class="flex items-center gap-1.5">
-<span class="w-2.5 h-1 bg-[#BF616A] rounded-full"></span>
-<span class="text-text-secondary text-[11px]">Buffer Backpressure</span>
-</div>
-</div>
-</div>
-<!-- High-fidelity SVG Chart Area -->
-<div class="relative w-full h-52 my-3">
-<!-- Background Grid Lines -->
-<div class="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-20">
-<div class="border-b border-[#88C0D0]/30 w-full"></div>
-<div class="border-b border-[#88C0D0]/30 w-full"></div>
-<div class="border-b border-[#88C0D0]/30 w-full"></div>
-<div class="border-b border-[#88C0D0]/30 w-full"></div>
-<div class="border-b border-[#88C0D0]/30 w-full"></div>
-</div>
-<!-- Y-axis labels -->
-<div class="absolute -left-1 top-0 bottom-0 flex flex-col justify-between text-[9px] font-code-mono text-[#616E88] pointer-events-none">
-<span class="">100 tps</span>
-<span class="">75 tps</span>
-<span class="">50 tps</span>
-<span class="">25 tps</span>
-<span class="">0 tps</span>
-</div>
-<!-- SVG Chart -->
-<svg class="w-full h-full pl-6 overflow-visible" preserveAspectRatio="none" viewBox="0 0 600 200">
-<defs>
-<linearGradient id="cyanGlow" x1="0" x2="0" y1="0" y2="1">
-<stop offset="0%" stop-color="#88C0D0" stop-opacity="0.28"></stop>
-<stop offset="100%" stop-color="#88C0D0" stop-opacity="0.0"></stop>
-</linearGradient>
-<linearGradient id="greenGlow" x1="0" x2="0" y1="0" y2="1">
-<stop offset="0%" stop-color="#A3BE8C" stop-opacity="0.18"></stop>
-<stop offset="100%" stop-color="#A3BE8C" stop-opacity="0.0"></stop>
-</linearGradient>
-</defs>
-<!-- Tokens/s Area -->
-<path d="M 0 160 Q 40 140, 80 130 T 160 110 T 240 70 T 320 85 T 400 40 T 480 60 T 540 30 T 600 45 L 600 200 L 0 200 Z" fill="url(#cyanGlow)"></path>
-<!-- Tokens/s Line -->
-<path d="M 0 160 Q 40 140, 80 130 T 160 110 T 240 70 T 320 85 T 400 40 T 480 60 T 540 30 T 600 45" fill="none" stroke="#88C0D0" stroke-width="2.5"></path>
-<!-- RPC Events/s Area -->
-<path d="M 0 180 Q 45 170, 90 160 T 170 145 T 250 120 T 330 110 T 410 95 T 490 105 T 550 85 T 600 90 L 600 200 L 0 200 Z" fill="url(#greenGlow)"></path>
-<!-- RPC Events/s Line -->
-<path d="M 0 180 Q 45 170, 90 160 T 170 145 T 250 120 T 330 110 T 410 95 T 490 105 T 550 85 T 600 90" fill="none" stroke="#A3BE8C" stroke-dasharray="3 3" stroke-width="2"></path>
-<!-- Backpressure spike at x=400 -->
-<line opacity="0.75" stroke="#BF616A" stroke-dasharray="2 2" stroke-width="1.5" x1="400" x2="400" y1="40" y2="200"></line>
-<circle cx="400" cy="40" fill="#BF616A" r="3.5"></circle>
-<circle class="animate-ping" cx="600" cy="45" fill="#88C0D0" r="4"></circle>
-<circle cx="600" cy="45" fill="#88C0D0" r="3"></circle>
-</svg>
-</div>
-<!-- Timeline X-Axis markers -->
-<div class="flex justify-between items-center text-[10px] font-code-mono text-[#616E88] pt-1 pl-6">
-<span class="">-4m 30s</span>
-<span class="">-3m 00s</span>
-<span class="">-1m 30s</span>
-<span class="">-45s</span>
-<span class="">-15s</span>
-<span class="text-[#88C0D0] font-bold">Now (live)</span>
-</div>
-</div>
-<!-- Right Column: System Resource Footprint & Latency Distribution -->
-<div class="space-y-4">
-<!-- Resource Footprint -->
-<div class="bg-[#1E1E2E] border border-[#3B4252] rounded-lg p-4 shadow-sm">
-<div class="flex items-center justify-between pb-2 border-b border-[#3B4252]/40 mb-3">
-<h3 class="font-semibold text-xs text-[#ECEFF4] flex items-center gap-1.5 uppercase tracking-wide">
-<span class="material-symbols-outlined text-[16px] text-[#EBCB8B]">memory</span>
-              Resource Footprint
-            </h3>
-<span class="text-[10px] font-code-mono text-[#A3BE8C]">Healthy</span>
-</div>
-<div class="space-y-3 font-code-mono text-xs">
-<!-- Memory -->
-<div>
-<div class="flex justify-between text-[11px] text-[#D8DEE9] mb-1">
-<span class="">RSS Memory</span>
-<span class="text-[#ECEFF4]">42.8 MB / 512 MB</span>
-</div>
-<div class="w-full bg-[#242933] rounded-full h-1.5 overflow-hidden">
-<div class="bg-[#88C0D0] h-1.5 rounded-full" style="width: 8.3%"></div>
-</div>
-</div>
-<!-- CPU Load -->
-<div>
-<div class="flex justify-between text-[11px] text-[#D8DEE9] mb-1">
-<span class="">Core CPU (Subprocess)</span>
-<span class="text-[#A3BE8C]">11.4% (4 Threads)</span>
-</div>
-<div class="w-full bg-[#242933] rounded-full h-1.5 overflow-hidden">
-<div class="bg-[#A3BE8C] h-1.5 rounded-full" style="width: 11.4%"></div>
-</div>
-</div>
-<!-- Socket Backpressure -->
-<div>
-<div class="flex justify-between text-[11px] text-[#D8DEE9] mb-1">
-<span class="">Socket Backlog / Ring</span>
-<span class="text-[#ECEFF4]">14 pkts / 1024</span>
-</div>
-<div class="w-full bg-[#242933] rounded-full h-1.5 overflow-hidden">
-<div class="bg-[#EBCB8B] h-1.5 rounded-full" style="width: 1.4%"></div>
-</div>
-</div>
-</div>
-</div>
-<!-- Latency Distribution Histogram -->
-<div class="bg-[#1E1E2E] border border-[#3B4252] rounded-lg p-4 shadow-sm">
-<div class="flex items-center justify-between pb-2 border-b border-[#3B4252]/40 mb-2">
-<h3 class="font-semibold text-xs text-[#ECEFF4] flex items-center gap-1.5 uppercase tracking-wide">
-<span class="material-symbols-outlined text-[16px] text-[#88C0D0]">bar_chart</span>
-              RPC Latency Profile
-            </h3>
-<span class="text-[10px] font-code-mono text-[#616E88]">N=1,418 reqs</span>
-</div>
-<div class="flex items-end justify-between h-20 pt-2 gap-1.5">
-<div class="flex-1 flex flex-col items-center gap-1">
-<div class="w-full bg-[#88C0D0]/40 rounded-t h-6"></div>
-<span class="text-[9px] font-code-mono text-[#616E88]">&lt;2ms</span>
-</div>
-<div class="flex-1 flex flex-col items-center gap-1">
-<div class="w-full bg-[#88C0D0] rounded-t h-16"></div>
-<span class="text-[9px] font-code-mono text-[#ECEFF4]">5ms</span>
-</div>
-<div class="flex-1 flex flex-col items-center gap-1">
-<div class="w-full bg-[#88C0D0]/80 rounded-t h-12"></div>
-<span class="text-[9px] font-code-mono text-[#616E88]">10ms</span>
-</div>
-<div class="flex-1 flex flex-col items-center gap-1">
-<div class="w-full bg-[#EBCB8B] rounded-t h-7"></div>
-<span class="text-[9px] font-code-mono text-[#616E88]">25ms</span>
-</div>
-<div class="flex-1 flex flex-col items-center gap-1">
-<div class="w-full bg-[#BF616A] rounded-t h-3"></div>
-<span class="text-[9px] font-code-mono text-[#616E88]">&gt;50ms</span>
-</div>
-</div>
-<div class="flex justify-between items-center text-[11px] font-code-mono text-text-tertiary mt-2 pt-2 border-t border-[#3B4252]/30">
-<span class="">Err Rate: <strong class="text-[#A3BE8C]">0.00%</strong></span>
-<span class="">Zero Dropped Packets</span>
-</div>
-</div>
-</div>
-</div>
-<!-- Subagent Execution Waterfall & Timeline (Gantt style) -->
-<div class="bg-[#1E1E2E] border border-[#3B4252] rounded-lg p-4 shadow-sm">
-<div class="flex items-center justify-between pb-3 border-b border-[#3B4252]/40">
-<div>
-<h2 class="font-semibold text-sm text-[#ECEFF4] flex items-center gap-2">
-<span class="material-symbols-outlined text-[18px] text-[#A3BE8C]">waterfall_chart</span>
-            Subagent &amp; Tool Execution Timeline (Waterfall Trace)
-          </h2>
-<p class="text-[11px] text-[#94A3B8] font-code-mono">Context: Trace ID <code>tr-8b7a90f2</code> • Parent: Agent-Alpha</p>
-</div>
-<div class="flex items-center gap-2 text-xs font-code-mono">
-<span class="text-[10px] px-2 py-0.5 rounded bg-[#3B4252] text-[#ECEFF4]">Total Elapsed: 3,420ms</span>
-</div>
-</div>
-<div class="mt-3 space-y-2.5 font-code-mono text-xs">
-<!-- Trace Row 1 -->
-<div class="flex items-center gap-3">
-<div class="w-48 truncate text-text-secondary flex items-center gap-1.5" title="Agent-Alpha (Root)">
-<span class="material-symbols-outlined text-[14px] text-[#88C0D0]">account_tree</span>
-<span class="">acp/agent.orchestrate</span>
-</div>
-<div class="flex-1 relative h-6 bg-[#242933] rounded overflow-hidden flex items-center">
-<div class="absolute left-0 w-[95%] h-full bg-[#88C0D0]/25 border-l-2 border-[#88C0D0] flex items-center px-2 text-[10px] text-[#88C0D0] font-semibold">
-              Root Orchestrator Run [3,250ms]
-            </div>
-</div>
-<div class="w-16 text-right text-[11px] text-text-tertiary">3,250ms</div>
-</div>
-<!-- Trace Row 2 -->
-<div class="flex items-center gap-3">
-<div class="w-48 truncate text-text-secondary pl-4 flex items-center gap-1.5" title="subagent/4091: Analyzer">
-<span class="material-symbols-outlined text-[14px] text-[#A3BE8C]">smart_toy</span>
-<span class="">subagent/4091 (Code)</span>
-</div>
-<div class="flex-1 relative h-6 bg-[#242933] rounded overflow-hidden flex items-center">
-<div class="absolute left-[8%] w-[45%] h-full bg-[#A3BE8C]/25 border-l-2 border-[#A3BE8C] flex items-center px-2 text-[10px] text-[#A3BE8C]">
-              LLM Prompt Token Stream [1,450ms]
-            </div>
-</div>
-<div class="w-16 text-right text-[11px] text-text-tertiary">1,450ms</div>
-</div>
-<!-- Trace Row 3 -->
-<div class="flex items-center gap-3">
-<div class="w-48 truncate text-text-secondary pl-8 flex items-center gap-1.5" title="tool/bash_exec">
-<span class="material-symbols-outlined text-[14px] text-[#EBCB8B]">terminal</span>
-<span class="">tool: bash_exec</span>
-</div>
-<div class="flex-1 relative h-6 bg-[#242933] rounded overflow-hidden flex items-center">
-<div class="absolute left-[54%] w-[22%] h-full bg-[#EBCB8B]/30 border-l-2 border-[#EBCB8B] flex items-center px-2 text-[10px] text-[#EBCB8B]">
-              Sandbox exec git diff [710ms]
-            </div>
-</div>
-<div class="w-16 text-right text-[11px] text-text-tertiary">710ms</div>
-</div>
-<!-- Trace Row 4 -->
-<div class="flex items-center gap-3">
-<div class="w-48 truncate text-text-secondary pl-4 flex items-center gap-1.5" title="subagent/4092: Validator">
-<span class="material-symbols-outlined text-[14px] text-[#97cfe0]">security</span>
-<span class="">subagent/4092 (Guard)</span>
-</div>
-<div class="flex-1 relative h-6 bg-[#242933] rounded overflow-hidden flex items-center">
-<div class="absolute left-[77%] w-[18%] h-full bg-[#97cfe0]/25 border-l-2 border-[#97cfe0] flex items-center px-2 text-[10px] text-[#97cfe0]">
-              AST Security Verification [580ms]
-            </div>
-</div>
-<div class="w-16 text-right text-[11px] text-text-tertiary">580ms</div>
-</div>
-</div>
-</div>
-<!-- Raw JSON-RPC Event Stream Inspector / Wire Monitor Table -->
-<div class="bg-[#1E1E2E] border border-[#3B4252] rounded-lg shadow-sm overflow-hidden">
-<div class="p-3.5 border-b border-[#3B4252]/40 flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-[#242933]/50">
-<div class="flex items-center gap-2">
-<h2 class="font-semibold text-sm text-[#ECEFF4] flex items-center gap-2">
-<span class="material-symbols-outlined text-[18px] text-[#88C0D0]">raw_on</span>
-            Raw JSON-RPC TCP Wire Monitor
-          </h2>
-<span class="text-[10px] font-code-mono px-1.5 py-0.5 rounded bg-[#3B4252] text-[#D8DEE9]">Socket ID: #sock-8787-w0</span>
-</div>
-<div class="flex items-center gap-2 text-xs font-code-mono text-text-tertiary">
-<label class="flex items-center gap-1 cursor-pointer select-none">
-<input checked="" class="rounded bg-[#1E1E2E] border-[#3B4252] text-[#88C0D0] focus:ring-0 w-3.5 h-3.5" type="checkbox">
-<span class="text-[11px] text-[#D8DEE9]">Auto-scroll</span>
-</label>
-<span class="text-[#3B4252]">|</span>
-<button class="text-[11px] text-text-secondary hover:text-[#88C0D0] transition-colors">Clear Feed</button>
-</div>
-</div>
-<!-- Table / Stream Feed -->
-<div class="overflow-x-auto max-h-72 overflow-y-auto">
-<table class="w-full text-left font-code-mono text-xs">
-<thead class="bg-[#181825] text-text-quaternary uppercase text-[10px] tracking-wider sticky top-0 border-b border-[#3B4252]">
-<tr>
-<th class="py-2 px-3">Timestamp</th>
-<th class="py-2 px-3">Direction</th>
-<th class="py-2 px-3">Method / RPC Message</th>
-<th class="py-2 px-3">Req ID</th>
-<th class="py-2 px-3">Size</th>
-<th class="py-2 px-3">Latency</th>
-<th class="py-2 px-3 text-right">Status</th>
-</tr>
-</thead>
-<tbody class="divide-y divide-[#3B4252]/30 text-text-secondary">
-<!-- Feed Item 1 -->
-<tr class="hover:bg-[#242933]/60 transition-colors font-mono">
-<td class="py-2 px-3 text-text-tertiary">14:28:09.841</td>
-<td class="py-2 px-3">
-<span class="text-[#88C0D0] font-semibold text-[11px] flex items-center gap-1">&gt;&gt;&gt; TX</span>
-</td>
-<td class="py-2 px-3 font-medium text-[#ECEFF4]">
-                acp/agent.spawn
-                <span class="text-[#616E88] text-[11px] ml-1">{"role": "analyzer", "model": "hermes-3"}</span>
-</td>
-<td class="py-2 px-3 text-text-tertiary">#412-a1</td>
-<td class="py-2 px-3 text-text-tertiary">1.2 KB</td>
-<td class="py-2 px-3 text-[#A3BE8C]">4.1ms</td>
-<td class="py-2 px-3 text-right">
-<span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-[#A3BE8C]/15 text-[#A3BE8C]">200 OK</span>
-</td>
-</tr>
-<!-- Feed Item 2 -->
-<tr class="hover:bg-[#242933]/60 transition-colors font-mono">
-<td class="py-2 px-3 text-text-tertiary">14:28:10.104</td>
-<td class="py-2 px-3">
-<span class="text-[#A3BE8C] font-semibold text-[11px] flex items-center gap-1">&lt;&lt;&lt; RX</span>
-</td>
-<td class="py-2 px-3 font-medium text-[#ECEFF4]">
-                acp/stream.token
-                <span class="text-[#616E88] text-[11px] ml-1">chunk 142/910, delta: "export async function..."</span>
-</td>
-<td class="py-2 px-3 text-text-tertiary">#412-a1</td>
-<td class="py-2 px-3 text-text-tertiary">248 B</td>
-<td class="py-2 px-3 text-[#A3BE8C]">1.8ms</td>
-<td class="py-2 px-3 text-right">
-<span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-[#88C0D0]/15 text-[#88C0D0]">STREAM</span>
-</td>
-</tr>
-<!-- Feed Item 3 -->
-<tr class="hover:bg-[#242933]/60 transition-colors font-mono">
-<td class="py-2 px-3 text-text-tertiary">14:28:10.892</td>
-<td class="py-2 px-3">
-<span class="text-[#88C0D0] font-semibold text-[11px] flex items-center gap-1">&gt;&gt;&gt; TX</span>
-</td>
-<td class="py-2 px-3 font-medium text-[#ECEFF4]">
-                acp/tool.call
-                <span class="text-[#616E88] text-[11px] ml-1">{"tool": "bash_exec", "cmd": "git status --porcelain"}</span>
-</td>
-<td class="py-2 px-3 text-text-tertiary">#412-t0</td>
-<td class="py-2 px-3 text-text-tertiary">512 B</td>
-<td class="py-2 px-3 text-[#A3BE8C]">8.9ms</td>
-<td class="py-2 px-3 text-right">
-<span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-[#A3BE8C]/15 text-[#A3BE8C]">200 OK</span>
-</td>
-</tr>
-<!-- Feed Item 4 -->
-<tr class="hover:bg-[#242933]/60 transition-colors font-mono">
-<td class="py-2 px-3 text-text-tertiary">14:28:11.230</td>
-<td class="py-2 px-3">
-<span class="text-[#EBCB8B] font-semibold text-[11px] flex items-center gap-1">&lt;&lt;&gt;&gt; PING</span>
-</td>
-<td class="py-2 px-3 font-medium text-[#D8DEE9]">
-                acp/mesh.heartbeat
-                <span class="text-[#616E88] text-[11px] ml-1">mesh_node="100.84.12.9" seq=8921</span>
-</td>
-<td class="py-2 px-3 text-text-tertiary">-</td>
-<td class="py-2 px-3 text-text-tertiary">64 B</td>
-<td class="py-2 px-3 text-[#A3BE8C]">0.9ms</td>
-<td class="py-2 px-3 text-right">
-<span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-[#EBCB8B]/15 text-[#EBCB8B]">ACK</span>
-</td>
-</tr>
-<!-- Feed Item 5 -->
-<tr class="hover:bg-[#242933]/60 transition-colors font-mono">
-<td class="py-2 px-3 text-text-tertiary">14:28:11.750</td>
-<td class="py-2 px-3">
-<span class="text-[#88C0D0] font-semibold text-[11px] flex items-center gap-1">&gt;&gt;&gt; TX</span>
-</td>
-<td class="py-2 px-3 font-medium text-[#ECEFF4]">
-                acp/lockpool.acquire
-                <span class="text-[#616E88] text-[11px] ml-1">{"resource": "workspace/src/router.ts", "ttl_ms": 5000}</span>
-</td>
-<td class="py-2 px-3 text-text-tertiary">#412-l9</td>
-<td class="py-2 px-3 text-text-tertiary">380 B</td>
-<td class="py-2 px-3 text-[#A3BE8C]">3.2ms</td>
-<td class="py-2 px-3 text-right">
-<span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-[#A3BE8C]/15 text-[#A3BE8C]">ACQUIRED</span>
-</td>
-</tr>
-</tbody>
-</table>
-</div>
-<!-- Feed Footer with quick JSON snippet -->
-<div class="p-2.5 bg-[#181825] border-t border-[#3B4252]/40 flex items-center justify-between text-[11px] font-code-mono text-text-tertiary">
-<div class="flex items-center gap-2">
-<span class="w-2 h-2 rounded-full bg-[#A3BE8C]"></span>
-<span class="">TCP Socket buffer: 0 dropped • WireGuard overhead: &lt;1.2% • MTU: 1420</span>
-</div>
-<span class="text-[#616E88]">Press [ESC] to pause buffer</span>
-</div>
-</div>
-</main>
-</div>
+      <section aria-label="Hermes summary" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5">
+        <article class="bg-[#1E1E2E] border border-[#3B4252] rounded-lg p-4"><div class="flex justify-between"><span class="text-[11px] uppercase tracking-wide text-[#94A3B8]">Hermes API</span><span id="health-dot" class="w-2 h-2 rounded-full bg-[#616E88]"></span></div><div id="health-value" class="metric text-2xl font-bold font-mono mt-2">Checking…</div><div id="health-detail" class="text-[11px] font-mono text-[#616E88] mt-2">GET /health</div></article>
+        <article class="bg-[#1E1E2E] border border-[#3B4252] rounded-lg p-4"><div class="flex justify-between"><span class="text-[11px] uppercase tracking-wide text-[#94A3B8]">Recent sessions</span><span class="material-symbols-outlined text-[17px] text-[#88C0D0]">forum</span></div><div id="sessions-value" class="metric text-2xl font-bold font-mono mt-2">—</div><div id="sessions-detail" class="text-[11px] font-mono text-[#616E88] mt-2">Awaiting /sessions</div></article>
+        <article class="bg-[#1E1E2E] border border-[#3B4252] rounded-lg p-4"><div class="flex justify-between"><span class="text-[11px] uppercase tracking-wide text-[#94A3B8]">Agent profiles</span><span class="material-symbols-outlined text-[17px] text-[#A3BE8C]">smart_toy</span></div><div id="profiles-value" class="metric text-2xl font-bold font-mono mt-2">—</div><div id="profiles-detail" class="text-[11px] font-mono text-[#616E88] mt-2">Awaiting /profiles</div></article>
+        <article class="bg-[#1E1E2E] border border-[#3B4252] rounded-lg p-4"><div class="flex justify-between"><span class="text-[11px] uppercase tracking-wide text-[#94A3B8]">Polling</span><span class="material-symbols-outlined text-[17px] text-[#EBCB8B]">schedule</span></div><div id="poll-value" class="metric text-2xl font-bold font-mono mt-2">30 sec</div><div id="poll-detail" class="text-[11px] font-mono text-[#616E88] mt-2">Suspends while this tab is hidden</div></article>
+      </section>
 
+      <section class="grid grid-cols-1 xl:grid-cols-3 gap-4">
+        <article class="xl:col-span-2 bg-[#1E1E2E] border border-[#3B4252] rounded-lg overflow-hidden">
+          <header class="p-4 border-b border-[#3B4252]/50 flex items-center justify-between gap-3"><div><h2 class="font-semibold text-sm flex items-center gap-2"><span class="material-symbols-outlined text-[18px] text-[#EBCB8B]">memory</span>System statistics</h2><p class="text-[11px] font-mono text-[#94A3B8] mt-0.5">Direct fields returned by GET /hermes/api/system/stats</p></div><span id="stats-timestamp" class="text-[10px] font-mono text-[#616E88]">Unavailable</span></header>
+          <div id="stats-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-px bg-[#3B4252]/50"><div class="bg-[#1E1E2E] p-4 text-[#94A3B8] sm:col-span-2 lg:col-span-3">Waiting for system statistics…</div></div>
+          <details class="border-t border-[#3B4252]/50"><summary class="cursor-pointer p-3 text-xs text-[#94A3B8] hover:text-[#ECEFF4]">Raw system statistics response</summary><pre id="stats-raw" class="m-0 p-4 pt-1 max-h-72 overflow-auto text-[11px] leading-5 font-mono text-[#D8DEE9] whitespace-pre-wrap">Unavailable</pre></details>
+        </article>
+        <article class="bg-[#1E1E2E] border border-[#3B4252] rounded-lg overflow-hidden">
+          <header class="p-4 border-b border-[#3B4252]/50"><h2 class="font-semibold text-sm flex items-center gap-2"><span class="material-symbols-outlined text-[18px] text-[#88C0D0]">dns</span>Endpoint availability</h2><p class="text-[11px] font-mono text-[#94A3B8] mt-0.5">HTTP result and browser-observed fetch time</p></header>
+          <div id="endpoint-list" class="divide-y divide-[#3B4252]/40"></div>
+          <div class="p-3 bg-[#181825] text-[10px] leading-4 font-mono text-[#616E88]">Fetch time is measured in this browser. It is not model latency, token latency, or network RTT.</div>
+        </article>
+      </section>
 
+      <section class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+        <article class="bg-[#1E1E2E] border border-[#3B4252] rounded-lg overflow-hidden"><header class="p-4 border-b border-[#3B4252]/50 flex items-center justify-between gap-3"><div><h2 class="font-semibold text-sm flex items-center gap-2"><span class="material-symbols-outlined text-[18px] text-[#A3BE8C]">clinical_notes</span>Hermes status</h2><p class="text-[11px] font-mono text-[#94A3B8] mt-0.5">Current GET /status snapshot</p></div><span id="status-timestamp" class="text-[10px] font-mono text-[#616E88]">Unavailable</span></header><dl id="status-fields" class="divide-y divide-[#3B4252]/40"><div class="p-4 text-[#94A3B8]">Waiting for status…</div></dl><details class="border-t border-[#3B4252]/50"><summary class="cursor-pointer p-3 text-xs text-[#94A3B8] hover:text-[#ECEFF4]">Raw status response</summary><pre id="status-raw" class="m-0 p-4 pt-1 max-h-72 overflow-auto text-[11px] leading-5 font-mono text-[#D8DEE9] whitespace-pre-wrap">Unavailable</pre></details></article>
+        <article class="bg-[#1E1E2E] border border-[#3B4252] rounded-lg overflow-hidden"><header class="p-4 border-b border-[#3B4252]/50 flex items-center justify-between"><div><h2 class="font-semibold text-sm flex items-center gap-2"><span class="material-symbols-outlined text-[18px] text-[#88C0D0]">history</span>Poll history</h2><p class="text-[11px] font-mono text-[#94A3B8] mt-0.5">Dashboard refreshes, not Hermes agent events</p></div><button id="clear-log-button" class="text-[11px] font-mono text-[#94A3B8] hover:text-[#88C0D0]" type="button">Clear</button></header><ol id="poll-log" class="divide-y divide-[#3B4252]/40 max-h-80 overflow-y-auto"><li class="p-4 text-[#94A3B8]">No polls completed yet.</li></ol></article>
+      </section>
 
+      <section class="bg-[#1E1E2E] border border-[#3B4252] rounded-lg overflow-hidden">
+        <header class="p-4 border-b border-[#3B4252]/50 flex flex-col md:flex-row md:items-center justify-between gap-3"><div><h2 class="font-semibold text-sm flex items-center gap-2"><span class="material-symbols-outlined text-[18px] text-[#88C0D0]">forum</span>Recent sessions</h2><p class="text-[11px] font-mono text-[#94A3B8] mt-0.5">Read-only rows returned by GET /sessions</p></div><label class="relative flex items-center"><span class="material-symbols-outlined text-[16px] text-[#616E88] absolute left-2">search</span><input id="session-filter" class="bg-[#242933] border border-[#3B4252] rounded pl-7 pr-3 py-1.5 text-xs font-mono text-[#ECEFF4] placeholder-[#616E88] focus:border-[#88C0D0] w-full md:w-64" placeholder="Filter sessions…" type="search"></label></header>
+        <div class="overflow-x-auto"><table class="w-full text-left text-xs"><thead class="bg-[#181825] text-[#94A3B8] uppercase text-[10px] tracking-wider border-b border-[#3B4252]"><tr><th class="py-2.5 px-4">Session</th><th class="py-2.5 px-4">Profile</th><th class="py-2.5 px-4">Model</th><th class="py-2.5 px-4">Messages</th><th class="py-2.5 px-4">Updated</th><th class="py-2.5 px-4">State</th></tr></thead><tbody id="sessions-body" class="divide-y divide-[#3B4252]/30 text-[#D8DEE9]"><tr><td class="p-4 text-[#94A3B8]" colspan="6">Waiting for sessions…</td></tr></tbody></table></div>
+      </section>
 
-<script>window.currentPage="acp-telemetry"</script><script src="shell-data.js"></script><script src="shell.js"></script><link rel="stylesheet" href="prototype.css"></body></html>
+      <section class="bg-[#1E1E2E] border border-[#3B4252] rounded-lg overflow-hidden"><header class="p-4 border-b border-[#3B4252]/50"><h2 class="font-semibold text-sm flex items-center gap-2"><span class="material-symbols-outlined text-[18px] text-[#A3BE8C]">smart_toy</span>Configured profiles</h2><p class="text-[11px] font-mono text-[#94A3B8] mt-0.5">Configuration and gateway state reported by GET /profiles</p></header><div id="profiles-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 p-4"><div class="text-[#94A3B8]">Waiting for profiles…</div></div></section>
+
+      <aside class="flex items-start gap-2 rounded-lg border border-[#3B4252] bg-[#181825] p-3 text-[11px] leading-5 text-[#94A3B8]"><span class="material-symbols-outlined text-[17px] text-[#88C0D0] mt-0.5">info</span><p class="m-0">This page makes authenticated, same-origin GET requests only. It does not estimate throughput, token counts, latency distributions, traces, packet loss, or WireGuard health.</p></aside>
+    </main>
+  </div>
+
+  <script>
+  (() => {
+    "use strict";
+    const INTERVAL = 30000, TIMEOUT = 8000;
+    const defs = [
+      {id:"health",label:"Health",path:"/hermes/api/health"},
+      {id:"status",label:"Status",path:"/hermes/api/status"},
+      {id:"stats",label:"System stats",path:"/hermes/api/system/stats"},
+      {id:"sessions",label:"Sessions",path:"/hermes/api/sessions?limit=30&order=recent&min_messages=1"},
+      {id:"profiles",label:"Profiles",path:"/hermes/api/profiles"}
+    ];
+    const state = {paused:false,polling:false,results:{},sessions:[],profiles:[],log:[]};
+    const $ = id => document.getElementById(id);
+    const secretKey = /(?:api[_-]?key|secret|token|password|passwd|credential|authorization|cookie|private[_-]?key|bearer)/i;
+    function redact(value,key=""){if(secretKey.test(key))return"[REDACTED]";if(Array.isArray(value))return value.map(item=>redact(item));if(value&&typeof value==="object")return Object.fromEntries(Object.entries(value).map(([childKey,item])=>[childKey,redact(item,childKey)]));return value}
+    const text = value => value === undefined || value === "" ? "Unavailable" : value === null ? "null" : typeof value === "boolean" ? (value ? "Yes" : "No") : typeof value === "object" ? JSON.stringify(value) : String(value);
+    const label = key => String(key).replace(/([a-z0-9])([A-Z])/g,"$1 $2").replace(/[_.-]+/g," ").replace(/\b\w/g,c=>c.toUpperCase());
+    function time(value){if(!value)return"Unavailable";const d=value instanceof Date?value:new Date(value);return Number.isNaN(d.getTime())?String(value):new Intl.DateTimeFormat(undefined,{dateStyle:"medium",timeStyle:"medium"}).format(d)}
+    function first(obj,paths){for(const path of paths){let value=obj;for(const part of path.split("."))value=value&&typeof value==="object"?value[part]:undefined;if(value!==undefined&&value!==null&&value!=="")return value}}
+    function list(payload,keys){if(Array.isArray(payload))return payload;if(!payload||typeof payload!=="object")return[];for(const key of keys)if(Array.isArray(payload[key]))return payload[key];if(payload.data&&typeof payload.data==="object")for(const key of keys)if(Array.isArray(payload.data[key]))return payload.data[key];return[]}
+    function flatten(value,prefix="",out=[],depth=0){if(out.length>=24||depth>3)return out;if(value===null||typeof value!=="object"){if(prefix)out.push([prefix,value]);return out}for(const [key,item] of Object.entries(value)){if(out.length>=24)break;if(secretKey.test(key))continue;const path=prefix?`${prefix}.${key}`:key;if(item===null||typeof item!=="object"||Array.isArray(item)&&item.every(x=>x===null||typeof x!=="object"))out.push([path,item]);else flatten(item,path,out,depth+1)}return out}
+    async function request(def){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),TIMEOUT),start=performance.now();try{const response=await fetch(def.path,{method:"GET",credentials:"same-origin",cache:"no-store",headers:{Accept:"application/json"},signal:controller.signal});const elapsed=Math.round(performance.now()-start),raw=await response.text();let data=null;if(raw)try{data=JSON.parse(raw)}catch{data={response:raw}};const error=response.ok?null:String(first(data,["detail","error","message"])||response.statusText||"Request failed");return{def,ok:response.ok,status:response.status,elapsed,data,error,at:new Date()}}catch(error){return{def,ok:false,status:null,elapsed:Math.round(performance.now()-start),data:null,error:error&&error.name==="AbortError"?"Timed out after 8 seconds":error.message||"Request unavailable",at:new Date()}}finally{clearTimeout(timer)}}
+    function buildEndpoints(){const root=$("endpoint-list");root.replaceChildren();defs.forEach(def=>{const row=document.createElement("div");row.className="p-3 flex items-center justify-between gap-3";const info=document.createElement("div"),name=document.createElement("div"),path=document.createElement("div"),result=document.createElement("div");name.className="text-xs font-medium text-[#D8DEE9]";name.textContent=def.label;path.className="text-[10px] font-mono text-[#616E88] mt-0.5 break-all";path.textContent=def.path.replace("/hermes/api","");result.id=`endpoint-${def.id}`;result.className="text-right text-[10px] font-mono text-[#94A3B8]";result.textContent="Waiting…";info.append(name,path);row.append(info,result);root.append(row)})}
+    function endpoint(result){const root=$(`endpoint-${result.def.id}`);root.replaceChildren();const status=document.createElement("div"),elapsed=document.createElement("div");status.className=result.ok?"text-[#A3BE8C] font-semibold":"text-[#BF616A] font-semibold";status.textContent=result.status?`HTTP ${result.status}`:"UNAVAILABLE";elapsed.className="text-[#616E88] mt-0.5";elapsed.textContent=`${result.elapsed} ms browser fetch`;root.append(status,elapsed);if(result.error)root.title=result.error}
+    function unavailable(root,message,classes="p-4 text-[#BF616A]"){root.replaceChildren();const el=document.createElement("div");el.className=classes;el.textContent=`Unavailable: ${message}`;root.append(el)}
+    function summary(){const count=defs.filter(d=>state.results[d.id]?.ok).length,badge=$("overall-badge"),health=state.results.health;if(count===defs.length){badge.textContent="ALL ENDPOINTS AVAILABLE";badge.className="text-[11px] font-mono px-2 py-0.5 rounded bg-[#A3BE8C]/10 text-[#A3BE8C] border border-[#A3BE8C]/30"}else if(count){badge.textContent=`${count}/${defs.length} ENDPOINTS AVAILABLE`;badge.className="text-[11px] font-mono px-2 py-0.5 rounded bg-[#EBCB8B]/10 text-[#EBCB8B] border border-[#EBCB8B]/30"}else{badge.textContent="HERMES UNAVAILABLE";badge.className="text-[11px] font-mono px-2 py-0.5 rounded bg-[#BF616A]/10 text-[#BF616A] border border-[#BF616A]/30"}if(health?.ok){$("health-value").textContent=text(first(health.data,["status","health","state"])??"Reachable");$("health-value").className="metric text-2xl font-bold font-mono mt-2 text-[#A3BE8C]";$("health-detail").textContent=first(health.data,["version","hermes_version","app.version"])?`Version ${text(first(health.data,["version","hermes_version","app.version"]))}`:`HTTP ${health.status}; no version field`;$("health-dot").className="live-dot w-2 h-2 rounded-full bg-[#A3BE8C]"}else{$("health-value").textContent="Unavailable";$("health-value").className="metric text-xl font-bold font-mono mt-2 text-[#BF616A]";$("health-detail").textContent=health?.error||"No response";$("health-dot").className="w-2 h-2 rounded-full bg-[#BF616A]"}$("sessions-value").textContent=state.results.sessions?.ok?state.sessions.length:"Unavailable";$("sessions-detail").textContent=state.results.sessions?.ok?"Rows returned by the current query":state.results.sessions?.error||"No response";$("profiles-value").textContent=state.results.profiles?.ok?state.profiles.length:"Unavailable";const running=state.profiles.filter(p=>p&&(p.gateway_running===true||String(p.status||"").toLowerCase()==="running")).length;$("profiles-detail").textContent=state.results.profiles?.ok?`${running} report a running gateway`:state.results.profiles?.error||"No response"}
+    function scalarPanel(result,rootId,rawId,stampId,kind){const root=$(rootId),raw=$(rawId);if(!result?.ok){unavailable(root,result?.error||"No response",kind==="grid"?"bg-[#1E1E2E] p-4 text-[#BF616A] sm:col-span-2 lg:col-span-3":"p-4 text-[#BF616A]");raw.textContent="Unavailable";$(stampId).textContent="Unavailable";return}const safeData=redact(result.data),fields=flatten(safeData).slice(0,24);root.replaceChildren();if(!fields.length)unavailable(root,"The endpoint returned no scalar fields");fields.forEach(([key,value])=>{if(kind==="grid"){const cell=document.createElement("div"),term=document.createElement("div"),val=document.createElement("div");cell.className="bg-[#1E1E2E] p-4 min-w-0";term.className="text-[10px] uppercase tracking-wide text-[#94A3B8] truncate";term.title=key;term.textContent=label(key);val.className="metric text-base font-mono font-semibold mt-1 break-words";val.textContent=text(value);cell.append(term,val);root.append(cell)}else{const row=document.createElement("div"),term=document.createElement("dt"),val=document.createElement("dd");row.className="px-4 py-2.5 flex items-start justify-between gap-4";term.className="text-xs text-[#94A3B8]";term.textContent=label(key);val.className="m-0 text-xs text-right font-mono break-all";val.textContent=text(value);row.append(term,val);root.append(row)}});raw.textContent=JSON.stringify(safeData,null,2);$(stampId).textContent=time(result.at)}
+    function renderSessions(){const body=$("sessions-body"),query=$("session-filter").value.trim().toLowerCase();body.replaceChildren();if(!state.results.sessions?.ok){const row=document.createElement("tr"),cell=document.createElement("td");cell.colSpan=6;cell.className="p-4 text-[#BF616A]";cell.textContent=`Unavailable: ${state.results.sessions?.error||"No response"}`;row.append(cell);body.append(row);return}const rows=state.sessions.filter(s=>!query||JSON.stringify(redact(s)).toLowerCase().includes(query));if(!rows.length){const row=document.createElement("tr"),cell=document.createElement("td");cell.colSpan=6;cell.className="p-4 text-[#94A3B8]";cell.textContent=state.sessions.length?"No sessions match the filter.":"The endpoint returned no sessions.";row.append(cell);body.append(row);return}rows.slice(0,30).forEach(s=>{const row=document.createElement("tr");row.className="hover:bg-[#242933]/50";const values=[first(s,["title","name","session_id","id"]),first(s,["profile","profile_name","metadata.profile"]),first(s,["model","model_name","metadata.model"]),first(s,["message_count","messages_count","num_messages"]),first(s,["updated_at","last_activity","modified_at","created_at"]),first(s,["status","state","active"])];values.forEach((value,index)=>{const cell=document.createElement("td");cell.className=index===0?"py-3 px-4 font-medium max-w-xs truncate":"py-3 px-4 font-mono text-[11px] text-[#94A3B8]";cell.textContent=index===4&&value!==undefined?time(value):text(value);row.append(cell)});body.append(row)})}
+    function renderProfiles(){const root=$("profiles-grid");root.replaceChildren();if(!state.results.profiles?.ok){unavailable(root,state.results.profiles?.error||"No response");return}if(!state.profiles.length){const empty=document.createElement("div");empty.className="text-[#94A3B8]";empty.textContent="The endpoint returned no configured profiles.";root.append(empty);return}state.profiles.forEach(p=>{const card=document.createElement("article"),head=document.createElement("div"),name=document.createElement("h3"),badge=document.createElement("span"),model=document.createElement("p"),description=document.createElement("p"),running=p&&(p.gateway_running===true||String(p.status||"").toLowerCase()==="running");card.className="bg-[#181825] border border-[#3B4252] rounded-lg p-3 min-w-0";head.className="flex items-start justify-between gap-2";name.className="m-0 text-sm font-semibold truncate";name.textContent=text(first(p,["display_name","bot_title","name","id"]));badge.className=running?"shrink-0 text-[9px] font-mono px-1.5 py-0.5 rounded bg-[#A3BE8C]/10 text-[#A3BE8C]":"shrink-0 text-[9px] font-mono px-1.5 py-0.5 rounded bg-[#3B4252] text-[#94A3B8]";badge.textContent=running?"GATEWAY RUNNING":"NOT REPORTED RUNNING";model.className="m-0 mt-2 text-[11px] font-mono text-[#88C0D0] break-all";model.textContent=`Model: ${text(first(p,["model","model_name","provider_model"]))}`;description.className="m-0 mt-2 text-xs leading-5 text-[#94A3B8]";description.textContent=text(first(p,["description","bot_description"]));head.append(name,badge);card.append(head,model,description);root.append(card)})}
+    function renderLog(){const root=$("poll-log");root.replaceChildren();if(!state.log.length){const empty=document.createElement("li");empty.className="p-4 text-[#94A3B8]";empty.textContent="No polls completed yet.";root.append(empty);return}state.log.forEach(entry=>{const item=document.createElement("li"),left=document.createElement("div"),summary=document.createElement("div"),failures=document.createElement("div"),stamp=document.createElement("time");item.className="p-3 flex items-start justify-between gap-4";summary.className=entry.failed.length?"text-xs text-[#EBCB8B]":"text-xs text-[#A3BE8C]";summary.textContent=`${entry.ok}/${defs.length} endpoints available`;failures.className="text-[10px] font-mono text-[#616E88] mt-0.5";failures.textContent=entry.failed.length?`Unavailable: ${entry.failed.join(", ")}`:"No request failures";stamp.className="shrink-0 text-[10px] font-mono text-[#616E88]";stamp.dateTime=entry.at.toISOString();stamp.textContent=entry.at.toLocaleTimeString();left.append(summary,failures);item.append(left,stamp);root.append(item)})}
+    function snapshot(){return JSON.stringify({captured_at:new Date().toISOString(),source:"Hermes Cockpit read-only telemetry",endpoints:Object.fromEntries(defs.map(d=>{const r=state.results[d.id];return[d.path,r?{ok:r.ok,http_status:r.status,browser_fetch_ms:r.elapsed,error:r.error,data:redact(r.data)}:{ok:false,error:"Not polled"}]}))},null,2)}
+    async function poll(){if(state.polling||state.paused||document.hidden)return;state.polling=true;const button=$("refresh-button"),icon=button.querySelector("span");button.disabled=true;button.classList.add("opacity-60");icon.classList.add("animate-spin");try{const results=await Promise.all(defs.map(request));results.forEach(r=>{state.results[r.def.id]=r;endpoint(r)});state.sessions=state.results.sessions.ok?list(state.results.sessions.data,["sessions","items","results"]):[];state.profiles=state.results.profiles.ok?list(state.results.profiles.data,["profiles","items","results"]):[];summary();scalarPanel(state.results.stats,"stats-grid","stats-raw","stats-timestamp","grid");scalarPanel(state.results.status,"status-fields","status-raw","status-timestamp","list");renderSessions();renderProfiles();const failed=results.filter(r=>!r.ok).map(r=>r.def.label);state.log.unshift({at:new Date(),ok:results.length-failed.length,failed});state.log=state.log.slice(0,20);renderLog();$("last-updated").textContent=`Updated ${time(new Date())}`}finally{state.polling=false;button.disabled=false;button.classList.remove("opacity-60");icon.classList.remove("animate-spin")}}
+    function pauseLabel(){const button=$("pause-button");button.querySelector("span:first-child").textContent=state.paused?"play_arrow":"pause";button.querySelector("span:last-child").textContent=state.paused?"Resume polling":"Pause polling";$("poll-value").textContent=state.paused?"Paused":"30 sec";$("poll-detail").textContent=state.paused?"Automatic requests are stopped":"Suspends while this tab is hidden"}
+    buildEndpoints();$("refresh-button").addEventListener("click",poll);$("pause-button").addEventListener("click",()=>{state.paused=!state.paused;pauseLabel();if(!state.paused)poll()});$("session-filter").addEventListener("input",renderSessions);$("clear-log-button").addEventListener("click",()=>{state.log=[];renderLog()});$("copy-button").addEventListener("click",async()=>{const label=$("copy-button").querySelector("span:last-child");try{await navigator.clipboard.writeText(snapshot());label.textContent="Copied"}catch{label.textContent="Copy unavailable"}setTimeout(()=>{label.textContent="Copy snapshot"},1800)});document.addEventListener("visibilitychange",()=>{if(!document.hidden&&!state.paused)poll()});setInterval(poll,INTERVAL);poll();
+  })();
+  </script>
+  <script>window.currentPage="acp-telemetry"</script>
+  <script src="shell-data.js?v=20261015g"></script>
+  <script src="shell.js?v=20261015g"></script>
+  <link rel="stylesheet" href="prototype.css">
+</body>
+</html>
