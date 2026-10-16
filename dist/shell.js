@@ -15,7 +15,17 @@
     nav.append(link);
   }
 
-  const pages = ["live-control", "mesh-topology", "tool-registry", "acp-telemetry", "runtime-config-settings", "backend-control"];
+  if (nav && !nav.querySelector('[data-path="cli-control"]')) {
+    const link = document.createElement("a");
+    link.dataset.path = "cli-control";
+    link.href = "cli-control.html";
+    link.title = "Advanced Controls (F7)";
+    link.setAttribute("aria-label", "Advanced Controls");
+    link.innerHTML = '<span class="material-symbols-outlined">manufacturing</span>';
+    nav.append(link);
+  }
+
+  const pages = ["live-control", "mesh-topology", "tool-registry", "acp-telemetry", "runtime-config-settings", "backend-control", "cli-control"];
   document.querySelectorAll("#shared-sidebar a").forEach((link) => {
     const active = link.dataset.path === window.currentPage;
     link.href = `${link.dataset.path}.html`;
@@ -27,7 +37,7 @@
 
   document.addEventListener("keydown", (event) => {
     const number = Number(event.key.slice(1));
-    if (/^F[1-6]$/.test(event.key)) {
+    if (/^F[1-7]$/.test(event.key)) {
       event.preventDefault();
       location.href = `${pages[number - 1]}.html`;
     }

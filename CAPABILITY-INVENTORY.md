@@ -100,7 +100,7 @@ The complete schema has 348 operations. Cockpit deliberately presents the 337 `/
 | `logs` | 1 | 1 | 1 | Direct API equivalent | Log selection, filtering, and tail data have a direct REST read operation. |
 | `prompt-size` | 1 | 1 | 1 | Direct API equivalent | Prompt budget analysis has a direct REST action. |
 
-Coverage labels are deliberately conservative: **Direct** means the command family’s central behavior has a dedicated API; **Partial** means only some subcommands do; **Generic** means the same persisted state can be changed through config/env APIs without a dedicated endpoint; **Gateway/WebSocket** means it is real browser functionality outside OpenAPI; **CLI-only** means no equivalent browser contract was found.
+Coverage labels are deliberately conservative: **Direct** means the command family’s central behavior has a dedicated API; **Partial** means only some subcommands do; **Generic** means the same persisted state can be changed through config/env APIs without a dedicated endpoint; **Gateway/WebSocket** means it is real browser functionality outside OpenAPI; **CLI-only** means no equivalent native Hermes browser contract was found. Cockpit now supplies its own authenticated, typed bridge for the 43 reviewed executable paths in all 22 CLI-only families; the classification remains CLI-only because it describes Hermes's native API rather than Cockpit's added integration.
 
 ## Complete canonical CLI inventory
 

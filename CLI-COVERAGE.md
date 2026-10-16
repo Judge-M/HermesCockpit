@@ -29,7 +29,9 @@ These are family counts, not one-to-one endpoint counts. A command family can ma
 
 ## What still requires a command bridge
 
-Only the missing portion of a partial family and genuinely CLI-only behavior should use a bridge. Examples include LSP installation, project mutation, approvals analysis, skill bundles, vault management, Codex-runtime projection, advanced session database maintenance, and host lifecycle commands. The bridge must not duplicate behavior already available through REST or the gateway.
+The 22 genuinely CLI-only families are now connected through 43 reviewed executable paths in Advanced Controls: `browser`, `codex-runtime`, `proxy`, `lsp`, `send`, `pause`, `resume`, `verify`, `approvals`, `import-agent`, `console`, `bundles`, `connectors`, `usage`, `claw`, `vault`, `uninstall`, `acp`, `completion`, `dashboard`, `serve`, and `desktop`.
+
+Only the missing portion of a partial family should be added to the bridge next. Examples include project mutation, advanced session database maintenance, specialist skill/plugin maintenance, and several lifecycle or repair commands. The bridge must not duplicate behavior already available through REST or the gateway.
 
 Global launch controls also require browser representation where they affect a session: one-shot mode, model/provider/reasoning overrides, toolsets, resume/continue, working directory, worktree isolation, hook acceptance, preloaded skills, session-ID injection, rules/config/customization bypass, safe mode, and interface selection. Terminal-only rendering flags may be omitted only when they have no behavioral effect on a browser session, and that decision must be recorded.
 
@@ -44,6 +46,8 @@ The bridge is an operation registry, not a remote shell. Each operation defines:
 5. Redaction rules for credentials, tokens, cookies, and private paths.
 6. A job ID with bounded stdout/stderr streaming and an audit record.
 7. A declared read/write/destructive classification used by the UI.
+
+The deployed bridge also scopes jobs to the authenticated dashboard user, disables PTY echo before accepting interactive responses, keeps raw output private while producing a bounded redacted view, applies command-and-field-specific path policies, caps concurrent jobs, terminates process groups, and keeps active jobs re-openable after navigation or reload.
 
 The server must invoke the executable directly with an argument array. It must never pass user input through `sh`, `bash -c`, `eval`, command substitution, or unrestricted environment variables. Service lifecycle operations use the deployment supervisor rather than spawning orphan processes.
 

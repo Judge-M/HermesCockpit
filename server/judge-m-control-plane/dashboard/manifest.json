@@ -1,0 +1,14 @@
+{
+  "name": "judge-m-control-plane",
+  "label": "Control Plane",
+  "description": "Infrastructure health, Docker Agent readiness, model-menu curation, and allowlisted host controls.",
+  "icon": "Activity",
+  "version": "0.3.0",
+  "tab": {
+    "path": "/control-plane",
+    "position": "after:analytics"
+  },
+  "entry": "dist/index.js",
+  "css": "dist/style.css",
+  "api": "plugin_api.py"
+}

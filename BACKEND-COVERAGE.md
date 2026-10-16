@@ -36,7 +36,8 @@ When Hermes has no browser API for a CLI capability, Cockpit uses a server-side 
 | Dashboard themes, fonts and plugins | Appearance & Plugins | Required |
 | Docker-agent creation and lifecycle for this deployment | Agent Fleet | Required |
 | Cross-machine/Tailscale service topology | Mesh | Required through a deployment bridge |
-| CLI-only capabilities with no Hermes browser contract | Matching purpose-built workspace | Required through an allowlisted command bridge |
+| 22 genuinely CLI-only families with no Hermes browser contract | Advanced Controls | Integrated (43 typed, allowlisted executable paths; live command and reload-safe job history verified) |
+| Remaining CLI-only portions of partial API families | Matching purpose-built workspace | Required through the same reviewed bridge contract |
 
 ## Completion gate
 
