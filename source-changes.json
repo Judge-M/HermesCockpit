@@ -8,6 +8,12 @@
       "verification": "scripts/check.mjs validates this as an explicit intentional source change; all other imported files remain baseline-verified."
     },
     {
+      "path": "dist/shell.js",
+      "baseline_sha256": "bdf48772916e959367811c6e976d98fe09af0c024f08d5b01d6c26b6e719d26a",
+      "reason": "Use embedded shell data for direct file:// previews while retaining shell.json loading for HTTP previews.",
+      "verification": "scripts/check.mjs validates both shell.js and the embedded shell-data.js syntax and fallback marker."
+    },
+    {
       "path": "dist/acp-telemetry.html",
       "baseline_sha256": "fc204c87ee49fb173916fd087b1a382553350d572de943bf091ca670536843da",
       "reason": "Use vendored local Tailwind, font, and Material Symbols assets so the demo runs without network access.",

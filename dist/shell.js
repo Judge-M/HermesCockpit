@@ -1,5 +1,5 @@
 (async()=>{
- const shell=await fetch('shell.json').then(r=>r.json());
+ const shell=window.__HERMES_SHELL__||await fetch('shell.json').then(r=>r.json());
  document.getElementById('shared-header').innerHTML=shell.header;
  document.getElementById('shared-sidebar').innerHTML=shell.aside;
  const paths=['live-control','mesh-topology','tool-registry','acp-telemetry','runtime-config-settings'];

@@ -16,7 +16,7 @@ With Node.js 18 or newer installed:
 node scripts/serve.mjs
 ```
 
-Open http://127.0.0.1:4174. The server binds only to loopback. A static HTTP server is required because the shared header and sidebar load from `shell.json`; opening HTML with `file://` is not sufficient.
+Open http://127.0.0.1:4174. The server binds only to loopback. The shared header and sidebar use the embedded `shell-data.js` fallback when opened directly from `file://`, and use `shell.json` when served over HTTP.
 
 ```sh
 node scripts/check.mjs

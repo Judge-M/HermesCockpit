@@ -45,6 +45,9 @@ for (const screen of screens) {
   }
 }
 new vm.Script(read('dist/shell.js'), {filename:'shell.js'});
+new vm.Script(read('dist/shell-data.js'), {filename:'shell-data.js'});
+assert.ok(read('dist/shell.js').includes('window.__HERMES_SHELL__'), 'Missing file-mode shell fallback');
+assert.ok(existsSync(path.join(root, 'dist/shell-data.js')), 'Missing embedded shell data');
 const shell = JSON.parse(read('dist/shell.json'));
 assert.ok(shell.header.includes('Hermes Cockpit'));
 assert.ok(shell.header.includes('src="assets/hermes-aviator-girl.jpg"'));
