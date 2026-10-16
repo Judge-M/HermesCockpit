@@ -105,10 +105,13 @@ Selecting a different model sends Hermes' native `/model` command to the current
 - `dist/runtime-config-settings.html` — full schema-driven configuration, model, profile, and identity management
 - `dist/backend-control.html` — plain-language Control Center that keeps every installed Hermes REST operation available as normal fields and actions, with API details collapsed by default
 - `BACKEND-COVERAGE.md` — backend-to-interface coverage ledger and acceptance rule
-- `CLI-COVERAGE.md` — installed Hermes command inventory and secure bridge requirements
+- `CLI-COVERAGE.md` — installed Hermes command coverage summary and secure bridge requirements
+- `CAPABILITY-INVENTORY.md` — generated human-readable list of all 422 canonical CLI command nodes and all 348 OpenAPI operations
+- `CAPABILITY-INVENTORY.json` — machine-readable command signatures, API signatures, counts, and reviewed family-level overlap
+- `scripts/build-capability-inventory.mjs` — reproducible inventory generator; fails when a new CLI family has not been reviewed
 - `scripts/serve.mjs` — loopback-only preview server
 - `scripts/check.mjs` — source, syntax, and asset checks
 
 ## Project status
 
-This is an independent community frontend and is not affiliated with or endorsed by Nous Research or the Hermes team. All 337 REST operations exposed by the tested Hermes `0.21.7` service are reachable through native Cockpit controls. Purpose-built workflows, the allowlisted CLI bridge, and Docker-agent orchestration remain active milestones and are tracked as unfinished until they are deployed and tested.
+This is an independent community frontend and is not affiliated with or endorsed by Nous Research or the Hermes team. The tested Hermes `0.21.7` schema contains 348 operations: 337 authenticated `/api` controls plus 11 login, OAuth, asset, and SPA-shell operations. All 337 controls are reachable through Cockpit; the access routes are used by the sign-in and web-shell flows rather than misrepresented as settings. The installed CLI has 72 top-level command families and 422 canonical command/subcommand nodes. The reviewed overlap is 22 direct API families, 21 partial API families, 5 generic config/env equivalents, 2 gateway/WebSocket families, and 22 genuinely CLI-only families. Purpose-built workflows, the remaining allowlisted CLI bridge, and Docker-agent orchestration remain active milestones and are tracked as unfinished until they are deployed and tested.

@@ -20,7 +20,7 @@ for (const entry of provenance.files) {
   }
   assert.equal(hash, entry.imported_sha256, `Imported baseline differs: ${entry.path}`);
 }
-const screens = ['live-control', 'mesh-topology', 'tool-registry', 'acp-telemetry', 'runtime-config-settings'];
+const screens = ['live-control', 'mesh-topology', 'tool-registry', 'acp-telemetry', 'runtime-config-settings', 'backend-control'];
 let inlineScripts = 0;
 for (const screen of screens) {
   const html = read(`dist/${screen}.html`);
@@ -61,6 +61,21 @@ assert.ok(live.includes('data-hermes-client="true"') && live.includes('data-herm
 assert.ok(live.includes('hermes-client.js') && live.includes('vendor/xterm/xterm.js'), 'Live Control is missing its runtime');
 assert.ok(read('dist/hermes-client.js').includes('/api/auth/ws-ticket'), 'Live client is missing the secure WebSocket ticket flow');
 assert.ok(!read('dist/hermes-client.js').includes('localStorage'), 'Live client must not persist credentials or controls in localStorage');
-for (const screen of screens) assert.ok(shell.aside.includes(`data-path="${screen}"`));
+for (const screen of screens.filter(screen => screen !== 'backend-control')) assert.ok(shell.aside.includes(`data-path="${screen}"`));
+assert.ok(read('dist/shell.js').includes('data-path="backend-control"'), 'Shared shell is missing Control Center navigation');
 assert.ok(read('dist/index.html').includes('url=live-control.html'));
+const inventory = JSON.parse(read('CAPABILITY-INVENTORY.json'));
+assert.equal(inventory.counts.cliTopLevelCommands, 72, 'Unexpected top-level CLI command count');
+assert.equal(inventory.counts.cliCanonicalCommandNodes, 422, 'Unexpected canonical CLI node count');
+assert.equal(inventory.counts.cliLeafCommands, 370, 'Unexpected CLI leaf count');
+assert.equal(inventory.counts.cliAliases, 45, 'Unexpected CLI alias count');
+assert.equal(inventory.counts.cliOptions, 1265, 'Unexpected CLI option count');
+assert.equal(inventory.counts.apiOperations, 348, 'Unexpected OpenAPI operation count');
+assert.equal(inventory.counts.apiControlOperations, 337, 'Unexpected control operation count');
+assert.equal(inventory.counts.apiAccessOrShellOperations, 11, 'Unexpected access/web-shell operation count');
+assert.equal(inventory.cliFamilies.length, inventory.counts.cliTopLevelCommands, 'Every CLI family must have a reviewed API classification');
+assert.equal(new Set(inventory.cliCommands.map(command => command.path)).size, inventory.cliCommands.length, 'Duplicate canonical CLI paths');
+assert.equal(new Set(inventory.apiOperations.map(operation => `${operation.method} ${operation.path}`)).size, inventory.apiOperations.length, 'Duplicate API operations');
+assert.ok(read('CAPABILITY-INVENTORY.md').includes('| `login` |'), 'Human-readable inventory is missing the login command');
+assert.ok(read('dist/backend-control.html').includes('countSchemaOperations'), 'Control Center does not disclose full schema operation count');
 console.log(`PASS: ${provenance.files.length} baseline hashes; ${intentional.size} intentional source changes; ${screens.length} screens; local references and runtime assets; ${inlineScripts} inline scripts and shared shell syntax; vendored cockpit girl asset; blank password defaults.`);

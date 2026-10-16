@@ -21,7 +21,7 @@ When Hermes has no browser API for a CLI capability, Cockpit uses a server-side 
 | Complete `/api/config/schema` configuration | Runtime & Settings | Integrated |
 | MCP servers, MCP tests, enablement | Tool Registry | Integrated |
 | Skills and toolset enablement | Tool Registry | Integrated |
-| API-wide discovery and fallback operation surface | Control Center | Integrated (337 live operations on Hermes 0.21.7) |
+| API-wide discovery and fallback operation surface | Control Center | Integrated (337 authenticated control operations; 348 total OpenAPI operations including 11 access/web-shell routes) |
 | Session search, timeline, ownership, export and lifecycle | Sessions workspace | Required |
 | Cron jobs, runs, delivery targets and blueprints | Automations workspace | Required |
 | Messaging platforms, onboarding, pairing and webhooks | Channels workspace | Required |
@@ -52,4 +52,4 @@ Before a backend area is marked integrated:
 
 The schema-driven Control Center guarantees that every current and newly exposed REST operation stays available as a normal field, selector, toggle, or action while dedicated workflows are built. It keeps HTTP methods and routes inside optional technical details. It does not replace the requirement for polished purpose-built screens, and no endpoint may be dropped merely because a dedicated screen does not exist yet.
 
-The installed command inventory, bridge policy, and per-command implementation status are tracked in [CLI-COVERAGE.md](CLI-COVERAGE.md). A release cannot claim complete Hermes coverage while any row there remains `Required` or `Partial`.
+The installed command inventory, API overlap, bridge policy, and per-command signatures are tracked in [CLI-COVERAGE.md](CLI-COVERAGE.md) and the generated [CAPABILITY-INVENTORY.md](CAPABILITY-INVENTORY.md). A release cannot claim complete Hermes coverage while any real user-facing capability remains unavailable through a purpose-built workflow or the typed bridge.
