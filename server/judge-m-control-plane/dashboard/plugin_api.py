@@ -19,14 +19,6 @@ from fastapi import APIRouter
 router = APIRouter()
 
 PORTAL_URL = os.environ.get("JUDGEM_CONSOLE_URL", "http://192.168.34.116:8088").rstrip("/")
-AGENT_PLAYGROUND = {
-    "name": "agent-playground",
-    "host": "192.168.34.174",
-    "portainerAgentPort": 9001,
-    "state": "ready",
-    "registeredWorkers": 0,
-    "note": "Docker host and Portainer agent are online; no Docker Agent worker profile is deployed yet.",
-}
 LINKS = [
     {"id": "portal", "name": "Judge-M Portal", "kind": "Unified portal", "url": f"{PORTAL_URL}/"},
     {"id": "proxmox", "name": "Proxmox VE", "kind": "Compute and LXC lifecycle", "url": "https://192.168.34.54:8006"},
@@ -61,7 +53,6 @@ async def _load_overview() -> dict[str, Any]:
             "ok": True,
             "source": PORTAL_URL,
             "overview": overview,
-            "workers": AGENT_PLAYGROUND,
             "links": LINKS,
         }
     except (HTTPError, URLError, TimeoutError, ValueError, OSError) as exc:
@@ -70,7 +61,6 @@ async def _load_overview() -> dict[str, Any]:
             "source": PORTAL_URL,
             "error": f"{type(exc).__name__}: {exc}",
             "overview": None,
-            "workers": AGENT_PLAYGROUND,
             "links": LINKS,
         }
 
