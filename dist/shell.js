@@ -1,98 +1,106 @@
 (async () => {
+  "use strict";
+
   const HERMES_BASE = "/hermes";
-  const shell = window.__HERMES_SHELL__ || await fetch("shell.json").then((response) => response.json());
-  document.getElementById("shared-header").innerHTML = shell.header;
-  document.getElementById("shared-sidebar").innerHTML = shell.aside;
+  const primary = [
+    { path: "live-control", href: "live-control.html", icon: "chat", label: "Chat" },
+    { path: "models-providers", href: "models-providers.html", icon: "model_training", label: "Models" },
+    { path: "tool-registry", href: "tool-registry.html", icon: "handyman", label: "Tools" },
+    { path: "mesh-topology", href: "mesh-topology.html", icon: "dns", label: "System" }
+  ];
+  const secondary = [
+    { path: "runtime-config-settings", href: "runtime-config-settings.html", icon: "tune", label: "Settings" },
+    { path: "acp-telemetry", href: "acp-telemetry.html", icon: "monitoring", label: "Observability" },
+    { path: "backend-control", href: "backend-control.html", icon: "apps", label: "Capabilities" },
+    { path: "cli-control", href: "cli-control.html", icon: "terminal", label: "CLI controls" }
+  ];
+  const navLink = (item, mobile = false) => {
+    const active = item.path === window.currentPage;
+    return `<a class="hc-nav-link${active ? " is-active" : ""}${mobile ? " hc-mobile-link" : ""}" data-path="${item.path}" href="${item.href}"${active ? ' aria-current="page"' : ""}>
+      <span class="material-symbols-outlined">${item.icon}</span><span>${item.label}</span>
+    </a>`;
+  };
 
-  const nav = document.querySelector("#shared-sidebar nav");
-  if (nav && !nav.querySelector('[data-path="backend-control"]')) {
-    const link = document.createElement("a");
-    link.dataset.path = "backend-control";
-    link.href = "backend-control.html";
-    link.title = "Control Center (F6)";
-    link.setAttribute("aria-label", "Control Center");
-    link.innerHTML = '<span class="material-symbols-outlined">schema</span>';
-    nav.append(link);
-  }
+  const headerHost = document.getElementById("shared-header");
+  const sidebarHost = document.getElementById("shared-sidebar");
+  if (headerHost) headerHost.innerHTML = `
+    <header class="hc-header">
+      <a class="hc-brand" href="live-control.html" aria-label="Hermes Cockpit home">
+        <img alt="Hermes Aviator Girl Logo" src="assets/hermes-aviator-girl.jpg">
+        <span><strong>Hermes</strong><small>Cockpit</small></span>
+      </a>
+      <div class="hc-header-center">
+        <span class="hc-connection-dot" id="shared-hermes-dot"></span>
+        <span id="shared-hermes-status" data-state="connecting">Connecting…</span>
+        <span id="shared-hermes-version"></span>
+      </div>
+      <div class="hc-header-actions">
+        <a href="models-providers.html#add-provider" class="hc-header-button"><span class="material-symbols-outlined">add</span><span>Add provider</span></a>
+        <a href="runtime-config-settings.html" class="hc-icon-button" aria-label="Open settings" title="Settings"><span class="material-symbols-outlined">settings</span></a>
+      </div>
+    </header>`;
+  if (sidebarHost) sidebarHost.innerHTML = `
+    <aside class="hc-sidebar">
+      <div class="hc-nav-group"><div class="hc-nav-label">Workspace</div>${primary.map(item => navLink(item)).join("")}</div>
+      <div class="hc-nav-spacer"></div>
+      <div class="hc-nav-group hc-nav-secondary"><div class="hc-nav-label">Manage</div>${secondary.map(item => navLink(item)).join("")}</div>
+    </aside>
+    <nav class="hc-mobile-nav" aria-label="Primary navigation">
+      ${primary.slice(0, 3).map(item => navLink(item, true)).join("")}
+      <button class="hc-nav-link hc-mobile-link" id="hc-more-button" type="button" aria-expanded="false"><span class="material-symbols-outlined">more_horiz</span><span>More</span></button>
+    </nav>
+    <div class="hc-more-sheet" id="hc-more-sheet" hidden>
+      <button class="hc-sheet-backdrop" data-close-more aria-label="Close menu"></button>
+      <section class="hc-sheet-panel" aria-label="More destinations">
+        <div class="hc-sheet-handle"></div><div class="hc-sheet-title"><strong>More</strong><button data-close-more aria-label="Close menu"><span class="material-symbols-outlined">close</span></button></div>
+        ${[primary[3], ...secondary].map(item => navLink(item)).join("")}
+      </section>
+    </div>`;
 
-  if (nav && !nav.querySelector('[data-path="cli-control"]')) {
-    const link = document.createElement("a");
-    link.dataset.path = "cli-control";
-    link.href = "cli-control.html";
-    link.title = "Advanced Controls (F7)";
-    link.setAttribute("aria-label", "Advanced Controls");
-    link.innerHTML = '<span class="material-symbols-outlined">manufacturing</span>';
-    nav.append(link);
-  }
-
-  const pages = ["live-control", "mesh-topology", "tool-registry", "acp-telemetry", "runtime-config-settings", "backend-control", "cli-control"];
-  document.querySelectorAll("#shared-sidebar a").forEach((link) => {
-    const active = link.dataset.path === window.currentPage;
-    link.href = `${link.dataset.path}.html`;
-    link.className = `flex items-center justify-center w-10 h-10 rounded-lg transition-all ${active ? "bg-surface-secondary text-primary font-bold shadow-sm" : "text-text-secondary hover:bg-surface-container-high hover:text-text-primary"}`;
-    link.firstElementChild.className = `material-symbols-outlined text-[20px] ${active ? "text-primary" : "text-text-quaternary hover:text-text-primary"}`;
-    if (active) link.setAttribute("aria-current", "page");
-    else link.removeAttribute("aria-current");
-  });
-
-  document.addEventListener("keydown", (event) => {
-    const number = Number(event.key.slice(1));
-    if (/^F[1-7]$/.test(event.key)) {
+  const moreButton = document.getElementById("hc-more-button");
+  const moreSheet = document.getElementById("hc-more-sheet");
+  const setMore = open => {
+    if (!moreSheet || !moreButton) return;
+    moreSheet.hidden = !open;
+    moreButton.setAttribute("aria-expanded", String(open));
+    document.body.classList.toggle("hc-sheet-open", open);
+  };
+  moreButton?.addEventListener("click", () => setMore(moreSheet?.hidden !== false));
+  moreSheet?.querySelectorAll("[data-close-more]").forEach(button => button.addEventListener("click", () => setMore(false)));
+  document.addEventListener("keydown", event => {
+    if (event.key === "Escape") setMore(false);
+    if ((event.ctrlKey || event.metaKey) && event.key === ",") {
       event.preventDefault();
-      location.href = `${pages[number - 1]}.html`;
+      location.href = "runtime-config-settings.html";
     }
   });
 
-  const header = document.querySelector("#shared-header header");
-  if (header?.children.length >= 3) {
-    const badge = header.children[0].querySelector("span:last-child");
-    if (badge) badge.textContent = "beta";
-    header.children[1].innerHTML = `
-      <div class="cockpit-header-live">
-        <span class="cockpit-status-dot"></span>
-        <span>Hermes</span>
-        <span id="shared-hermes-status" data-state="connecting">Connecting…</span>
-      </div>`;
-    header.children[2].innerHTML = `
-      <a class="cockpit-admin-link" href="runtime-config-settings.html" aria-label="Open Cockpit settings">Settings</a>`;
+  let notice = document.getElementById("demo-notice");
+  if (!notice) {
+    notice = document.createElement("div");
+    notice.id = "demo-notice";
+    document.body.append(notice);
   }
-
-  const oldDaemonBadge = document.querySelector("#shared-sidebar aside > div:last-child");
-  if (oldDaemonBadge) {
-    oldDaemonBadge.innerHTML = `
-      <div class="relative flex items-center justify-center w-8 h-8 rounded-lg bg-surface-container-lowest border border-border-muted/50" title="Hermes API status">
-        <span class="material-symbols-outlined text-[16px] text-primary">bolt</span>
-        <span id="shared-hermes-dot" class="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-warning"></span>
-      </div>
-      <span id="shared-hermes-version" class="font-code-xs text-[10px] text-text-quaternary">…</span>`;
-  }
-
-  const notice = document.createElement("div");
-  notice.id = "demo-notice";
   notice.textContent = "Connecting to Hermes…";
   notice.title = "Live Hermes API status";
-  document.body.append(notice);
 
   const setSharedStatus = (state, label, version = "") => {
     const status = document.getElementById("shared-hermes-status");
-    if (status) {
-      status.textContent = label;
-      status.dataset.state = state;
-    }
+    if (status) { status.textContent = label; status.dataset.state = state; }
     const dot = document.getElementById("shared-hermes-dot");
-    if (dot) dot.className = `absolute top-1 right-1 w-1.5 h-1.5 rounded-full ${state === "connected" ? "bg-success" : "bg-error"}`;
+    if (dot) dot.dataset.state = state;
     const versionNode = document.getElementById("shared-hermes-version");
-    if (versionNode) versionNode.textContent = version || (state === "connected" ? "online" : "offline");
+    if (versionNode) versionNode.textContent = version ? `v${String(version).replace(/^v/, "")}` : "";
     if (document.body?.dataset.hermesClient !== "true") notice.textContent = state === "connected" ? "Live Hermes data" : label;
   };
 
   try {
-    const response = await fetch(`${HERMES_BASE}/api/health`, { credentials: "include" });
+    const response = await fetch(`${HERMES_BASE}/api/health`, { credentials: "include", cache: "no-store" });
     if (response.status === 401) setSharedStatus("offline", "Sign in required");
     else if (!response.ok) throw new Error(`HTTP ${response.status}`);
     else {
       const health = await response.json();
-      setSharedStatus("connected", "Connected", health.displayVersion || health.version || "online");
+      setSharedStatus("connected", "Hermes connected", health.displayVersion || health.version || "");
     }
   } catch (_) {
     setSharedStatus("offline", "Hermes unavailable");

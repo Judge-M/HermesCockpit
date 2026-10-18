@@ -20,7 +20,7 @@ for (const entry of provenance.files) {
   }
   assert.equal(hash, entry.imported_sha256, `Imported baseline differs: ${entry.path}`);
 }
-const screens = ['live-control', 'mesh-topology', 'tool-registry', 'acp-telemetry', 'runtime-config-settings', 'backend-control', 'cli-control'];
+const screens = ['live-control', 'models-providers', 'mesh-topology', 'tool-registry', 'acp-telemetry', 'runtime-config-settings', 'backend-control', 'cli-control'];
 let inlineScripts = 0;
 for (const screen of screens) {
   const html = read(`dist/${screen}.html`);
@@ -47,7 +47,6 @@ for (const screen of screens) {
 new vm.Script(read('dist/shell.js'), {filename:'shell.js'});
 new vm.Script(read('dist/shell-data.js'), {filename:'shell-data.js'});
 new vm.Script(read('dist/hermes-client.js'), {filename:'hermes-client.js'});
-assert.ok(read('dist/shell.js').includes('window.__HERMES_SHELL__'), 'Missing file-mode shell fallback');
 assert.ok(existsSync(path.join(root, 'dist/shell-data.js')), 'Missing embedded shell data');
 const shell = JSON.parse(read('dist/shell.json'));
 assert.ok(shell.header.includes('Hermes Cockpit'));
@@ -61,9 +60,7 @@ assert.ok(live.includes('data-hermes-client="true"') && live.includes('data-herm
 assert.ok(live.includes('hermes-client.js') && live.includes('vendor/xterm/xterm.js'), 'Live Control is missing its runtime');
 assert.ok(read('dist/hermes-client.js').includes('/api/auth/ws-ticket'), 'Live client is missing the secure WebSocket ticket flow');
 assert.ok(!read('dist/hermes-client.js').includes('localStorage'), 'Live client must not persist credentials or controls in localStorage');
-for (const screen of screens.filter(screen => !['backend-control', 'cli-control'].includes(screen))) assert.ok(shell.aside.includes(`data-path="${screen}"`));
-assert.ok(read('dist/shell.js').includes('data-path="backend-control"'), 'Shared shell is missing Control Center navigation');
-assert.ok(read('dist/shell.js').includes('data-path="cli-control"'), 'Shared shell is missing Advanced Controls navigation');
+for (const screen of screens) assert.ok(read('dist/shell.js').includes(`path: "${screen}"`), `Shared shell is missing ${screen} navigation`);
 assert.ok(read('dist/index.html').includes('url=live-control.html'));
 const inventory = JSON.parse(read('CAPABILITY-INVENTORY.json'));
 assert.equal(inventory.counts.cliTopLevelCommands, 72, 'Unexpected top-level CLI command count');
