@@ -857,3 +857,527 @@ body[data-hermes-client="true"] main > div > div:nth-child(2) {
     display: none;
   }
 }
+
+/* Native Cockpit conversation workspace */
+.cockpit-terminal-feed {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+  padding: 0;
+}
+
+.cockpit-terminal-frame {
+  min-height: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.cockpit-terminal-toolbar {
+  min-height: 3.25rem;
+  padding: .5rem .75rem;
+  background: rgb(24 24 37 / 96%);
+}
+
+.cockpit-toolbar-start,
+.cockpit-chat-heading-actions,
+.cockpit-inspector-head,
+.cockpit-session-panel-head,
+.cockpit-session-group-title,
+.cockpit-inspector-tabs {
+  display: flex;
+  align-items: center;
+}
+
+.cockpit-toolbar-start,
+.cockpit-chat-heading-actions {
+  gap: .55rem;
+}
+
+.cockpit-mobile-toggle {
+  display: none;
+}
+
+.cockpit-native-chat {
+  background:
+    radial-gradient(circle at 50% 0%, rgb(136 192 208 / 6%), transparent 38rem),
+    #10101d;
+}
+
+.cockpit-native-chat-heading {
+  min-height: 3.75rem;
+  padding: .65rem 1rem;
+  background: rgb(18 18 33 / 88%);
+  backdrop-filter: blur(14px);
+}
+
+.cockpit-native-chat-heading strong {
+  font-size: .98rem;
+}
+
+.cockpit-chat-heading-actions {
+  position: relative;
+}
+
+#cockpit-session-menu,
+.cockpit-inspector-head button,
+.cockpit-session-panel-head button {
+  border: 0;
+  border-radius: .4rem;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+#cockpit-session-menu:hover,
+.cockpit-inspector-head button:hover,
+.cockpit-session-panel-head button:hover {
+  background: #282a36;
+  color: #eceff4;
+}
+
+.cockpit-native-transcript {
+  width: 100%;
+  padding: 1.4rem max(1rem, calc((100% - 52rem) / 2));
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.cockpit-native-message {
+  width: min(49rem, 94%);
+  border: 0;
+  border-radius: .85rem;
+  background: transparent;
+  padding: .75rem 1rem;
+}
+
+.cockpit-native-message[data-role="assistant"] {
+  align-self: flex-start;
+  border-left: 2px solid rgb(163 220 236 / 35%);
+  border-radius: 0;
+}
+
+.cockpit-native-message[data-role="user"] {
+  width: min(40rem, 88%);
+  border: 1px solid #40596a;
+  background: linear-gradient(135deg, #223440, #1d2934);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 14%);
+}
+
+.cockpit-native-message[data-role="system"] {
+  width: min(44rem, 92%);
+  border: 1px solid rgb(235 203 139 / 35%);
+  border-radius: .55rem;
+  background: rgb(235 203 139 / 6%);
+}
+
+.cockpit-native-message-content {
+  color: #e5e9f0;
+  font-size: .9rem;
+  line-height: 1.7;
+}
+
+.cockpit-native-message-role {
+  margin-bottom: .45rem;
+  font-size: .61rem;
+  letter-spacing: .08em;
+}
+
+.cockpit-tool-card {
+  width: min(47rem, 92%);
+  align-self: center;
+  border: 1px solid #303349;
+  border-radius: .5rem;
+  background: rgb(30 30 46 / 72%);
+  color: #94a3b8;
+  font: 500 .68rem/1.45 "JetBrains Mono", monospace;
+}
+
+.cockpit-tool-card summary {
+  padding: .55rem .7rem;
+  color: #b9c3d1;
+  cursor: pointer;
+}
+
+.cockpit-tool-card pre {
+  max-height: 18rem;
+  margin: 0;
+  overflow: auto;
+  border-top: 1px solid #303349;
+  padding: .7rem;
+  color: #94a3b8;
+  font: 500 .66rem/1.5 "JetBrains Mono", monospace;
+  white-space: pre-wrap;
+}
+
+.cockpit-transcript-activity-summary {
+  width: min(47rem, 92%);
+  align-self: center;
+  border: 1px solid #303349;
+  border-radius: .55rem;
+  background: rgb(30 30 46 / 65%);
+  padding: .65rem .75rem;
+  color: #94a3b8;
+  font: 500 .68rem/1.5 "JetBrains Mono", monospace;
+}
+
+.cockpit-transcript-activity-summary summary {
+  color: #b9c3d1;
+  cursor: pointer;
+}
+
+.cockpit-transcript-activity-summary div {
+  margin-top: .55rem;
+  white-space: pre-wrap;
+}
+
+.cockpit-transcript-activity-summary button {
+  margin-top: .55rem;
+  border: 1px solid #434c5e;
+  border-radius: .35rem;
+  background: #242433;
+  padding: .4rem .55rem;
+  color: #a3dcec;
+  cursor: pointer;
+  font-size: .67rem;
+}
+
+.cockpit-native-empty {
+  display: grid;
+  max-width: 30rem;
+  justify-items: center;
+  gap: .55rem;
+}
+
+.cockpit-native-empty .material-symbols-outlined {
+  color: #a3dcec;
+  font-size: 2.2rem;
+}
+
+.cockpit-native-empty strong {
+  color: #eceff4;
+  font-size: 1.05rem;
+}
+
+.cockpit-native-empty p {
+  margin: 0;
+  line-height: 1.55;
+}
+
+.cockpit-session-panel {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  background: #151522;
+}
+
+.cockpit-session-panel-head,
+.cockpit-inspector-head {
+  min-height: 3.25rem;
+  justify-content: space-between;
+  border-bottom: 1px solid #303349;
+  padding: 0 .8rem;
+  color: #eceff4;
+  font-size: .8rem;
+}
+
+.cockpit-session-panel-head button,
+.cockpit-inspector-head button {
+  display: none;
+}
+
+.cockpit-new-chat {
+  display: flex;
+  min-height: 2.55rem;
+  align-items: center;
+  justify-content: center;
+  gap: .45rem;
+  margin: .7rem .7rem .45rem;
+  border: 1px solid #6baec1;
+  border-radius: .5rem;
+  background: #a3dcec;
+  color: #102a32;
+  cursor: pointer;
+  font-weight: 750;
+}
+
+.cockpit-new-chat:hover {
+  background: #b9e7f3;
+}
+
+.cockpit-session-search {
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+  margin: .1rem .7rem .65rem;
+  border: 1px solid #34374b;
+  border-radius: .45rem;
+  background: #10101d;
+  padding: .48rem .55rem;
+  color: #616e88;
+}
+
+.cockpit-session-search .material-symbols-outlined {
+  font-size: 1rem;
+}
+
+.cockpit-session-search input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #eceff4;
+  font-size: .73rem;
+}
+
+.cockpit-session-scroll {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 0 .55rem .75rem;
+}
+
+.cockpit-session-group + .cockpit-session-group {
+  margin-top: 1rem;
+}
+
+.cockpit-session-group-title {
+  justify-content: space-between;
+  padding: .35rem .25rem;
+  color: #727f98;
+  font: 700 .62rem/1.3 "JetBrains Mono", monospace;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.cockpit-session-group-title button {
+  border: 0;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+}
+
+.cockpit-session-list,
+.cockpit-bot-list {
+  max-height: none;
+}
+
+.cockpit-session,
+.cockpit-bot {
+  border-color: transparent;
+  background: transparent;
+  padding: .52rem .55rem;
+}
+
+.cockpit-session:hover,
+.cockpit-bot:hover {
+  border-color: #303349;
+  background: #1e1e2e;
+}
+
+.cockpit-session[data-active="true"],
+.cockpit-bot[data-active="true"] {
+  border-color: rgb(163 220 236 / 35%);
+  background: rgb(163 220 236 / 8%);
+  box-shadow: inset 2px 0 #a3dcec;
+}
+
+.cockpit-control-panel {
+  box-sizing: border-box;
+  width: auto;
+  max-height: none;
+  flex: auto;
+  gap: .6rem;
+  overflow-x: hidden;
+  padding: 0 .65rem .75rem;
+}
+
+.cockpit-panel-section {
+  border-color: #303349;
+  background: #191927;
+}
+
+.cockpit-inspector-head {
+  margin: 0 -.65rem;
+  padding: 0 .9rem;
+}
+
+.cockpit-inspector-tabs {
+  gap: .25rem;
+  overflow-x: auto;
+  border-bottom: 1px solid #303349;
+  padding-bottom: .55rem;
+}
+
+.cockpit-inspector-tabs button {
+  display: flex;
+  align-items: center;
+  gap: .25rem;
+  border: 0;
+  border-radius: .35rem;
+  background: transparent;
+  padding: .4rem .45rem;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: .68rem;
+}
+
+.cockpit-inspector-tabs button[data-active="true"] {
+  background: #282a36;
+  color: #eceff4;
+}
+
+.cockpit-inspector-tabs span {
+  color: #a3dcec;
+  font: 650 .58rem/1 "JetBrains Mono", monospace;
+}
+
+.cockpit-inspector-pane {
+  padding-top: .65rem;
+}
+
+.cockpit-secondary-action {
+  width: 100%;
+  border: 1px solid #434c5e;
+  border-radius: .4rem;
+  background: #242433;
+  padding: .55rem;
+  color: #d8dee9;
+  cursor: pointer;
+  font-size: .72rem;
+}
+
+.cockpit-session-actions {
+  position: absolute;
+  z-index: 20;
+  top: 2.5rem;
+  right: 0;
+  display: grid;
+  min-width: 12rem;
+  gap: .15rem;
+  border: 1px solid #434c5e;
+  border-radius: .55rem;
+  background: #1e1e2e;
+  padding: .35rem;
+  box-shadow: 0 18px 50px rgb(0 0 0 / 45%);
+}
+
+.cockpit-session-actions button {
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+  border: 0;
+  border-radius: .35rem;
+  background: transparent;
+  padding: .5rem .55rem;
+  color: #d8dee9;
+  cursor: pointer;
+  text-align: left;
+}
+
+.cockpit-session-actions button:hover {
+  background: #282a36;
+}
+
+.cockpit-session-actions button.danger {
+  color: #d9828b;
+}
+
+.cockpit-session-actions .material-symbols-outlined {
+  font-size: 1rem;
+}
+
+.cockpit-session-actions input {
+  border: 1px solid #4c566a;
+  border-radius: .35rem;
+  background: #121221;
+  padding: .55rem;
+  color: #eceff4;
+}
+
+@media (max-width: 1550px) {
+  .cockpit-control-panel {
+    width: min(24rem, 92vw);
+    height: 100%;
+    max-height: none;
+    border-top: 0;
+    border-left: 1px solid #3b4252;
+  }
+
+  .cockpit-inspector-head button,
+  #cockpit-open-inspector {
+    display: inline-flex;
+  }
+}
+
+@media (max-width: 760px) {
+  body[data-hermes-client="true"] {
+    overflow: hidden;
+  }
+
+  .cockpit-terminal-feed {
+    height: 100%;
+    min-height: 0;
+    padding: 0;
+  }
+
+  .cockpit-terminal-frame {
+    min-height: 0;
+  }
+
+  .cockpit-terminal-toolbar {
+    min-height: 3rem;
+    align-items: center;
+    flex-direction: row;
+  }
+
+  .cockpit-terminal-actions {
+    width: auto;
+  }
+
+  .cockpit-terminal-actions button:not(.cockpit-mobile-toggle):not(#cockpit-interrupt-bot) {
+    display: none;
+  }
+
+  .cockpit-mobile-toggle,
+  .cockpit-session-panel-head button {
+    display: inline-flex;
+  }
+
+  .cockpit-native-chat-heading {
+    min-height: 3.3rem;
+    padding: .55rem .7rem;
+  }
+
+  .cockpit-native-chat-heading strong {
+    font-size: .86rem;
+  }
+
+  .cockpit-native-chat-heading > div > span,
+  #cockpit-bot-chat-status {
+    font-size: .58rem;
+  }
+
+  .cockpit-native-transcript {
+    min-height: 0;
+    gap: .8rem;
+    padding: .9rem .65rem;
+  }
+
+  .cockpit-native-message,
+  .cockpit-native-message[data-role="user"],
+  .cockpit-tool-card {
+    width: 96%;
+  }
+
+  .cockpit-native-message-content {
+    font-size: .84rem;
+    line-height: 1.62;
+  }
+}

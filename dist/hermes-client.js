@@ -8,6 +8,7 @@
   const feed = document.getElementById("execution-feed");
   const composer = document.getElementById("composer-input");
   const sidebar = document.getElementById("live-control-sidebar");
+  const sessionSidebar = document.getElementById("live-session-sidebar");
   const executeButton = document.getElementById("execute-prompt");
   const encoder = new TextEncoder();
   const decoder = new TextDecoder();
@@ -75,7 +76,10 @@
     gateway: null,
     botProfiles: [],
     botRefreshTimer: null,
-    mode: "terminal",
+    mode: "chat",
+    sessions: [],
+    sessionSearch: "",
+    currentSessionMeta: null,
     botProfile: null,
     botSession: null,
     botMessages: [],
@@ -133,6 +137,7 @@
       } catch (_) {}
       throw new Error(detail);
     }
+    if (response.status === 204 || response.headers.get("content-length") === "0") return null;
     return response.json();
   }
 
@@ -157,7 +162,7 @@
     const headerStatus = document.getElementById("cockpit-header-status");
     if (headerStatus) {
       headerStatus.dataset.state = status;
-      headerStatus.textContent = detail || status;
+      headerStatus.textContent = status === "connected" ? "Connected" : status === "connecting" ? "Connecting…" : "Offline";
     }
     if (executeButton) executeButton.disabled = !state.connected;
     const notice = document.getElementById("demo-notice");
@@ -169,41 +174,37 @@
   }
 
   function renderShell() {
-    if (!feed || !sidebar) return false;
+    if (!feed || !sidebar || !sessionSidebar) return false;
     feed.replaceChildren();
     feed.className = "cockpit-terminal-feed";
 
     const frame = document.createElement("section");
     frame.className = "cockpit-terminal-frame";
-    frame.setAttribute("aria-label", "Live Hermes terminal");
+    frame.setAttribute("aria-label", "Hermes conversation workspace");
     frame.innerHTML = `
       <div class="cockpit-terminal-toolbar">
-        <div class="cockpit-connection" id="cockpit-connection" data-state="connecting">
+        <div class="cockpit-toolbar-start">
+          <button type="button" class="cockpit-mobile-toggle" id="cockpit-open-sessions" aria-label="Open chats"><span class="material-symbols-outlined">menu</span></button>
+          <div class="cockpit-connection" id="cockpit-connection" data-state="connecting">
           <span class="cockpit-status-dot"></span>
           <span id="cockpit-connection-label">Connecting…</span>
+          </div>
         </div>
         <div class="cockpit-terminal-actions">
-          <button type="button" id="cockpit-copy" title="Copy selected terminal text">Copy</button>
+          <button type="button" id="cockpit-copy" title="Copy selected text">Copy</button>
           <button type="button" id="cockpit-reconnect" title="Reconnect to Hermes">Reconnect</button>
-          <button type="button" id="cockpit-new-session" title="Start a fresh Hermes session">New session</button>
-          <button type="button" id="cockpit-terminal-mode" class="hidden" title="Return to the regular Hermes terminal">Terminal</button>
+          <button type="button" id="cockpit-terminal-mode" title="Open Hermes terminal">Terminal</button>
+          <button type="button" class="cockpit-mobile-toggle" id="cockpit-open-inspector" aria-label="Open session details"><span class="material-symbols-outlined">tune</span></button>
           <button type="button" id="cockpit-interrupt-bot" class="hidden" title="Stop the active Bot Mode response">Stop</button>
         </div>
       </div>
-      <div id="hermes-terminal" class="cockpit-terminal" tabindex="0"></div>
-      <div id="cockpit-bot-chat" class="cockpit-native-chat hidden" aria-label="Hermes Bot Mode conversation">
+      <div id="hermes-terminal" class="cockpit-terminal hidden" tabindex="0"></div>
+      <div id="cockpit-bot-chat" class="cockpit-native-chat" aria-label="Hermes conversation">
         <div class="cockpit-native-chat-heading">
-          <div><strong id="cockpit-bot-chat-title">Bot Chat</strong><span id="cockpit-bot-chat-profile">Hermes profile</span></div>
-          <span id="cockpit-bot-chat-status">Loading conversation…</span>
+          <div><strong id="cockpit-bot-chat-title">Hermes</strong><span id="cockpit-bot-chat-profile">Choose a chat or start a new one</span></div>
+          <div class="cockpit-chat-heading-actions"><span id="cockpit-bot-chat-status">Ready</span><button type="button" id="cockpit-session-menu" title="Session actions">•••</button></div>
         </div>
-        <div class="cockpit-bot-workspace">
-          <div id="cockpit-bot-transcript" class="cockpit-native-transcript" role="log" aria-live="polite"></div>
-          <aside class="cockpit-bot-activity" aria-label="Live Bot Mode activity">
-            <section><div class="cockpit-activity-heading"><strong>Task list</strong><span id="cockpit-task-count">0</span></div><div id="cockpit-task-list" class="cockpit-task-list"><p>Waiting for task state…</p></div></section>
-            <section><div class="cockpit-activity-heading"><strong>Subagents</strong><span id="cockpit-subagent-count">0</span></div><div id="cockpit-subagent-list" class="cockpit-subagent-list"><p>No active subagents</p></div><div id="cockpit-subagent-detail" class="cockpit-subagent-detail hidden"><div class="cockpit-subagent-detail-head"><strong id="cockpit-subagent-detail-title">Subagent</strong><button id="cockpit-subagent-close" type="button" aria-label="Close subagent detail">×</button></div><pre id="cockpit-subagent-tail">Waiting for transcript…</pre><textarea id="cockpit-subagent-steer-text" rows="2" placeholder="Send guidance to this subagent"></textarea><div><button id="cockpit-subagent-steer" type="button">Send guidance</button><button id="cockpit-subagent-stop" type="button">Stop subagent</button></div></div></section>
-            <section><div class="cockpit-activity-heading"><strong>Live activity</strong><span id="cockpit-activity-count">0</span></div><div id="cockpit-activity-list" class="cockpit-activity-list"><p>Waiting for activity…</p></div></section>
-          </aside>
-        </div>
+        <div id="cockpit-bot-transcript" class="cockpit-native-transcript" role="log" aria-live="polite"></div>
       </div>
       <div id="cockpit-auth" class="cockpit-auth hidden">
         <strong>Hermes sign-in required</strong>
@@ -212,9 +213,29 @@
       </div>`;
     feed.append(frame);
 
+    sessionSidebar.replaceChildren();
+    sessionSidebar.className = "live-session-side cockpit-session-panel";
+    sessionSidebar.innerHTML = `
+      <div class="cockpit-session-panel-head"><strong>Chats</strong><button type="button" id="cockpit-close-sessions" aria-label="Close chats">×</button></div>
+      <button type="button" class="cockpit-new-chat" id="cockpit-new-session"><span class="material-symbols-outlined">add_comment</span><span>New chat</span></button>
+      <label class="cockpit-session-search"><span class="material-symbols-outlined">search</span><input id="cockpit-session-search" type="search" placeholder="Search conversations" autocomplete="off"></label>
+      <div class="cockpit-session-scroll">
+        <section class="cockpit-session-group">
+          <div class="cockpit-session-group-title"><span>Recent</span><button type="button" id="cockpit-refresh-sessions" title="Refresh chats">↻</button></div>
+          <div id="cockpit-sessions" class="cockpit-session-list"><p class="cockpit-muted">Loading chats…</p></div>
+        </section>
+        <section class="cockpit-session-group cockpit-bot-group">
+          <div class="cockpit-session-group-title"><span>Bot Mode</span><button type="button" id="cockpit-refresh-bots" title="Refresh bots">↻</button></div>
+          <label class="cockpit-field" for="cockpit-profile-picker">Bot profile</label>
+          <select id="cockpit-profile-picker"><option value="">Default profile</option></select>
+          <div id="cockpit-bots" class="cockpit-bot-list"><p class="cockpit-muted">Loading bots…</p></div>
+        </section>
+      </div>`;
+
     sidebar.replaceChildren();
-    sidebar.className = "cockpit-control-panel";
+    sidebar.className = "live-side cockpit-control-panel";
     sidebar.innerHTML = `
+      <div class="cockpit-inspector-head"><strong>Session details</strong><button type="button" id="cockpit-close-inspector" aria-label="Close session details">×</button></div>
       <section class="cockpit-panel-section">
         <div class="cockpit-panel-heading"><span class="material-symbols-outlined">memory</span><h2>Hermes runtime</h2></div>
         <dl class="cockpit-facts">
@@ -228,28 +249,31 @@
         <label class="cockpit-field" for="cockpit-model-picker">Available models</label>
         <select id="cockpit-model-picker"><option value="">Loading model catalog…</option></select>
         <button type="button" class="cockpit-primary-action" id="cockpit-apply-model">Switch current chat</button>
-        <p class="cockpit-help">This sends Hermes’ native <code>/model</code> command. It changes the active chat without exposing provider credentials.</p>
+        <p class="cockpit-help">Switch this conversation without exposing provider credentials.</p>
       </section>
-      <section class="cockpit-panel-section cockpit-sessions-section">
-        <div class="cockpit-panel-heading cockpit-heading-row"><span class="material-symbols-outlined">history</span><h2>Recent sessions</h2><button type="button" id="cockpit-refresh-sessions" title="Refresh sessions">↻</button></div>
-        <div id="cockpit-sessions" class="cockpit-session-list"><p class="cockpit-muted">Loading sessions…</p></div>
+      <section class="cockpit-panel-section cockpit-live-state">
+        <div class="cockpit-inspector-tabs" role="tablist"><button type="button" data-inspector-tab="tasks" data-active="true">Tasks <span id="cockpit-task-count">0</span></button><button type="button" data-inspector-tab="agents">Subagents <span id="cockpit-subagent-count">0</span></button><button type="button" data-inspector-tab="activity">Activity <span id="cockpit-activity-count">0</span></button></div>
+        <div class="cockpit-inspector-pane" data-inspector-pane="tasks"><div id="cockpit-task-list" class="cockpit-task-list"><p>No task list in this session.</p></div></div>
+        <div class="cockpit-inspector-pane hidden" data-inspector-pane="agents"><div id="cockpit-subagent-list" class="cockpit-subagent-list"><p>No active subagents</p></div><div id="cockpit-subagent-detail" class="cockpit-subagent-detail hidden"><div class="cockpit-subagent-detail-head"><strong id="cockpit-subagent-detail-title">Subagent</strong><button id="cockpit-subagent-close" type="button" aria-label="Close subagent detail">×</button></div><pre id="cockpit-subagent-tail">Waiting for transcript…</pre><textarea id="cockpit-subagent-steer-text" rows="2" placeholder="Send guidance to this subagent"></textarea><div><button id="cockpit-subagent-steer" type="button">Send guidance</button><button id="cockpit-subagent-stop" type="button">Stop subagent</button></div></div></div>
+        <div class="cockpit-inspector-pane hidden" data-inspector-pane="activity"><div id="cockpit-activity-list" class="cockpit-activity-list"><p>No tool activity in this session.</p></div></div>
       </section>
-      <section class="cockpit-panel-section">
-        <div class="cockpit-panel-heading cockpit-heading-row"><span class="material-symbols-outlined">groups</span><h2>Bot Mode</h2><button type="button" id="cockpit-refresh-bots" title="Refresh Bot Mode">↻</button></div>
-        <label class="cockpit-field" for="cockpit-profile-picker">Open bot chat</label>
-        <select id="cockpit-profile-picker"><option value="">Default profile</option></select>
-        <div id="cockpit-bots" class="cockpit-bot-list"><p class="cockpit-muted">Loading agents…</p></div>
-        <p class="cockpit-help">The same profile roster and canonical hidden <code>Bot Chat</code> sessions used by Hermes Desktop. Opening a bot resumes its one persistent chat.</p>
-      </section>`;
+      <section class="cockpit-panel-section"><button type="button" class="cockpit-secondary-action" id="cockpit-export-session">Export conversation</button></section>`;
 
     document.getElementById("cockpit-copy")?.addEventListener("click", copySelection);
-    document.getElementById("cockpit-reconnect")?.addEventListener("click", () => state.mode === "bot" && state.botProfile ? openBotChat(state.botProfile) : connect({ resume: state.resume }));
+    document.getElementById("cockpit-reconnect")?.addEventListener("click", reopenCurrentSession);
     document.getElementById("cockpit-new-session")?.addEventListener("click", newSession);
-    document.getElementById("cockpit-terminal-mode")?.addEventListener("click", () => setWorkspaceMode("terminal"));
+    document.getElementById("cockpit-terminal-mode")?.addEventListener("click", () => setWorkspaceMode(state.mode === "terminal" ? (state.botProfile ? "bot" : "chat") : "terminal"));
     document.getElementById("cockpit-interrupt-bot")?.addEventListener("click", interruptBot);
     document.getElementById("cockpit-refresh-sessions")?.addEventListener("click", loadSessions);
     document.getElementById("cockpit-refresh-bots")?.addEventListener("click", loadProfiles);
     document.getElementById("cockpit-apply-model")?.addEventListener("click", applySelectedModel);
+    document.getElementById("cockpit-export-session")?.addEventListener("click", exportCurrentSession);
+    document.getElementById("cockpit-session-menu")?.addEventListener("click", showSessionActions);
+    document.getElementById("cockpit-session-search")?.addEventListener("input", debounceSessionSearch);
+    document.getElementById("cockpit-open-sessions")?.addEventListener("click", () => root.dataset.sessionsOpen = "true");
+    document.getElementById("cockpit-close-sessions")?.addEventListener("click", closeMobilePanels);
+    document.getElementById("cockpit-open-inspector")?.addEventListener("click", () => root.dataset.inspectorOpen = "true");
+    document.getElementById("cockpit-close-inspector")?.addEventListener("click", closeMobilePanels);
     document.getElementById("cockpit-subagent-close")?.addEventListener("click", closeSubagentDetail);
     document.getElementById("cockpit-subagent-steer")?.addEventListener("click", steerSelectedSubagent);
     document.getElementById("cockpit-subagent-stop")?.addEventListener("click", interruptSelectedSubagent);
@@ -258,6 +282,7 @@
       const profile = state.botProfiles.find((entry) => entry.name === name);
       if (profile) openBotChat(profile);
     });
+    document.querySelectorAll("[data-inspector-tab]").forEach((button) => button.addEventListener("click", () => selectInspectorTab(button.dataset.inspectorTab)));
     const signIn = document.getElementById("cockpit-sign-in");
     if (signIn) signIn.href = `${API_BASE}/login?next=${encodeURIComponent(location.pathname + location.search)}`;
     return true;
@@ -480,22 +505,39 @@
     return state.gateway;
   }
 
+  function closeMobilePanels() {
+    delete root.dataset.sessionsOpen;
+    delete root.dataset.inspectorOpen;
+  }
+
+  function selectInspectorTab(name) {
+    document.querySelectorAll("[data-inspector-tab]").forEach((button) => {
+      button.dataset.active = button.dataset.inspectorTab === name ? "true" : "false";
+    });
+    document.querySelectorAll("[data-inspector-pane]").forEach((pane) => {
+      pane.classList.toggle("hidden", pane.dataset.inspectorPane !== name);
+    });
+  }
+
   function setWorkspaceMode(mode) {
-    state.mode = mode === "bot" ? "bot" : "terminal";
+    state.mode = ["chat", "bot", "terminal"].includes(mode) ? mode : "chat";
     const terminal = document.getElementById("hermes-terminal");
     const botChat = document.getElementById("cockpit-bot-chat");
     const terminalButton = document.getElementById("cockpit-terminal-mode");
     const interruptButton = document.getElementById("cockpit-interrupt-bot");
-    terminal?.classList.toggle("hidden", state.mode === "bot");
-    botChat?.classList.toggle("hidden", state.mode !== "bot");
-    terminalButton?.classList.toggle("hidden", state.mode !== "bot");
-    interruptButton?.classList.toggle("hidden", state.mode !== "bot" || !state.botStreaming);
+    terminal?.classList.toggle("hidden", state.mode !== "terminal");
+    botChat?.classList.toggle("hidden", state.mode === "terminal");
+    if (terminalButton) terminalButton.textContent = state.mode === "terminal" ? "Chat" : "Terminal";
+    interruptButton?.classList.toggle("hidden", state.mode === "terminal" || !state.botStreaming);
     if (state.mode === "terminal") {
       if (state.botPollTimer) window.clearInterval(state.botPollTimer);
       state.botPollTimer = null;
       setConnection(state.socket?.readyState === WebSocket.OPEN ? "connected" : "connecting", state.socket?.readyState === WebSocket.OPEN ? "Hermes connected" : "Reconnecting terminal…");
       if (state.socket?.readyState !== WebSocket.OPEN) connect({ resume: state.resume });
       window.setTimeout(() => resizeTerminal(), 0);
+    } else {
+      clearTimeout(state.reconnectTimer);
+      setConnection(state.botSession?.runtimeId ? "connected" : "connecting", state.botSession?.runtimeId ? "Hermes connected" : "Choose or create a chat");
     }
   }
 
@@ -513,6 +555,43 @@
     return "";
   }
 
+  function toolNames(message) {
+    const names = [];
+    if (message?.tool_name) names.push(message.tool_name);
+    for (const call of Array.isArray(message?.tool_calls) ? message.tool_calls : []) {
+      const name = call?.function?.name || call?.name || call?.tool_name;
+      if (name) names.push(name);
+    }
+    return [...new Set(names.map(String))];
+  }
+
+  function conversationMessageCount(messages) {
+    return messages.filter((message) => {
+      const role = String(message?.role || "assistant").toLowerCase();
+      const content = messageText(message).trim();
+      if (!content || role === "tool" || message?.tool_name || message?.display_kind === "tool") return false;
+      return !(role === "user" && /^\[(?:IMPORTANT:|ASYNC DELEGATION|Your active task list|OUT-OF-BAND)/i.test(content));
+    }).length;
+  }
+
+  function appendToolCard(fragment, message) {
+    const bodyText = messageText(message).trim();
+    const names = toolNames(message);
+    if (!bodyText && !names.length) return;
+    const details = document.createElement("details");
+    details.className = "cockpit-tool-card";
+    const summary = document.createElement("summary");
+    const status = message.effect_disposition === "error" || message.finish_reason === "error" ? "Failed" : "Tool";
+    summary.textContent = `${status} · ${names.join(", ") || message.display_kind || "Hermes action"}`;
+    details.append(summary);
+    if (bodyText) {
+      const content = document.createElement("pre");
+      content.textContent = bodyText;
+      details.append(content);
+    }
+    fragment.append(details);
+  }
+
   function renderBotMessages() {
     const transcript = document.getElementById("cockpit-bot-transcript");
     if (!transcript) return;
@@ -522,34 +601,77 @@
     if (!state.botMessages.length) {
       const empty = document.createElement("div");
       empty.className = "cockpit-native-empty";
-      empty.textContent = "This Bot Chat is ready. Send the first message below.";
+      empty.innerHTML = '<span class="material-symbols-outlined">forum</span><strong>Start a conversation</strong><p>Choose a model, attach context, or type a message below. Hermes tasks, tools, and subagents will appear in the inspector.</p>';
       transcript.append(empty);
       return;
     }
     const fragment = document.createDocumentFragment();
+    let backgroundActionCount = 0;
+    const backgroundActionNames = new Map();
+    const countBackgroundAction = (name) => {
+      backgroundActionCount += 1;
+      const label = name || "Hermes runtime event";
+      backgroundActionNames.set(label, (backgroundActionNames.get(label) || 0) + 1);
+    };
     for (const message of state.botMessages) {
       const role = String(message.role || "assistant").toLowerCase();
+      const contentText = messageText(message).trim();
+      const reasoningText = message.reasoning || message.reasoning_content;
+      const isTool = role === "tool" || Boolean(message.tool_name) || message.display_kind === "tool";
+      if (isTool || (!contentText && toolNames(message).length)) {
+        const names = toolNames(message);
+        countBackgroundAction(names.join(", ") || message.display_kind || "Hermes tool");
+        continue;
+      }
+      const isRuntimeEnvelope = role === "user" && /^\[(?:IMPORTANT:|ASYNC DELEGATION|Your active task list|OUT-OF-BAND)/i.test(contentText);
+      if (isRuntimeEnvelope) {
+        countBackgroundAction("Hermes runtime event");
+        continue;
+      }
+      if (!contentText && reasoningText && !message._streaming) continue;
+      if (!contentText && !reasoningText && !message._streaming) continue;
       const article = document.createElement("article");
       article.className = "cockpit-native-message";
       article.dataset.role = role;
       const label = document.createElement("div");
       label.className = "cockpit-native-message-role";
-      label.textContent = role === "user" ? "You" : role === "assistant" ? botTitle(state.botProfile) : role;
+      label.textContent = role === "user" ? "You" : role === "assistant" ? (state.botProfile ? botTitle(state.botProfile) : "Hermes") : role;
       const content = document.createElement("div");
       content.className = "cockpit-native-message-content";
-      content.textContent = messageText(message) || (message._streaming ? "Thinking…" : "");
+      content.textContent = contentText || (message._streaming ? "Thinking…" : "");
       article.append(label, content);
-      if (message.reasoning) {
+      if (reasoningText) {
         const reasoning = document.createElement("details");
         reasoning.className = "cockpit-native-reasoning";
         const summary = document.createElement("summary");
-        summary.textContent = "Reasoning";
+        summary.textContent = message._streaming ? "Thinking…" : "Reasoning details";
         const body = document.createElement("div");
-        body.textContent = String(message.reasoning);
+        body.textContent = String(reasoningText);
         reasoning.append(summary, body);
         article.append(reasoning);
       }
       fragment.append(article);
+    }
+    if (backgroundActionCount) {
+      const summary = document.createElement("details");
+      summary.className = "cockpit-transcript-activity-summary";
+      const heading = document.createElement("summary");
+      heading.textContent = `${backgroundActionCount} background action${backgroundActionCount === 1 ? "" : "s"} kept out of the reading flow`;
+      const list = document.createElement("div");
+      list.textContent = [...backgroundActionNames.entries()]
+        .sort((left, right) => right[1] - left[1])
+        .slice(0, 12)
+        .map(([name, count]) => `${name} · ${count}`)
+        .join("\n");
+      const hint = document.createElement("button");
+      hint.type = "button";
+      hint.textContent = "Open recent activity";
+      hint.addEventListener("click", () => {
+        selectInspectorTab("activity");
+        root.dataset.inspectorOpen = "true";
+      });
+      summary.append(heading, list, hint);
+      fragment.append(summary);
     }
     transcript.append(fragment);
     if (stickToBottom) transcript.scrollTop = transcript.scrollHeight;
@@ -570,6 +692,7 @@
       const row = document.createElement("div");
       row.className = "cockpit-task-row";
       row.dataset.status = task.status || "pending";
+      if (task.historical) row.title = "Recovered from the latest persisted Hermes task-list event";
       const icon = document.createElement("span");
       icon.className = "material-symbols-outlined";
       icon.textContent = task.status === "completed" ? "check_circle" : task.status === "in_progress" ? "pending" : task.status === "cancelled" ? "cancel" : "radio_button_unchecked";
@@ -926,7 +1049,7 @@
     if (!composer) return;
     const value = composer.value.trim();
     if (!value) return;
-    if (state.mode === "bot") {
+    if (state.mode !== "terminal") {
       composer.value = "";
       composer.dispatchEvent(new Event("change", { bubbles: true }));
       await submitBotPrompt(value);
@@ -995,7 +1118,7 @@
     const input = document.getElementById("source-file-input");
     const button = document.getElementById("attach-source");
     if (!state.botSession?.runtimeId) {
-      setConnection(state.connected ? "connected" : "offline", "Open a Bot Chat before attaching files");
+      setConnection(state.connected ? "connected" : "offline", "Open or create a chat before attaching files");
       if (input) input.value = "";
       return;
     }
@@ -1025,21 +1148,28 @@
     }
   }
 
-  function newSession() {
-    setWorkspaceMode("terminal");
-    state.resume = null;
-    state.sessionKey = randomId("cockpit");
-    state.attachKey = randomId("attach");
+  async function newSession() {
+    const profile = state.profile || document.getElementById("cockpit-profile-picker")?.value || "default";
+    setConnection("connecting", "Creating chat…");
     try {
-      sessionStorage.setItem("hermes-cockpit-channel", state.sessionKey);
-      sessionStorage.setItem("hermes-cockpit-attach", state.attachKey);
-    } catch (_) {}
-    state.terminal?.clear();
-    connect({ fresh: true });
+      ensureBotEventHandler();
+      const created = await gateway().call("session.create", {
+        profile,
+        title: "New chat",
+        hidden: false,
+        follow_profile_config: true
+      }, 30000);
+      const storedId = created?.stored_session_id || created?.session_id;
+      if (!storedId) throw new Error("Hermes did not return a new session.");
+      await openChatSession({ id: storedId, title: "New chat", profile_name: profile, message_count: 0 });
+    } catch (error) {
+      if (error instanceof AuthRequiredError) showAuth();
+      else setConnection("offline", error.message || "Could not create chat");
+    }
   }
 
   async function copySelection() {
-    const selected = state.mode === "bot" ? String(globalThis.getSelection?.() || "") : state.terminal?.getSelection() || "";
+    const selected = state.mode !== "terminal" ? String(globalThis.getSelection?.() || "") : state.terminal?.getSelection() || "";
     if (!selected) return;
     try {
       await navigator.clipboard.writeText(selected);
@@ -1054,42 +1184,272 @@
     return session.title || session.name || session.preview || session.first_message || `Session ${String(session.session_id || session.id || "").slice(0, 8)}`;
   }
 
+  function sessionProfileName(session) {
+    if (typeof session?.profile_name === "string" && session.profile_name) return session.profile_name;
+    if (typeof session?.profile === "string" && session.profile) return session.profile;
+    return "default";
+  }
+
+  function recoverHistoricalActivity(messages) {
+    const recovered = [];
+    for (const message of messages) {
+      const names = toolNames(message);
+      for (const name of names) {
+        recovered.push({
+          id: `history-${message.id || message.message_uid || recovered.length}-${name}`,
+          name,
+          context: "Recorded in this conversation",
+          summary: messageText(message).slice(0, 220),
+          status: message.effect_disposition === "error" ? "error" : "complete",
+          historical: true
+        });
+      }
+    }
+    state.botActivity = recovered.slice(-60);
+    renderBotActivity();
+  }
+
+  function recoverHistoricalTodos(messages) {
+    for (let index = messages.length - 1; index >= 0; index -= 1) {
+      const content = messageText(messages[index]);
+      if (!/active task list/i.test(content)) continue;
+      const todos = [];
+      for (const line of content.split(/\r?\n/)) {
+        const match = line.match(/^\s*-\s*\[([^\]]*)\]\s*(?:(\S+)\.\s*)?(.+?)\s*\((in_progress|pending|completed|cancelled)\)\s*$/i);
+        if (!match) continue;
+        todos.push({
+          id: match[2] || `persisted-${todos.length + 1}`,
+          content: match[3],
+          status: match[4].toLowerCase(),
+          historical: true
+        });
+      }
+      if (todos.length) return todos;
+    }
+    return [];
+  }
+
+  async function loadStructuredHistory(id, fallback) {
+    try {
+      const payload = await request(`/api/sessions/${encodeURIComponent(id)}/messages?limit=500&order=oldest&include_compacted=true&inline_images=false`);
+      if (Array.isArray(payload?.messages) && payload.messages.length) return payload.messages;
+    } catch (_) {}
+    return fallback;
+  }
+
+  async function openChatSession(session) {
+    const id = session?.session_id || session?.id;
+    if (!id) return;
+    const profile = sessionProfileName(session);
+    closeMobilePanels();
+    state.profile = profile === "default" ? "" : profile;
+    state.resume = id;
+    state.currentSessionMeta = { ...session, id };
+    state.botProfile = null;
+    state.botSession = null;
+    state.botMessages = [];
+    state.botTodos = [];
+    state.botSubagents = [];
+    state.botActivity = [];
+    state.selectedSubagent = null;
+    text(document.getElementById("cockpit-profile"), profile);
+    text(document.getElementById("cockpit-bot-chat-title"), sessionLabel(session));
+    text(document.getElementById("cockpit-bot-chat-profile"), `${profile === "default" ? "default profile" : `@${profile}`} · conversation`);
+    setBotStatus("Opening conversation…");
+    setWorkspaceMode("chat");
+    renderBotMessages();
+    renderBotTasks();
+    renderBotSubagents();
+    renderBotActivity();
+    setConnection("connecting", "Resuming chat…");
+    try {
+      ensureBotEventHandler();
+      const resumed = await gateway().call("session.resume", {
+        profile,
+        session_id: id,
+        source: "desktop",
+        inline_images: false
+      }, 60000);
+      const runtimeId = resumed?.session_id;
+      if (!runtimeId) throw new Error("Hermes did not resume this conversation.");
+      state.botSession = {
+        profile,
+        runtimeId,
+        sessionKey: resumed.session_key || resumed.resumed || id,
+        canonicalId: id,
+        lastSeen: 0
+      };
+      state.botStreaming = resumed.status === "streaming" || Boolean(resumed.inflight);
+      state.botTodos = Array.isArray(resumed?.todo_state?.todos) ? resumed.todo_state.todos : [];
+      let messages = Array.isArray(resumed.messages) ? resumed.messages : [];
+      try {
+        const history = await gateway().call("session.history", { profile, session_id: runtimeId }, 60000);
+        if (Array.isArray(history?.messages)) messages = history.messages;
+      } catch (_) {}
+      const gatewayTodos = recoverHistoricalTodos(messages);
+      messages = await loadStructuredHistory(id, messages);
+      state.botMessages = messages.map((message) => ({ ...message, text: messageText(message) }));
+      if (!state.botTodos.length) state.botTodos = gatewayTodos.length ? gatewayTodos : recoverHistoricalTodos(state.botMessages);
+      recoverHistoricalActivity(state.botMessages);
+      renderBotMessages();
+      renderBotTasks();
+      startBotPolling();
+      setBotStatus(state.botStreaming ? "Responding…" : `${conversationMessageCount(state.botMessages)} conversation messages`);
+      setConnection("connected", sessionLabel(session));
+      await Promise.allSettled([loadModels(), loadSessions()]);
+    } catch (error) {
+      if (error instanceof AuthRequiredError) showAuth();
+      else {
+        setBotStatus(error.message || "Conversation unavailable");
+        setConnection("offline", "Could not open conversation");
+      }
+    }
+  }
+
+  function renderSessionList(sessions) {
+    const target = document.getElementById("cockpit-sessions");
+    if (!target) return;
+    target.replaceChildren();
+    if (!sessions.length) {
+      target.innerHTML = `<p class="cockpit-muted">${state.sessionSearch ? "No matching conversations." : "No saved conversations yet."}</p>`;
+      return;
+    }
+    for (const session of sessions) {
+      const id = session.session_id || session.id;
+      if (!id) continue;
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "cockpit-session";
+      button.dataset.active = state.currentSessionMeta?.id === id ? "true" : "false";
+      const label = document.createElement("span");
+      label.className = "cockpit-session-title";
+      label.textContent = sessionLabel(session);
+      const meta = document.createElement("span");
+      meta.className = "cockpit-session-meta";
+      const profile = sessionProfileName(session);
+      meta.textContent = `${session.message_count || 0} messages · ${profile}${session.is_active ? " · active" : ""}`;
+      button.append(label, meta);
+      button.addEventListener("click", () => openChatSession(session));
+      target.append(button);
+    }
+  }
+
   async function loadSessions() {
     const target = document.getElementById("cockpit-sessions");
     if (!target) return;
     try {
+      const query = state.sessionSearch.trim();
       const profile = state.profile ? `&profile=${encodeURIComponent(state.profile)}` : "";
-      const payload = await request(`/api/sessions?limit=30&order=recent&min_messages=1${profile}`);
-      target.replaceChildren();
-      const sessions = Array.isArray(payload.sessions) ? payload.sessions : [];
-      if (!sessions.length) {
-        target.innerHTML = '<p class="cockpit-muted">No saved sessions yet.</p>';
-        return;
-      }
-      for (const session of sessions) {
-        const id = session.session_id || session.id;
-        if (!id) continue;
-        const button = document.createElement("button");
-        button.type = "button";
-        button.className = "cockpit-session";
-        button.dataset.active = state.resume === id ? "true" : "false";
-        const label = document.createElement("span");
-        label.className = "cockpit-session-title";
-        label.textContent = sessionLabel(session);
-        const meta = document.createElement("span");
-        meta.className = "cockpit-session-meta";
-        meta.textContent = `${session.message_count || 0} messages${session.is_active ? " · active" : ""}`;
-        button.append(label, meta);
-        button.addEventListener("click", () => {
-          setWorkspaceMode("terminal");
-          state.terminal?.clear();
-          connect({ resume: id });
-        });
-        target.append(button);
-      }
+      const path = query
+        ? `/api/sessions/search?q=${encodeURIComponent(query)}&limit=60${profile}`
+        : `/api/sessions?limit=60&order=recent&min_messages=1${profile}`;
+      const payload = await request(path);
+      const sessions = Array.isArray(payload.sessions) ? payload.sessions : Array.isArray(payload.results) ? payload.results : [];
+      state.sessions = sessions;
+      renderSessionList(sessions);
     } catch (error) {
       if (error instanceof AuthRequiredError) return showAuth();
       target.innerHTML = '<p class="cockpit-muted">Sessions unavailable.</p>';
+    }
+  }
+
+  function debounceSessionSearch(event) {
+    state.sessionSearch = event?.target?.value || "";
+    window.clearTimeout(state.sessionSearchTimer);
+    state.sessionSearchTimer = window.setTimeout(loadSessions, 220);
+  }
+
+  function reopenCurrentSession() {
+    if (state.mode === "terminal") return connect({ resume: state.resume });
+    if (state.mode === "bot" && state.botProfile) return openBotChat(state.botProfile);
+    if (state.currentSessionMeta) return openChatSession(state.currentSessionMeta);
+    return newSession();
+  }
+
+  async function patchCurrentSession(changes) {
+    const id = state.currentSessionMeta?.id;
+    if (!id) return;
+    const updated = await request(`/api/sessions/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(changes)
+    });
+    state.currentSessionMeta = { ...state.currentSessionMeta, ...changes, ...(updated || {}) };
+    if (changes.title) text(document.getElementById("cockpit-bot-chat-title"), changes.title);
+    await loadSessions();
+  }
+
+  function showSessionActions() {
+    const host = document.querySelector(".cockpit-native-chat-heading");
+    if (!host || !state.currentSessionMeta?.id) return;
+    const existing = host.querySelector(".cockpit-session-actions");
+    if (existing) return existing.remove();
+    const menu = document.createElement("div");
+    menu.className = "cockpit-session-actions";
+    menu.innerHTML = `
+      <button type="button" data-session-action="rename"><span class="material-symbols-outlined">edit</span>Rename</button>
+      <button type="button" data-session-action="archive"><span class="material-symbols-outlined">archive</span>${state.currentSessionMeta.archived ? "Unarchive" : "Archive"}</button>
+      <button type="button" data-session-action="export"><span class="material-symbols-outlined">download</span>Export</button>
+      <button type="button" class="danger" data-session-action="delete"><span class="material-symbols-outlined">delete</span>Delete</button>`;
+    host.append(menu);
+    menu.addEventListener("click", async (event) => {
+      const button = event.target.closest("[data-session-action]");
+      if (!button) return;
+      const action = button.dataset.sessionAction;
+      if (action === "rename") {
+        menu.replaceChildren();
+        const input = document.createElement("input");
+        input.value = sessionLabel(state.currentSessionMeta);
+        input.setAttribute("aria-label", "Conversation title");
+        const save = document.createElement("button");
+        save.type = "button";
+        save.textContent = "Save";
+        menu.append(input, save);
+        save.addEventListener("click", async () => {
+          const title = input.value.trim();
+          if (title) await patchCurrentSession({ title });
+          menu.remove();
+        });
+        input.addEventListener("keydown", (keyEvent) => { if (keyEvent.key === "Enter") save.click(); });
+        input.focus();
+        input.select();
+        return;
+      }
+      if (action === "archive") await patchCurrentSession({ archived: !state.currentSessionMeta.archived });
+      if (action === "export") await exportCurrentSession();
+      if (action === "delete") {
+        const accepted = globalThis.confirm(`Delete “${sessionLabel(state.currentSessionMeta)}”? This cannot be undone.`);
+        if (accepted) {
+          await request(`/api/sessions/${encodeURIComponent(state.currentSessionMeta.id)}`, { method: "DELETE" });
+          state.currentSessionMeta = null;
+          state.botSession = null;
+          state.botMessages = [];
+          renderBotMessages();
+          await loadSessions();
+          if (state.sessions[0]) await openChatSession(state.sessions[0]);
+        }
+      }
+      menu.remove();
+    });
+  }
+
+  async function exportCurrentSession() {
+    const id = state.currentSessionMeta?.id;
+    if (!id) return;
+    try {
+      const response = await fetch(apiUrl(`/api/sessions/${encodeURIComponent(id)}/export`), { credentials: "same-origin", cache: "no-store" });
+      if (!response.ok) throw new Error(`Export failed (${response.status})`);
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${sessionLabel(state.currentSessionMeta).replace(/[^a-z0-9-_]+/gi, "-").replace(/^-|-$/g, "") || "hermes-session"}.json`;
+      document.body.append(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setBotStatus("Conversation exported");
+    } catch (error) {
+      setBotStatus(error.message || "Export failed");
     }
   }
 
@@ -1142,7 +1502,7 @@
   async function applySelectedModel() {
     const picker = document.getElementById("cockpit-model-picker");
     if (!picker?.value) return;
-    if (state.mode === "bot" && state.botSession?.runtimeId) {
+    if (state.mode !== "terminal" && state.botSession?.runtimeId) {
       const option = picker.selectedOptions?.[0];
       const provider = option?.dataset?.provider;
       const value = `${picker.value}${provider ? ` --provider ${provider}` : ""} --session`;
@@ -1226,8 +1586,8 @@
   }
 
   async function submitBotPrompt(value) {
-    if (!state.botSession?.runtimeId || !state.botProfile) {
-      setBotStatus("Open a bot before sending a message.");
+    if (!state.botSession?.runtimeId) {
+      setBotStatus("Open or create a chat before sending a message.");
       return false;
     }
     const message = String(value || "").trim();
@@ -1278,6 +1638,7 @@
     if (roster) roster.dataset.loading = "true";
     setConnection("connecting", `Opening ${botTitle(profile)}…`);
     state.botProfile = profile;
+    state.currentSessionMeta = null;
     state.botSession = null;
     state.botMessages = [];
     state.botTodos = [];
@@ -1310,6 +1671,7 @@
         canonicalId: chat.id,
         lastSeen: 0
       };
+      state.currentSessionMeta = { ...chat, id: chat.id, title: "Bot Chat", profile_name: name, bot: true };
       state.botStreaming = resumed.status === "streaming" || Boolean(resumed.inflight);
       state.botTodos = Array.isArray(resumed?.todo_state?.todos) ? resumed.todo_state.todos : [];
       state.botSubagents = [];
@@ -1330,9 +1692,14 @@
         const history = await rpc.call("session.history", { profile: name, session_id: runtimeId }, 60000);
         if (Array.isArray(history?.messages)) messages = history.messages;
       } catch (_) {}
+      const gatewayTodos = recoverHistoricalTodos(messages);
+      messages = await loadStructuredHistory(chat.id, messages);
       state.botMessages = messages.map((message) => ({ ...message, text: messageText(message) }));
-      setBotStatus(state.botStreaming ? "Responding…" : `${state.botMessages.length} messages`);
+      if (!state.botTodos.length) state.botTodos = gatewayTodos.length ? gatewayTodos : recoverHistoricalTodos(state.botMessages);
+      recoverHistoricalActivity(state.botMessages);
+      setBotStatus(state.botStreaming ? "Responding…" : `${conversationMessageCount(state.botMessages)} conversation messages`);
       renderBotMessages();
+      renderBotTasks();
       Promise.allSettled([loadModels(), loadSessions(), loadProfiles()]);
     } catch (error) {
       if (error instanceof AuthRequiredError) showAuth();
@@ -1433,7 +1800,9 @@
       state.botEventUnsubscribe?.();
       state.gateway?.close();
     }, { once: true });
-    connect();
+    setWorkspaceMode("chat");
+    if (state.sessions[0]) await openChatSession(state.sessions[0]);
+    else setConnection("connected", "Ready for a new chat");
   }
 
   start().catch((error) => {

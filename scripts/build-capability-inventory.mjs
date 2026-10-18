@@ -259,7 +259,7 @@ md.push(`| Authenticated Hermes control operations under \`/api\` | ${controlOpe
 md.push(`| Access, authentication, asset, and SPA-shell operations outside \`/api\` | ${apiOperations.length - controlOperations.length} |`);
 md.push(`| Control operations associated with at least one CLI family | ${linkedControlKeys.size} |`);
 md.push(`| Control operations with no CLI-family counterpart | ${controlOperations.length - linkedControlKeys.size} |`, '');
-md.push('The complete schema has 348 operations. Cockpit deliberately presents the 337 `/api` operations as controls; the other 11 implement login/OAuth, static assets, plugin assets, and SPA routing. They are inventoried below but are not user settings or actions.', '');
+md.push('The complete base schema has 348 operations. Cockpit presents the 337 `/api` operations as controls and keeps the other 11 login/OAuth, asset, plugin-asset, and SPA routes visible as clearly labeled access flows. The deployed control-plane plugin adds 6 authenticated routes that are discovered live rather than folded into this base-schema snapshot.', '');
 md.push('## CLI/API overlap by command family', '');
 md.push('| CLI family | CLI nodes | Leaf commands | API operations in family | Coverage | Notes |', '| --- | ---: | ---: | ---: | --- | --- |');
 for (const row of familyRows) md.push(`| \`${esc(row.command)}\` | ${row.commandNodes} | ${row.leafCommands} | ${row.apiOperationCount} | ${esc(row.coverageLabel)} | ${esc(row.note)} |`);

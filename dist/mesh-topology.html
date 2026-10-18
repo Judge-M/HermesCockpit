@@ -1,216 +1,54 @@
-<!DOCTYPE html>
+<!doctype html>
 <html class="dark" lang="en">
 <head>
   <meta charset="utf-8">
-  <meta content="width=device-width, initial-scale=1.0" name="viewport">
-  <meta content="web_dashboard" name="shell-type">
-  <title>Hermes Cockpit — Live service topology</title>
-  <link href="vendor/fonts.css" rel="stylesheet">
-  <link href="vendor/material-symbols.css" rel="stylesheet">
-  <script src="vendor/tailwindcss-cdn.js"></script>
-  <script id="tailwind-config">
-    tailwind.config = {darkMode:"class",theme:{extend:{
-      colors:{"surface-container-low":"#1a1a2a","inverse-surface":"#e3e0f7","on-surface":"#e3e0f7","surface-bright":"#383849","border-muted":"#3B4252","success":"#A3BE8C","surface-dim":"#121221","on-surface-variant":"#c0c8cb","primary":"#a3dcec","text-quaternary":"#616E88","surface":"#282A36","on-secondary-container":"#9bbcdd","on-primary":"#003640","surface-container":"#1e1e2e","primary-container":"#88c0d0","error":"#ffb4ab","outline-variant":"#40484b","secondary":"#a9caeb","text-primary":"#ECEFF4","surface-secondary":"#3B4252","text-tertiary":"#94A3B8","primary-fixed-dim":"#97cfe0","text-secondary":"#D8DEE9","text-mono":"#E5E9F0","outline":"#8a9295","surface-container-highest":"#333344","background":"#121221","surface-container-high":"#292839","border":"#4C566A","danger":"#BF616A","warning":"#EBCB8B"},
-      borderRadius:{"DEFAULT":"0.125rem","lg":"0.25rem","xl":"0.5rem","full":"0.75rem"},
-      spacing:{"space-xl":"1.5rem","margin":"1rem","space-lg":"1rem","space-xs":"0.25rem","gutter":"1rem","space-sm":"0.5rem","space-md":"0.75rem"},
-      fontFamily:{"label-caps":["Inter"],"body-base":["Inter"],"headline-md":["Inter"],"body-medium":["Inter"],"headline-sm":["Inter"],"code-mono":["JetBrains Mono"],"headline-lg":["Inter"],"body-sm":["Inter"],"code-xs":["JetBrains Mono"],"code-sm":["JetBrains Mono"]},
-      fontSize:{"label-caps":["11px",{"lineHeight":"14px","letterSpacing":"0.06em","fontWeight":"600"}],"body-base":["14px",{"lineHeight":"22px","fontWeight":"400"}],"headline-md":["20px",{"lineHeight":"28px","fontWeight":"600"}],"body-medium":["14px",{"lineHeight":"22px","fontWeight":"500"}],"headline-sm":["16px",{"lineHeight":"24px","fontWeight":"600"}],"code-mono":["13px",{"lineHeight":"20px","fontWeight":"400"}],"headline-lg":["28px",{"lineHeight":"36px","fontWeight":"700"}],"body-sm":["12px",{"lineHeight":"18px","fontWeight":"400"}],"code-xs":["11px",{"lineHeight":"16px","fontWeight":"500"}],"code-sm":["12px",{"lineHeight":"18px","fontWeight":"400"}]}
-    }}};
-  </script>
-  <style>
-    @layer base{html,body{margin:0;padding:0}body{overscroll-behavior:none}}
-    ::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{background:#3B4252;border-radius:8px}
-    .metric-value{min-height:2.25rem}.endpoint-row:last-child{border-bottom:0}
-    .topology-line{height:2px;background:linear-gradient(90deg,#88c0d0,#4C566A)}
-    .topology-line[data-state="error"]{background:linear-gradient(90deg,#BF616A,#4C566A)}
-    .topology-line[data-state="pending"]{background:#4C566A}
-    @media(max-width:767px){.desktop-arrow{transform:rotate(90deg)}}
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="shell-type" content="web_dashboard">
+  <title>Hermes Cockpit — System</title>
+  <link rel="stylesheet" href="vendor/fonts.css">
+  <link rel="stylesheet" href="vendor/material-symbols.css">
+  <link rel="stylesheet" href="system-workspace.css?v=20261017a">
 </head>
-<body class="bg-background font-body-base text-body-base text-text-primary min-h-screen selection:bg-secondary selection:text-background">
-  <div id="shared-header"></div>
-  <div id="shared-sidebar"></div>
-  <div class="pl-16">
-    <main data-workspace="true" class="relative pt-12 min-h-screen bg-background">
-      <section class="px-space-lg py-space-md bg-surface-container-low flex flex-col md:flex-row md:items-center justify-between gap-space-md">
-        <div>
-          <div class="flex flex-wrap items-center gap-space-sm mb-1">
-            <span class="font-code-xs text-code-xs text-primary px-space-xs py-0.5 rounded bg-surface font-semibold tracking-wider uppercase">F2 :: Live topology</span>
-            <span id="page-state" class="font-code-xs text-code-xs text-warning flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-warning animate-pulse"></span>Loading live services</span>
-          </div>
-          <h1 class="font-headline-lg text-headline-lg text-text-primary tracking-tight">Hermes service topology</h1>
-          <p class="font-body-sm text-body-sm text-text-secondary mt-0.5">Live, read-only visibility from the APIs this deployment actually exposes.</p>
+<body>
+  <div id="shared-header"></div><div id="shared-sidebar"></div>
+  <div class="system-shell"><main class="system-workspace" data-workspace="true">
+    <header class="system-heading">
+      <div><div class="eyebrow"><span class="material-symbols-outlined">hub</span>System</div><h1>Your Hermes deployment, as it is now</h1><p>Live service health, capacity, profiles, and request paths. Nothing here is simulated.</p></div>
+      <div class="heading-actions"><span id="system-connection" class="status-pill is-loading"><span></span>Connecting</span><span id="system-updated" class="updated-label">Not refreshed</span><button id="system-refresh" class="icon-button" type="button" aria-label="Refresh system data" title="Refresh system data"><span class="material-symbols-outlined">refresh</span></button></div>
+    </header>
+    <div id="system-auth" class="auth-notice" hidden><span class="material-symbols-outlined">lock</span><div><strong>Hermes sign-in is required</strong><p>This workspace reads the authenticated Hermes API and never stores your credentials.</p></div><a href="/hermes/login?next=%2Fcockpit%2Fmesh-topology.html">Sign in</a></div>
+    <section class="summary-grid" aria-label="System summary">
+      <article class="summary-card"><div class="summary-label"><span class="material-symbols-outlined">health_and_safety</span>Runtime health</div><strong id="summary-health">—</strong><p id="summary-health-detail">Checking Hermes</p></article>
+      <article class="summary-card"><div class="summary-label"><span class="material-symbols-outlined">dns</span>Gateway</div><strong id="summary-gateway">—</strong><p id="summary-gateway-detail">Reading gateway state</p></article>
+      <article class="summary-card"><div class="summary-label"><span class="material-symbols-outlined">hard_drive</span>Disk use</div><strong id="summary-disk">—</strong><p id="summary-disk-detail">Reading host capacity</p><div class="meter"><span id="summary-disk-meter"></span></div></article>
+      <article class="summary-card"><div class="summary-label"><span class="material-symbols-outlined">forum</span>Session store</div><strong id="summary-sessions">—</strong><p id="summary-sessions-detail">Reading real session totals</p></article>
+    </section>
+    <section class="system-grid system-grid-primary">
+      <article class="panel topology-panel">
+        <header class="panel-heading"><div><span class="section-kicker">Observed path</span><h2>How this browser reaches Hermes</h2><p>Each connection below is verified by a same-origin request from this page.</p></div><span class="truth-badge">Logical path · not a peer map</span></header>
+        <div id="request-path" class="request-path" aria-label="Observed service path">
+          <div class="path-node"><span class="node-icon material-symbols-outlined">devices</span><div><small>Client</small><strong>This browser</strong><span>Authenticated session</span></div></div>
+          <div class="path-link" data-link="portal"><span></span><small>HTTPS</small></div>
+          <div class="path-node" data-node="portal"><span class="node-icon material-symbols-outlined">shield_lock</span><div><small>Entry point</small><strong>Hermes Cockpit</strong><span id="path-portal-detail">Checking portal health</span></div><i></i></div>
+          <div class="path-link" data-link="hermes"><span></span><small>Reverse proxy</small></div>
+          <div class="path-node" data-node="hermes"><span class="node-icon material-symbols-outlined">smart_toy</span><div><small>Runtime</small><strong>Hermes server</strong><span id="path-hermes-detail">Checking runtime health</span></div><i></i></div>
         </div>
-        <div class="flex flex-wrap items-center gap-space-sm self-start md:self-auto">
-          <span id="last-updated" class="font-code-xs text-code-xs text-text-tertiary px-space-sm py-1.5 rounded bg-surface-container">Not refreshed yet</span>
-          <button id="refresh-btn" type="button" class="flex items-center gap-1.5 px-space-md py-1.5 rounded-lg bg-primary text-on-primary font-body-medium text-body-sm hover:bg-primary-container transition-all active:scale-95"><span class="material-symbols-outlined text-[16px]">refresh</span><span>Refresh live data</span></button>
-          <span class="flex items-center gap-1.5 px-space-md py-1.5 rounded-lg bg-success/10 text-success font-body-medium text-body-sm"><span class="material-symbols-outlined text-[16px]">verified</span><span>Live Hermes data</span></span>
-        </div>
-      </section>
-
-      <section class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-space-sm p-space-lg bg-surface-dim" aria-label="Live summary">
-        <article class="bg-surface-container p-space-md rounded-lg"><div class="flex items-center justify-between mb-space-sm"><span class="font-label-caps text-label-caps text-text-quaternary uppercase">Hermes API</span><span id="health-icon" class="material-symbols-outlined text-[18px] text-warning">pending</span></div><div id="health-value" class="metric-value font-code-mono text-headline-md text-text-primary">Checking…</div><div id="health-detail" class="font-code-xs text-code-xs text-text-tertiary mt-1">/hermes/api/health</div></article>
-        <article class="bg-surface-container p-space-md rounded-lg"><div class="flex items-center justify-between mb-space-sm"><span class="font-label-caps text-label-caps text-text-quaternary uppercase">Configured profiles</span><span class="material-symbols-outlined text-[18px] text-primary">groups</span></div><div id="profiles-value" class="metric-value font-code-mono text-headline-lg text-text-primary">—</div><div id="profiles-detail" class="font-code-xs text-code-xs text-text-tertiary mt-1">Waiting for Hermes</div></article>
-        <article class="bg-surface-container p-space-md rounded-lg"><div class="flex items-center justify-between mb-space-sm"><span class="font-label-caps text-label-caps text-text-quaternary uppercase">Recent sessions</span><span class="material-symbols-outlined text-[18px] text-primary">forum</span></div><div id="sessions-value" class="metric-value font-code-mono text-headline-lg text-text-primary">—</div><div id="sessions-detail" class="font-code-xs text-code-xs text-text-tertiary mt-1">Up to 20 most recent</div></article>
-        <article class="bg-surface-container p-space-md rounded-lg"><div class="flex items-center justify-between mb-space-sm"><span class="font-label-caps text-label-caps text-text-quaternary uppercase">Host statistics</span><span class="material-symbols-outlined text-[18px] text-primary">monitor_heart</span></div><div id="stats-value" class="metric-value font-code-mono text-headline-md text-text-primary">Checking…</div><div id="stats-detail" class="font-code-xs text-code-xs text-text-tertiary mt-1">/hermes/api/system/stats</div></article>
-      </section>
-
-      <div id="auth-notice" class="hidden mx-space-lg mt-space-lg p-space-md rounded-xl border border-warning/40 bg-warning/10 flex-col md:flex-row md:items-center justify-between gap-space-md">
-        <div class="flex items-start gap-space-sm"><span class="material-symbols-outlined text-warning">lock</span><div><div class="font-body-medium text-text-primary">Hermes authentication required</div><p class="font-body-sm text-body-sm text-text-secondary">Sign in to Hermes, then return here and refresh. Cockpit does not collect or store your credentials.</p></div></div>
-        <a href="/hermes/login?next=%2Fcockpit%2Fmesh-topology.html" class="shrink-0 px-space-md py-2 rounded-lg bg-warning text-background font-body-medium text-body-sm">Sign in to Hermes</a>
-      </div>
-
-      <section class="p-space-lg grid grid-cols-1 xl:grid-cols-12 gap-space-md">
-        <article class="xl:col-span-8 bg-surface-container-lowest rounded-xl overflow-hidden shadow-xl">
-          <header class="px-space-md py-space-sm bg-surface-container-low flex flex-col sm:flex-row sm:items-center justify-between gap-space-sm">
-            <div><h2 class="font-headline-sm text-headline-sm text-text-primary flex items-center gap-2"><span class="material-symbols-outlined text-[18px] text-primary">account_tree</span>Observed request path</h2><p class="font-code-xs text-code-xs text-text-tertiary">Logical service relationships verified by same-origin HTTP requests</p></div>
-            <span class="font-code-xs text-code-xs px-2 py-1 rounded bg-surface text-text-tertiary">Not a Tailscale peer map</span>
-          </header>
-          <div class="p-space-lg min-h-[330px] flex flex-col md:flex-row items-stretch md:items-center justify-center gap-space-md">
-            <div class="bg-surface-container p-space-md rounded-xl border border-border-muted/50 md:w-48"><div class="flex items-center justify-between"><span class="font-label-caps text-label-caps text-primary uppercase">Client</span><span class="material-symbols-outlined text-primary">web</span></div><div class="font-body-medium text-text-primary mt-2">This browser</div><div class="font-code-xs text-code-xs text-text-tertiary mt-1">Same-origin session</div></div>
-            <div class="flex md:flex-col items-center justify-center md:w-24 gap-1"><div class="topology-line flex-1 md:w-full" data-state="pending" id="portal-line"></div><span class="material-symbols-outlined desktop-arrow text-text-quaternary">arrow_forward</span><div class="font-code-xs text-[10px] text-text-quaternary whitespace-nowrap">HTTPS</div></div>
-            <div class="bg-surface-container p-space-md rounded-xl border border-border-muted/50 md:w-56"><div class="flex items-center justify-between"><span class="font-label-caps text-label-caps text-primary uppercase">Gateway</span><span id="portal-dot" class="w-2 h-2 rounded-full bg-warning"></span></div><div class="font-body-medium text-text-primary mt-2">Hermes Cockpit portal</div><div id="portal-map-detail" class="font-code-xs text-code-xs text-text-tertiary mt-1">Checking /api/health</div></div>
-            <div class="flex md:flex-col items-center justify-center md:w-24 gap-1"><div class="topology-line flex-1 md:w-full" data-state="pending" id="hermes-line"></div><span class="material-symbols-outlined desktop-arrow text-text-quaternary">arrow_forward</span><div class="font-code-xs text-[10px] text-text-quaternary whitespace-nowrap">reverse proxy</div></div>
-            <div class="bg-surface-container p-space-md rounded-xl border border-border-muted/50 md:w-56"><div class="flex items-center justify-between"><span class="font-label-caps text-label-caps text-primary uppercase">Runtime</span><span id="hermes-dot" class="w-2 h-2 rounded-full bg-warning"></span></div><div class="font-body-medium text-text-primary mt-2">Hermes server</div><div id="hermes-map-detail" class="font-code-xs text-code-xs text-text-tertiary mt-1">Checking API</div></div>
-          </div>
-          <div class="mx-space-lg mb-space-lg p-space-md rounded-lg bg-surface-container border border-border-muted/30 flex items-start gap-space-sm"><span class="material-symbols-outlined text-warning text-[20px]">info</span><div><div class="font-body-medium text-body-sm text-text-primary">Physical mesh inventory is unavailable</div><p class="font-body-sm text-body-sm text-text-secondary mt-0.5">The available endpoints expose Hermes health, runtime state, profiles, host statistics, and sessions. They do not expose Tailscale peer names, IPs, WireGuard keys, transport latency, traffic, or ACLs, so this page does not invent them. Use the Tailscale admin console for physical mesh management.</p></div></div>
-        </article>
-        <article class="xl:col-span-4 bg-surface-container rounded-xl overflow-hidden shadow-lg">
-          <header class="px-space-md py-space-sm bg-surface-container-low flex items-center justify-between"><div><h2 class="font-headline-sm text-headline-sm text-text-primary">Endpoint diagnostics</h2><p class="font-code-xs text-code-xs text-text-tertiary">Live status and request time</p></div><span class="material-symbols-outlined text-primary">network_check</span></header>
-          <div id="endpoint-list" class="px-space-md"><div class="py-space-md text-text-tertiary font-code-xs text-code-xs">Waiting for first refresh…</div></div>
-        </article>
-      </section>
-
-      <section class="px-space-lg pb-space-lg grid grid-cols-1 xl:grid-cols-2 gap-space-md">
-        <article class="bg-surface-container rounded-xl overflow-hidden shadow-lg">
-          <header class="px-space-md py-space-sm bg-surface-container-low flex items-center justify-between"><div><h2 class="font-headline-sm text-headline-sm text-text-primary">Hermes profiles and gateways</h2><p class="font-code-xs text-code-xs text-text-tertiary">Read from /hermes/api/profiles</p></div><span id="profiles-badge" class="font-code-xs text-code-xs px-2 py-1 rounded bg-surface text-text-tertiary">Loading</span></header>
-          <div id="profiles-list" class="p-space-md grid grid-cols-1 md:grid-cols-2 gap-space-sm"><div class="text-text-tertiary font-body-sm text-body-sm">Loading profiles…</div></div>
-        </article>
-        <article class="bg-surface-container rounded-xl overflow-hidden shadow-lg">
-          <header class="px-space-md py-space-sm bg-surface-container-low flex items-center justify-between"><div><h2 class="font-headline-sm text-headline-sm text-text-primary">Recent Hermes sessions</h2><p class="font-code-xs text-code-xs text-text-tertiary">Read from /hermes/api/sessions</p></div><a href="live-control.html" class="font-code-xs text-code-xs text-primary hover:underline">Open in Live Control →</a></header>
-          <div id="sessions-list" class="divide-y divide-border-muted/30 max-h-[420px] overflow-y-auto"><div class="p-space-md text-text-tertiary font-body-sm text-body-sm">Loading sessions…</div></div>
-        </article>
-      </section>
-
-      <section class="px-space-lg pb-space-lg grid grid-cols-1 xl:grid-cols-2 gap-space-md">
-        <article class="bg-surface-container rounded-xl overflow-hidden shadow-lg"><header class="px-space-md py-space-sm bg-surface-container-low"><h2 class="font-headline-sm text-headline-sm text-text-primary">Runtime status</h2><p class="font-code-xs text-code-xs text-text-tertiary">Selected fields from /hermes/api/status</p></header><dl id="runtime-fields" class="p-space-md grid grid-cols-1 sm:grid-cols-2 gap-space-sm"></dl></article>
-        <article class="bg-surface-container rounded-xl overflow-hidden shadow-lg"><header class="px-space-md py-space-sm bg-surface-container-low"><h2 class="font-headline-sm text-headline-sm text-text-primary">System statistics</h2><p class="font-code-xs text-code-xs text-text-tertiary">Available scalar fields from /hermes/api/system/stats</p></header><dl id="stats-fields" class="p-space-md grid grid-cols-1 sm:grid-cols-2 gap-space-sm"></dl></article>
-      </section>
-
-      <footer class="px-space-lg pb-space-lg"><div class="bg-surface-container p-space-md rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-space-md"><div class="flex items-start gap-space-sm"><span class="material-symbols-outlined text-primary">visibility</span><div><div class="font-body-medium text-text-primary">Read-only operational view</div><p class="font-body-sm text-body-sm text-text-secondary">This screen is intentionally observational. Chat, model selection, Bot Mode, and tool management are available in Cockpit; capabilities without a verified Hermes write API are labeled instead of being faked.</p></div></div><a href="runtime-config-settings.html" class="shrink-0 px-space-md py-2 rounded-lg bg-surface-secondary hover:bg-surface-bright text-primary font-body-medium text-body-sm">Runtime settings</a></div></footer>
-    </main>
-  </div>
-
-  <script>
-    (() => {
-      "use strict";
-      const endpoints = [
-        {key:"portal",label:"Portal health",url:"/api/health"},
-        {key:"health",label:"Hermes health",url:"/hermes/api/health"},
-        {key:"status",label:"Hermes status",url:"/hermes/api/status"},
-        {key:"profiles",label:"Profiles",url:"/hermes/api/profiles"},
-        {key:"stats",label:"System statistics",url:"/hermes/api/system/stats"},
-        {key:"sessions",label:"Recent sessions",url:"/hermes/api/sessions?limit=20&order=recent&min_messages=1"}
-      ];
-      const $ = (id) => document.getElementById(id);
-      const setText = (id,value) => {const node=$(id);if(node)node.textContent=value};
-      const asArray = (value,key) => Array.isArray(value)?value:(Array.isArray(value?.[key])?value[key]:[]);
-      const first = (...values) => values.find((value)=>value!==undefined&&value!==null&&value!=="");
-      const printable = (value) => typeof value==="boolean"?(value?"Yes":"No"):typeof value==="number"?(Number.isInteger(value)?String(value):value.toFixed(2)):typeof value==="string"?value:"";
-      const make = (tag,className,text) => {const node=document.createElement(tag);if(className)node.className=className;if(text!==undefined)node.textContent=text;return node};
-      const errorMessage = (result) => result.status===401||result.status===403?"Authentication required":result.status?`HTTP ${result.status}`:result.error||"Request unavailable";
-
-      async function getEndpoint(endpoint){
-        const started=performance.now();
-        try{
-          const response=await fetch(endpoint.url,{method:"GET",credentials:"same-origin",headers:{Accept:"application/json"},cache:"no-store"});
-          const elapsed=Math.round(performance.now()-started);
-          let data=null;try{data=await response.json()}catch(_){}
-          return {...endpoint,ok:response.ok,status:response.status,elapsed,data};
-        }catch(error){
-          return {...endpoint,ok:false,status:0,elapsed:Math.round(performance.now()-started),error:error instanceof Error?error.message:"Network request failed",data:null};
-        }
-      }
-
-      function renderEndpoints(results){
-        const target=$("endpoint-list");target.replaceChildren();
-        results.forEach((result)=>{
-          const row=make("div","endpoint-row py-space-sm border-b border-border-muted/30 flex items-center justify-between gap-space-sm");
-          const left=make("div","min-w-0");left.append(make("div","font-body-medium text-body-sm text-text-primary",result.label),make("div","font-code-xs text-code-xs text-text-quaternary truncate",result.url));
-          const right=make("div","text-right shrink-0");right.append(make("div",`font-code-xs text-code-xs font-semibold ${result.ok?"text-success":"text-danger"}`,result.ok?`HTTP ${result.status}`:errorMessage(result)),make("div","font-code-xs text-[10px] text-text-quaternary",`${result.elapsed} ms browser round-trip`));
-          row.append(left,right);target.append(row);
-        });
-      }
-
-      const secretKey=/(?:api[_-]?key|secret|token|password|passwd|credential|authorization|cookie|private[_-]?key|bearer)/i;
-      function fieldEntries(value,prefix="",depth=0){
-        if(!value||typeof value!=="object"||depth>2)return[];
-        const rows=[];Object.entries(value).forEach(([key,item])=>{if(secretKey.test(key))return;const label=prefix?`${prefix}.${key}`:key;if(["string","number","boolean"].includes(typeof item))rows.push([label,printable(item)]);else if(item&&typeof item==="object"&&!Array.isArray(item))rows.push(...fieldEntries(item,label,depth+1))});
-        return rows.slice(0,16);
-      }
-
-      function renderFields(targetId,data,emptyMessage){
-        const target=$(targetId);target.replaceChildren();const entries=fieldEntries(data);
-        if(!entries.length){target.append(make("div","sm:col-span-2 p-space-md rounded-lg bg-surface-container-low text-text-tertiary font-body-sm text-body-sm",emptyMessage));return}
-        entries.forEach(([label,value])=>{const wrap=make("div","p-space-sm rounded-lg bg-surface-container-low min-w-0");wrap.append(make("dt","font-code-xs text-code-xs text-text-quaternary truncate",label),make("dd","font-code-mono text-code-sm text-text-primary mt-0.5 break-words",value));target.append(wrap)});
-      }
-
-      function renderProfiles(result){
-        const target=$("profiles-list");target.replaceChildren();
-        if(!result.ok){setText("profiles-value","Unavailable");setText("profiles-detail",errorMessage(result));setText("profiles-badge","Unavailable");target.append(make("div","md:col-span-2 p-space-md rounded-lg bg-danger/10 text-danger font-body-sm text-body-sm",`Profiles unavailable: ${errorMessage(result)}.`));return}
-        const profiles=asArray(result.data,"profiles");const running=profiles.filter((p)=>typeof p==="object"&&p.gateway_running===true).length;
-        setText("profiles-value",String(profiles.length));setText("profiles-detail",`${running} gateway${running===1?"":"s"} reported running`);setText("profiles-badge",`${profiles.length} returned`);
-        if(!profiles.length){target.append(make("div","md:col-span-2 p-space-md rounded-lg bg-surface-container-low text-text-tertiary font-body-sm text-body-sm","Hermes returned no configured profiles."));return}
-        profiles.forEach((profileValue)=>{
-          const profile=typeof profileValue==="string"?{name:profileValue}:profileValue;const id=first(profile.id,profile.name,profile.slug,"Unnamed profile");
-          const card=make("div","p-space-md rounded-lg bg-surface-container-low border border-border-muted/30");const top=make("div","flex items-center justify-between gap-2");const identity=make("div","min-w-0");
-          identity.append(make("div","font-body-medium text-body-sm text-text-primary truncate",first(profile.bot_title,profile.display_name,id)),make("div","font-code-xs text-code-xs text-text-quaternary truncate",`@${id}`));
-          const known=typeof profile.gateway_running==="boolean";const badge=make("span",`shrink-0 px-1.5 py-0.5 rounded font-code-xs text-[10px] uppercase ${known?(profile.gateway_running?"bg-success/20 text-success":"bg-surface-secondary text-text-tertiary"):"bg-warning/10 text-warning"}`,known?(profile.gateway_running?"Gateway running":"Gateway stopped"):"Gateway unknown");
-          top.append(identity,badge);card.append(top,make("div","font-code-xs text-code-xs text-text-secondary mt-space-sm break-words",first(profile.model,profile.provider,profile.description,"No model metadata returned")));target.append(card);
-        });
-      }
-
-      function sessionTitle(session){return first(session.title,session.name,session.preview,session.first_message,`Session ${String(first(session.session_id,session.id,"unknown")).slice(0,10)}`)}
-      function renderSessions(result){
-        const target=$("sessions-list");target.replaceChildren();
-        if(!result.ok){setText("sessions-value","Unavailable");setText("sessions-detail",errorMessage(result));target.append(make("div","p-space-md text-danger font-body-sm text-body-sm",`Sessions unavailable: ${errorMessage(result)}.`));return}
-        const sessions=asArray(result.data,"sessions");const active=sessions.filter((session)=>session?.is_active===true).length;setText("sessions-value",String(sessions.length));setText("sessions-detail",`${active} currently marked active`);
-        if(!sessions.length){target.append(make("div","p-space-md text-text-tertiary font-body-sm text-body-sm","Hermes returned no recent sessions."));return}
-        sessions.forEach((session)=>{const row=make("div","p-space-md flex items-start justify-between gap-space-sm");const left=make("div","min-w-0");left.append(make("div","font-body-medium text-body-sm text-text-primary truncate",sessionTitle(session)),make("div","font-code-xs text-code-xs text-text-quaternary mt-0.5",`${first(session.profile,"default")} profile`));const meta=make("div","shrink-0 text-right");meta.append(make("div","font-code-xs text-code-xs text-text-secondary",`${first(session.message_count,0)} messages`));if(session.is_active===true)meta.append(make("div","font-code-xs text-[10px] text-success uppercase","Active"));row.append(left,meta);target.append(row)});
-      }
-
-      function renderHealth(result){
-        const icon=$("health-icon");
-        if(!result.ok){setText("health-value","Unavailable");setText("health-detail",errorMessage(result));icon.textContent="error";icon.className="material-symbols-outlined text-[18px] text-danger";return}
-        const health=result.data||{};setText("health-value",first(health.status,health.state,"Reachable"));setText("health-detail",`Version ${first(health.displayVersion,health.version,"not reported")}`);icon.textContent="check_circle";icon.className="material-symbols-outlined text-[18px] text-success";
-      }
-
-      function renderStats(result){
-        if(!result.ok){setText("stats-value","Unavailable");setText("stats-detail",errorMessage(result));renderFields("stats-fields",null,`System statistics unavailable: ${errorMessage(result)}.`);return}
-        const stats=result.data||{};const entries=fieldEntries(stats);setText("stats-value",entries.length?"Live data":"No fields");setText("stats-detail",entries.length?`${entries.length} scalar fields shown`:"Endpoint returned no displayable values");renderFields("stats-fields",stats,"Hermes returned no displayable scalar statistics.");
-      }
-
-      function renderMap(portal,health){
-        $("portal-dot").className=`w-2 h-2 rounded-full ${portal.ok?"bg-success":"bg-danger"}`;$("hermes-dot").className=`w-2 h-2 rounded-full ${health.ok?"bg-success":"bg-danger"}`;
-        $("portal-line").dataset.state=portal.ok?"ok":"error";$("hermes-line").dataset.state=health.ok?"ok":"error";
-        setText("portal-map-detail",portal.ok?`Healthy · ${portal.elapsed} ms`:errorMessage(portal));setText("hermes-map-detail",health.ok?`Reachable · ${health.elapsed} ms`:errorMessage(health));
-      }
-
-      async function refresh(){
-        const button=$("refresh-btn");button.disabled=true;button.classList.add("opacity-60");setText("page-state","Refreshing live services");
-        const results=await Promise.all(endpoints.map(getEndpoint));const byKey=Object.fromEntries(results.map((result)=>[result.key,result]));
-        renderEndpoints(results);renderHealth(byKey.health);renderProfiles(byKey.profiles);renderSessions(byKey.sessions);renderStats(byKey.stats);
-        renderFields("runtime-fields",byKey.status.ok?byKey.status.data:null,byKey.status.ok?"Hermes returned no displayable status fields.":`Runtime status unavailable: ${errorMessage(byKey.status)}.`);renderMap(byKey.portal,byKey.health);
-        const authRequired=results.some((result)=>result.status===401||result.status===403);$("auth-notice").classList.toggle("hidden",!authRequired);$("auth-notice").classList.toggle("flex",authRequired);
-        const successful=results.filter((result)=>result.ok).length;const state=$("page-state");state.replaceChildren();const dot=make("span",`w-1.5 h-1.5 rounded-full ${successful===results.length?"bg-success":successful?"bg-warning":"bg-danger"}`);state.append(dot,document.createTextNode(successful===results.length?"All observed APIs reachable":`${successful}/${results.length} endpoints reachable`));state.className=`font-code-xs text-code-xs flex items-center gap-1.5 ${successful===results.length?"text-success":successful?"text-warning":"text-danger"}`;
-        setText("last-updated",`Updated ${new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit",second:"2-digit"})}`);button.disabled=false;button.classList.remove("opacity-60");
-      }
-      $("refresh-btn").addEventListener("click",refresh);refresh();window.setInterval(refresh,30000);
-    })();
-  </script>
+        <div class="boundary-note"><span class="material-symbols-outlined">info</span><div><strong>No physical mesh API is available here</strong><p>Tailscale peers, WireGuard keys, ACLs, packet traffic, and transport latency are not exposed by Hermes or the portal, so Cockpit does not invent nodes or links for them.</p></div></div>
+      </article>
+      <article class="panel components-panel"><header class="panel-heading"><div><span class="section-kicker">Live components</span><h2>Service readiness</h2><p>Reported by Hermes status and health APIs.</p></div></header><div id="component-list" class="component-list"><div class="loading-row">Loading component health…</div></div></article>
+    </section>
+    <section class="system-grid">
+      <article class="panel capacity-panel"><header class="panel-heading"><div><span class="section-kicker">Capacity</span><h2>Host resources</h2><p>Current values returned by Hermes; unavailable fields stay unavailable.</p></div></header><div id="capacity-cards" class="capacity-cards"><div class="loading-row">Loading system statistics…</div></div><details class="diagnostic-disclosure"><summary>All reported host fields <span class="material-symbols-outlined">expand_more</span></summary><dl id="system-fields" class="field-grid"></dl></details></article>
+      <article class="panel runtime-panel"><header class="panel-heading"><div><span class="section-kicker">Runtime</span><h2>Connected capabilities</h2><p>Profile, gateway, local-model, egress, and computer-use status.</p></div></header><div id="capability-list" class="capability-list"><div class="loading-row">Loading runtime capabilities…</div></div></article>
+    </section>
+    <section class="system-grid">
+      <article class="panel profiles-panel"><header class="panel-heading"><div><span class="section-kicker">Identities</span><h2>Configured profiles</h2><p id="profiles-summary">Reading the Hermes profile roster.</p></div><a href="runtime-config-settings.html">Manage profiles <span class="material-symbols-outlined">arrow_forward</span></a></header><div id="system-profiles" class="profile-grid"><div class="loading-row">Loading profiles…</div></div></article>
+      <article class="panel sessions-panel"><header class="panel-heading"><div><span class="section-kicker">Recent activity</span><h2>Latest sessions</h2><p>Real sessions returned by Hermes, not placeholder agents.</p></div><a href="live-control.html">Open Chat <span class="material-symbols-outlined">arrow_forward</span></a></header><div id="system-sessions" class="session-list"><div class="loading-row">Loading sessions…</div></div></article>
+    </section>
+    <section class="panel diagnostics-panel"><header class="panel-heading"><div><span class="section-kicker">Diagnostics</span><h2>Endpoint checks</h2><p>HTTP status and browser-observed fetch duration for every source used above.</p></div><button id="copy-system-snapshot" class="secondary-button" type="button"><span class="material-symbols-outlined">content_copy</span>Copy snapshot</button></header><div id="system-endpoints" class="endpoint-grid"></div></section>
+  </main></div>
+  <script src="system-workspace.js?v=20261017a"></script>
   <script>window.currentPage="mesh-topology";</script>
-  <script src="shell-data.js?v=20261015g"></script>
-  <script src="shell.js?v=20261017b"></script>
-  <link rel="stylesheet" href="prototype.css?v=20261017b">
+  <script src="shell-data.js?v=20261015g"></script><script src="shell.js?v=20261017b"></script><link rel="stylesheet" href="prototype.css?v=20261017b">
 </body>
 </html>

@@ -21,20 +21,20 @@ When Hermes has no browser API for a CLI capability, Cockpit uses a server-side 
 | Complete `/api/config/schema` configuration | Runtime & Settings | Integrated |
 | MCP servers, MCP tests, enablement | Tool Registry | Integrated |
 | Skills and toolset enablement | Tool Registry | Integrated |
-| API-wide discovery and fallback operation surface | Control Center | Integrated (337 authenticated control operations; 348 total OpenAPI operations including 11 access/web-shell routes) |
-| Session search, timeline, ownership, export and lifecycle | Sessions workspace | Required |
-| Cron jobs, runs, delivery targets and blueprints | Automations workspace | Required |
-| Messaging platforms, onboarding, pairing and webhooks | Channels workspace | Required |
-| Gateway start/stop/restart/drain/migration | Operations workspace | Required |
-| Providers, OAuth, credentials and custom endpoints | Providers workspace | Required |
-| Local-model install/download/server lifecycle | Models workspace | Required |
-| Memory providers, curator and learning graph | Memory workspace | Required |
-| Git, worktrees and review lifecycle | Development workspace | Required |
-| Files, media and workspace operations | Files workspace | Required |
-| Audio, voice, TTS and STT | Voice workspace | Required |
-| Backups, imports, diagnostics, hooks and checkpoints | Operations workspace | Required |
-| Dashboard themes, fonts and plugins | Appearance & Plugins | Required |
-| Cross-machine/Tailscale service topology | Mesh | Required through a deployment bridge |
+| API-wide discovery and fallback operation surface | Control Center | Integrated (all 354 live operations, including the 348-operation Hermes schema and 6 authenticated control-plane routes) |
+| Session search, timeline, ownership, export and lifecycle | Chat and Control Center → Sessions & Chat | Integrated |
+| Cron jobs, runs, delivery targets and blueprints | Control Center → Automations | Integrated |
+| Messaging platforms, onboarding, pairing and webhooks | Control Center → Gateway & Connections | Integrated |
+| Gateway start/stop/restart/drain/migration | Control Center → Gateway & Connections | Integrated |
+| Providers, OAuth, credentials and custom endpoints | Models & Providers; Control Center | Integrated |
+| Local-model install/download/server lifecycle | Models & Providers; Control Center | Integrated |
+| Memory providers, curator and learning graph | Control Center → Memory & Tasks | Integrated |
+| Git, worktrees and review lifecycle | Control Center → Projects & Development | Integrated |
+| Files, media and workspace operations | Control Center → Voice & Media / Other | Integrated |
+| Audio, voice, TTS and STT | Chat, Settings, and Control Center → Voice & Media | Integrated |
+| Backups, imports, diagnostics, hooks and checkpoints | Control Center → Backup & Recovery / Diagnostics | Integrated |
+| Dashboard themes, fonts and plugins | Settings, Tools, and Control Center | Integrated |
+| Physical Tailscale peer topology | System | Explicitly unavailable: Hermes and the portal expose no peer/ACL/traffic contract, so Cockpit shows the verified request path instead of invented nodes |
 | 22 genuinely CLI-only families with no Hermes browser contract | Advanced Controls | Integrated (43 typed, allowlisted executable paths) |
 | CLI-only portions of partial/generic API families | Advanced Controls and matching workspaces | Integrated in bridge (127 typed paths across 22 families; purpose-built placement remains part of each workspace's product gate) |
 

@@ -21,7 +21,7 @@ This file is generated from the installed argparse tree and FastAPI OpenAPI sche
 | Control operations associated with at least one CLI family | 256 |
 | Control operations with no CLI-family counterpart | 81 |
 
-The complete schema has 348 operations. Cockpit deliberately presents the 337 `/api` operations as controls; the other 11 implement login/OAuth, static assets, plugin assets, and SPA routing. They are inventoried below but are not user settings or actions.
+The complete base schema has 348 operations. Cockpit presents the 337 `/api` operations as controls and keeps the other 11 login/OAuth, asset, plugin-asset, and SPA routes visible as clearly labeled access flows. The deployed control-plane plugin adds 6 authenticated routes that are discovered live rather than folded into this base-schema snapshot.
 
 ## CLI/API overlap by command family
 
@@ -100,7 +100,7 @@ The complete schema has 348 operations. Cockpit deliberately presents the 337 `/
 | `logs` | 1 | 1 | 1 | Direct API equivalent | Log selection, filtering, and tail data have a direct REST read operation. |
 | `prompt-size` | 1 | 1 | 1 | Direct API equivalent | Prompt budget analysis has a direct REST action. |
 
-Coverage labels are deliberately conservative: **Direct** means the command family’s central behavior has a dedicated API; **Partial** means only some subcommands do; **Generic** means the same persisted state can be changed through config/env APIs without a dedicated endpoint; **Gateway/WebSocket** means it is real browser functionality outside OpenAPI; **CLI-only** means no equivalent native Hermes browser contract was found. Cockpit supplies an authenticated, typed bridge for 170 reviewed executable paths: 43 paths in all 22 CLI-only families and 127 missing command paths from 22 partial/generic API families. The native classification remains unchanged because it describes Hermes's own API rather than Cockpit's added integration.
+Coverage labels are deliberately conservative: **Direct** means the command family’s central behavior has a dedicated API; **Partial** means only some subcommands do; **Generic** means the same persisted state can be changed through config/env APIs without a dedicated endpoint; **Gateway/WebSocket** means it is real browser functionality outside OpenAPI; **CLI-only** means no equivalent browser contract was found.
 
 ## Complete canonical CLI inventory
 

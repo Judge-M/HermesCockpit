@@ -47,6 +47,26 @@ for (const screen of screens) {
 new vm.Script(read('dist/shell.js'), {filename:'shell.js'});
 new vm.Script(read('dist/shell-data.js'), {filename:'shell-data.js'});
 new vm.Script(read('dist/hermes-client.js'), {filename:'hermes-client.js'});
+new vm.Script(read('dist/backend-control-workspace.js'), {filename:'backend-control-workspace.js'});
+assert.ok(existsSync(path.join(root, 'dist/backend-control-workspace.css')), 'Missing Control Center workspace stylesheet');
+const backendControl = read('dist/backend-control-workspace.js');
+for (const inventory of ['/hermes/openapi.json', '/cli-operations', '/cli-jobs']) {
+  assert.ok(backendControl.includes(inventory), `Control Center is missing ${inventory}`);
+}
+assert.ok(backendControl.includes("String(path).startsWith('/api')") && backendControl.includes("source: 'workflow'"), 'Control Center does not represent native, access, and host workflow operations');
+new vm.Script(read('dist/settings-workspace.js'), {filename:'settings-workspace.js'});
+assert.ok(existsSync(path.join(root, 'dist/settings-workspace.css')), 'Missing Profiles & Settings workspace stylesheet');
+new vm.Script(read('dist/system-workspace.js'), {filename:'system-workspace.js'});
+new vm.Script(read('dist/observability-workspace.js'), {filename:'observability-workspace.js'});
+assert.ok(existsSync(path.join(root, 'dist/system-workspace.css')), 'Missing System workspace stylesheet');
+assert.ok(existsSync(path.join(root, 'dist/observability-workspace.css')), 'Missing Observability workspace stylesheet');
+const settingsWorkspace = read('dist/runtime-config-settings.html');
+const settingsRuntime = read('dist/settings-workspace.js');
+for (const operation of ['/profiles', '/profiles/active', '/setup-command', '/soul', '/description', '/describe-auto', '/export', '/profiles/import', '/config/schema', '/config/defaults', '/config/raw']) {
+  assert.ok(settingsRuntime.includes(operation), `Profiles & Settings is missing ${operation}`);
+}
+assert.ok(settingsWorkspace.includes('id="panel-identity"') && settingsWorkspace.includes('id="panel-settings"') && settingsWorkspace.includes('id="panel-advanced"'), 'Profiles & Settings workspace sections are incomplete');
+assert.ok(!settingsRuntime.includes('localStorage'), 'Profiles & Settings must not persist profile data or secrets in localStorage');
 assert.ok(existsSync(path.join(root, 'dist/shell-data.js')), 'Missing embedded shell data');
 const shell = JSON.parse(read('dist/shell.json'));
 assert.ok(shell.header.includes('Hermes Cockpit'));
@@ -75,7 +95,7 @@ assert.equal(inventory.cliFamilies.length, inventory.counts.cliTopLevelCommands,
 assert.equal(new Set(inventory.cliCommands.map(command => command.path)).size, inventory.cliCommands.length, 'Duplicate canonical CLI paths');
 assert.equal(new Set(inventory.apiOperations.map(operation => `${operation.method} ${operation.path}`)).size, inventory.apiOperations.length, 'Duplicate API operations');
 assert.ok(read('CAPABILITY-INVENTORY.md').includes('| `login` |'), 'Human-readable inventory is missing the login command');
-assert.ok(read('dist/backend-control.html').includes('countSchemaOperations'), 'Control Center does not disclose full schema operation count');
+assert.ok(backendControl.includes('collectApiOperations') && backendControl.includes('Object.entries(spec.paths || {})'), 'Control Center does not inventory every published schema operation');
 const bridge = read('server/judge-m-control-plane/dashboard/cli_bridge.py');
 const countBridgeSet = name => {
   const match = bridge.match(new RegExp(`${name} = \\{([\\s\\S]*?)\\n\\}`));
