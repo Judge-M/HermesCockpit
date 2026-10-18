@@ -8,7 +8,7 @@
   <link href="vendor/material-symbols.css" rel="stylesheet">
   <script src="vendor/tailwindcss-cdn.js"></script>
   <script>tailwind.config={darkMode:"class",theme:{extend:{colors:{background:"#121221",surface:"#282A36","surface-container":"#1e1e2e","surface-container-low":"#1a1a2a","surface-container-lowest":"#0d0d1c","surface-secondary":"#3B4252","surface-bright":"#383849",border:"#4C566A","border-muted":"#3B4252",primary:"#a3dcec",success:"#A3BE8C",warning:"#EBCB8B",danger:"#BF616A","text-primary":"#ECEFF4","text-secondary":"#D8DEE9","text-tertiary":"#94A3B8","text-quaternary":"#616E88"},fontFamily:{sans:["Inter","sans-serif"],mono:["JetBrains Mono","monospace"]}}}};</script>
-  <title>Hermes Cockpit — Profiles &amp; Settings</title>
+  <title>Hermes Cockpit — Manage Hermes</title>
 </head>
 <body class="min-h-screen bg-background font-sans text-text-primary">
   <div id="shared-header"></div>
@@ -16,7 +16,7 @@
   <div class="pl-16 settings-page-frame">
     <main class="settings-workspace" data-workspace="true">
       <header class="workspace-heading">
-        <div><div class="eyebrow">Hermes workspace</div><h1>Profiles &amp; Settings</h1><p>Shape each Hermes identity, then tune its behavior without leaving Cockpit.</p></div>
+        <div><div class="eyebrow">Manage Hermes</div><h1>One place to configure and control Hermes</h1><p>Manage identities, change behavior, and run every available action without translating command-line syntax.</p></div>
         <div class="heading-actions"><span id="connection-state" class="status-pill is-loading"><span></span>Connecting</span><button id="refresh-workspace" class="icon-button" type="button" aria-label="Refresh workspace" title="Refresh workspace"><span class="material-symbols-outlined">refresh</span></button></div>
       </header>
 
@@ -27,9 +27,10 @@
         <div class="profile-primary-actions"><button id="open-create-profile" class="primary-button" type="button"><span class="material-symbols-outlined">add</span>New profile</button><button id="open-import-profile" class="secondary-button" type="button"><span class="material-symbols-outlined">upload</span>Import</button></div>
       </section>
 
-      <nav class="workspace-tabs" aria-label="Profiles and settings sections">
+      <nav class="workspace-tabs" aria-label="Hermes management sections">
         <button class="workspace-tab is-active" type="button" data-tab="identity" aria-selected="true"><span class="material-symbols-outlined">badge</span>Identity</button>
-        <button class="workspace-tab" type="button" data-tab="settings" aria-selected="false"><span class="material-symbols-outlined">tune</span>Settings <span id="settings-dirty-tab" class="dirty-dot" hidden></span></button>
+        <button class="workspace-tab" type="button" data-tab="settings" aria-selected="false"><span class="material-symbols-outlined">tune</span>Configuration <span id="settings-dirty-tab" class="dirty-dot" hidden></span></button>
+        <button class="workspace-tab" type="button" data-tab="controls" aria-selected="false"><span class="material-symbols-outlined">apps</span>Actions</button>
         <button class="workspace-tab" type="button" data-tab="advanced" aria-selected="false"><span class="material-symbols-outlined">code</span>Advanced</button>
       </nav>
       <div id="workspace-error" class="workspace-alert is-error" role="alert" hidden></div>
@@ -64,12 +65,38 @@
         <div class="settings-layout"><aside class="category-sidebar" aria-label="Settings areas"><div class="category-title">Settings areas</div><nav id="settings-categories"></nav></aside><div class="settings-content"><div id="settings-loading" class="loading-state"><span class="material-symbols-outlined spin">progress_activity</span><div><strong>Loading settings</strong><span>Reading the profile schema, saved values, and Hermes defaults.</span></div></div><section id="settings-concept-summary" class="concept-summary" hidden aria-live="polite"></section><div id="settings-results-heading" class="results-heading" hidden></div><div id="settings-fields" class="settings-fields"></div><div id="settings-empty" class="empty-state" hidden><span class="material-symbols-outlined">search_off</span><h3>No settings match</h3><p>Try a different search term or settings area.</p></div></div></div>
       </section>
 
+      <section id="panel-controls" class="workspace-panel" data-panel="controls" hidden>
+        <div class="bc-page bc-embedded">
+          <header class="bc-hero">
+            <div class="bc-hero-copy"><div class="bc-eyebrow">Guided actions</div><h1>What do you want Hermes to do?</h1><p>Start with a familiar area, choose an action, and fill in a guided form. Every action published by Hermes—including reviewed host operations—is available here.</p></div>
+            <div class="bc-connection" id="schemaStatus" data-state="loading" aria-live="polite"><span class="bc-status-dot"></span><span id="schemaStatusText">Loading available actions…</span></div>
+          </header>
+          <section class="bc-metrics" aria-label="Available action coverage">
+            <article class="bc-metric"><span class="material-symbols-outlined">tune</span><div><strong id="apiControlCount">—</strong><span>direct actions</span></div></article>
+            <article class="bc-metric"><span class="material-symbols-outlined">construction</span><div><strong id="workflowCount">—</strong><span>extended actions</span></div></article>
+            <article class="bc-metric"><span class="material-symbols-outlined">category</span><div><strong id="domainCount">—</strong><span>management areas</span></div></article>
+            <article class="bc-metric"><span class="material-symbols-outlined">verified_user</span><div><strong id="availableCount">—</strong><span>available now</span></div></article>
+          </section>
+          <section class="bc-toolbar" aria-label="Find a Hermes action">
+            <label class="bc-search"><span class="material-symbols-outlined">search</span><input id="searchInput" type="search" placeholder="Describe what you want to manage" autocomplete="off"><kbd>/</kbd></label>
+            <select id="domainFilter" aria-label="Filter by management area"><option value="">All management areas</option></select>
+            <select id="kindFilter" aria-label="Filter by action type"><option value="">All actions</option><option value="read">View information</option><option value="change">Change something</option><option value="workflow">Extended actions</option><option value="access">Sign-in and access</option></select>
+            <button class="bc-button bc-button-secondary" id="reloadButton" type="button"><span class="material-symbols-outlined">refresh</span><span>Refresh</span></button>
+          </section>
+          <details class="bc-diagnostics bc-surface" id="inventoryDiagnostics"><summary><span class="material-symbols-outlined">monitoring</span><span>Advanced diagnostics</span><span class="bc-summary-note">coverage and technical connection details</span></summary><div class="bc-diagnostics-body" id="inventoryDiagnosticsBody">Waiting for Hermes.</div></details>
+          <section class="bc-domain-section" id="domainSection" aria-labelledby="domainHeading"><div class="bc-section-heading"><div><span class="bc-eyebrow">Management areas</span><h2 id="domainHeading">Choose a part of Hermes</h2></div><button class="bc-text-button" id="showEverythingButton" type="button">Show every action <span class="material-symbols-outlined">arrow_forward</span></button></div><div class="bc-domain-grid" id="domainGrid"><div class="bc-loading-card"><span class="material-symbols-outlined">progress_activity</span><span>Organizing the connected Hermes controls…</span></div></div></section>
+          <section class="bc-browser" id="controlBrowser" aria-label="Hermes actions"><aside class="bc-action-pane bc-surface" aria-label="Available actions"><header class="bc-pane-header"><div><span class="bc-eyebrow" id="listEyebrow">All actions</span><h2 id="listTitle">Choose an action</h2></div><span class="bc-count" id="operationCount">—</span></header><div class="bc-action-list bc-scroll" id="operationList"><div class="bc-empty"><span class="material-symbols-outlined">hourglass_top</span><strong>Loading actions</strong><span>Hermes is publishing its current controls.</span></div></div></aside><section class="bc-workspace bc-surface" id="operationWorkspace" aria-live="polite"><div class="bc-empty bc-empty-large"><span class="material-symbols-outlined">touch_app</span><strong>Select an action</strong><span>Cockpit will turn it into a guided form and explain the result.</span></div></section></section>
+        </div>
+      </section>
+
       <section id="panel-advanced" class="workspace-panel" data-panel="advanced" hidden>
         <div class="advanced-intro"><div class="section-kicker">Direct configuration</div><h2>Advanced profile configuration</h2><p>Use this only when a Hermes option is not published in the settings schema.</p></div>
         <details id="raw-config-disclosure" class="advanced-disclosure"><summary><span class="material-symbols-outlined">data_object</span><span><strong>Edit raw config.yaml</strong><small>Full-document replacement through the authenticated Hermes raw-config API</small></span><span class="material-symbols-outlined disclosure-arrow">expand_more</span></summary><div class="advanced-body"><div class="advanced-warning"><span class="material-symbols-outlined">warning</span><p>This editor replaces the complete profile configuration. It is loaded only on request, never stored in browser storage, and cleared when closed. YAML may contain sensitive values or environment references.</p></div><div class="raw-config-toolbar"><span id="raw-config-path">Not loaded</span><div><button id="reload-raw-config" class="secondary-button" type="button">Reload</button><button id="save-raw-config" class="primary-button" type="button" disabled>Save raw YAML</button></div></div><textarea id="raw-config-editor" class="code-control raw-editor" rows="28" spellcheck="false" autocomplete="off" aria-label="Raw profile YAML"></textarea><div id="raw-config-status" class="inline-status">Open this section to load the file.</div></div></details>
       </section>
     </main>
   </div>
+
+  <div class="bc-modal" id="confirmDialog" role="dialog" aria-modal="true" aria-labelledby="confirmTitle" hidden><div class="bc-modal-panel bc-scroll"><header class="bc-modal-header"><div><span class="bc-eyebrow">Review before continuing</span><h2 id="confirmTitle">Confirm action</h2></div><button class="bc-icon-button" id="confirmClose" type="button" aria-label="Close confirmation"><span class="material-symbols-outlined">close</span></button></header><div class="bc-modal-body" id="confirmBody"></div><footer class="bc-modal-actions"><button class="bc-button bc-button-secondary" id="confirmCancel" type="button">Cancel</button><button class="bc-button bc-button-primary" id="confirmExecute" type="button">Continue</button></footer></div></div>
 
   <dialog id="create-profile-dialog" class="workspace-dialog">
     <form method="dialog" id="create-profile-form">
@@ -96,10 +123,12 @@
 
   <div id="workspace-toast" class="workspace-toast" role="status" aria-live="polite" hidden></div>
   <script>window.currentPage="runtime-config-settings";</script>
-  <script src="shell-data.js?v=20261015g"></script>
-  <script src="shell.js?v=20261017c"></script>
+  <script src="shell-data.js?v=20261017d"></script>
+  <script src="shell.js?v=20261017d"></script>
   <link rel="stylesheet" href="prototype.css?v=20261017b">
-  <link rel="stylesheet" href="settings-workspace.css?v=20261017c">
-  <script src="settings-workspace.js?v=20261017c"></script>
+  <link rel="stylesheet" href="settings-workspace.css?v=20261017d">
+  <link rel="stylesheet" href="backend-control-workspace.css?v=20261017d">
+  <script src="settings-workspace.js?v=20261017d"></script>
+  <script src="backend-control-workspace.js?v=20261017e"></script>
 </body>
 </html>

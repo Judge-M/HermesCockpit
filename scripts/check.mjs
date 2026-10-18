@@ -20,7 +20,8 @@ for (const entry of provenance.files) {
   }
   assert.equal(hash, entry.imported_sha256, `Imported baseline differs: ${entry.path}`);
 }
-const screens = ['live-control', 'kanban', 'models-providers', 'mesh-topology', 'tool-registry', 'acp-telemetry', 'runtime-config-settings', 'backend-control', 'cli-control'];
+const screens = ['live-control', 'bot-mode', 'kanban', 'models-providers', 'mesh-topology', 'tool-registry', 'acp-telemetry', 'runtime-config-settings', 'backend-control', 'cli-control'];
+const navigationScreens = ['live-control', 'bot-mode', 'kanban', 'models-providers', 'mesh-topology', 'tool-registry', 'acp-telemetry', 'runtime-config-settings'];
 let inlineScripts = 0;
 for (const screen of screens) {
   const html = read(`dist/${screen}.html`);
@@ -76,7 +77,8 @@ const settingsRuntime = read('dist/settings-workspace.js');
 for (const operation of ['/profiles', '/profiles/active', '/setup-command', '/soul', '/description', '/describe-auto', '/export', '/profiles/import', '/config/schema', '/config/defaults', '/config/raw']) {
   assert.ok(settingsRuntime.includes(operation), `Profiles & Settings is missing ${operation}`);
 }
-assert.ok(settingsWorkspace.includes('id="panel-identity"') && settingsWorkspace.includes('id="panel-settings"') && settingsWorkspace.includes('id="panel-advanced"'), 'Profiles & Settings workspace sections are incomplete');
+assert.ok(settingsWorkspace.includes('id="panel-identity"') && settingsWorkspace.includes('id="panel-settings"') && settingsWorkspace.includes('id="panel-controls"') && settingsWorkspace.includes('id="panel-advanced"'), 'Manage workspace sections are incomplete');
+assert.ok(settingsWorkspace.includes('backend-control-workspace.js') && settingsWorkspace.includes('id="operationWorkspace"'), 'Manage is missing the unified action workspace');
 assert.ok(!settingsRuntime.includes('localStorage'), 'Profiles & Settings must not persist profile data or secrets in localStorage');
 assert.ok(existsSync(path.join(root, 'dist/shell-data.js')), 'Missing embedded shell data');
 const shell = JSON.parse(read('dist/shell.json'));
@@ -89,9 +91,15 @@ for (const asset of ['dist/vendor/tailwindcss-cdn.js', 'dist/vendor/tailwindcss-
 const live = read('dist/live-control.html');
 assert.ok(live.includes('data-hermes-client="true"') && live.includes('data-hermes-base="/hermes"'), 'Live Control is missing Hermes client configuration');
 assert.ok(live.includes('hermes-client.js') && live.includes('vendor/xterm/xterm.js'), 'Live Control is missing its runtime');
+const botMode = read('dist/bot-mode.html');
+assert.ok(botMode.includes('data-client-mode="bot"') && botMode.includes('hermes-client.js'), 'Bot Mode is missing its dedicated live chat runtime');
 assert.ok(read('dist/hermes-client.js').includes('/api/auth/ws-ticket'), 'Live client is missing the secure WebSocket ticket flow');
 assert.ok(!read('dist/hermes-client.js').includes('localStorage'), 'Live client must not persist credentials or controls in localStorage');
-for (const screen of screens) assert.ok(read('dist/shell.js').includes(`path: "${screen}"`), `Shared shell is missing ${screen} navigation`);
+assert.ok(!/beta/i.test(read('dist/hermes-client.js')) && !/beta/i.test(read('dist/shell.js')), 'Shared live UI still contains beta labeling');
+for (const screen of navigationScreens) assert.ok(read('dist/shell.js').includes(`path: "${screen}"`), `Shared shell is missing ${screen} navigation`);
+assert.ok(!read('dist/shell.js').includes('path: "backend-control"') && !read('dist/shell.js').includes('path: "cli-control"'), 'Redundant Capabilities or CLI navigation is still exposed');
+const systemScreen = read('dist/mesh-topology.html');
+assert.ok(!systemScreen.includes('Observed path') && !systemScreen.includes('Recent activity') && !systemScreen.includes('Nothing here is simulated.'), 'System still contains removed low-value panels or preview copy');
 assert.ok(read('dist/index.html').includes('url=live-control.html'));
 const inventory = JSON.parse(read('CAPABILITY-INVENTORY.json'));
 assert.equal(inventory.counts.cliTopLevelCommands, 72, 'Unexpected top-level CLI command count');

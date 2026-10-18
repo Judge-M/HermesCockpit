@@ -5,6 +5,10 @@
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}.spin{animation:none}}
 .workspace-tabs,.menu-actions{scrollbar-width:none}.workspace-tabs::-webkit-scrollbar,.menu-actions::-webkit-scrollbar{display:none}
 
+/* The complete control inventory lives inside Manage instead of a separate app. */
+.bc-embedded{width:100%;gap:14px}.bc-embedded .bc-hero{min-height:138px}.bc-embedded .bc-hero h1{font-size:27px}.bc-embedded .bc-browser{min-height:620px}
+@media(max-width:760px){.bc-embedded .bc-hero{align-items:flex-start;flex-direction:column}.bc-embedded .bc-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.bc-embedded .bc-toolbar{grid-template-columns:1fr}.bc-embedded .bc-browser{min-height:0}}
+
 /* Ontological settings navigation: the live Hermes schema remains the source of truth. */
 .settings-layout{grid-template-columns:290px minmax(0,1fr)}
 .category-sidebar{padding:17px 12px}

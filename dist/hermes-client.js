@@ -5,6 +5,7 @@
   if (root?.dataset.hermesClient !== "true") return;
 
   const API_BASE = root.dataset.hermesBase || "/hermes";
+  const pageMode = root.dataset.clientMode === "bot" ? "bot" : "chat";
   const feed = document.getElementById("execution-feed");
   const composer = document.getElementById("composer-input");
   const sidebar = document.getElementById("live-control-sidebar");
@@ -231,6 +232,13 @@
           <div id="cockpit-bots" class="cockpit-bot-list"><p class="cockpit-muted">Loading bots…</p></div>
         </section>
       </div>`;
+    if (pageMode === "bot") {
+      sessionSidebar.querySelector(".cockpit-session-group:not(.cockpit-bot-group)")?.remove();
+      const newLabel = sessionSidebar.querySelector("#cockpit-new-session span:last-child");
+      if (newLabel) newLabel.textContent = "Open selected Bot Chat";
+    } else {
+      sessionSidebar.querySelector(".cockpit-bot-group")?.remove();
+    }
 
     sidebar.replaceChildren();
     sidebar.className = "live-side cockpit-control-panel";
@@ -261,7 +269,15 @@
 
     document.getElementById("cockpit-copy")?.addEventListener("click", copySelection);
     document.getElementById("cockpit-reconnect")?.addEventListener("click", reopenCurrentSession);
-    document.getElementById("cockpit-new-session")?.addEventListener("click", newSession);
+    document.getElementById("cockpit-new-session")?.addEventListener("click", () => {
+      if (pageMode === "bot") {
+        const name = document.getElementById("cockpit-profile-picker")?.value || "default";
+        const profile = state.botProfiles.find((entry) => entry.name === name) || state.botProfiles[0];
+        if (profile) openBotChat(profile);
+        return;
+      }
+      newSession();
+    });
     document.getElementById("cockpit-terminal-mode")?.addEventListener("click", () => setWorkspaceMode(state.mode === "terminal" ? (state.botProfile ? "bot" : "chat") : "terminal"));
     document.getElementById("cockpit-interrupt-bot")?.addEventListener("click", interruptBot);
     document.getElementById("cockpit-refresh-sessions")?.addEventListener("click", loadSessions);
@@ -282,6 +298,7 @@
       const profile = state.botProfiles.find((entry) => entry.name === name);
       if (profile) openBotChat(profile);
     });
+    if (pageMode === "bot") document.getElementById("cockpit-terminal-mode")?.remove();
     document.querySelectorAll("[data-inspector-tab]").forEach((button) => button.addEventListener("click", () => selectInspectorTab(button.dataset.inspectorTab)));
     const signIn = document.getElementById("cockpit-sign-in");
     if (signIn) signIn.href = `${API_BASE}/login?next=${encodeURIComponent(location.pathname + location.search)}`;
@@ -298,9 +315,7 @@
         <span id="cockpit-header-status" data-state="connecting">Connecting…</span>
       </div>`;
     header.children[2].innerHTML = `
-      <a class="cockpit-admin-link" href="runtime-config-settings.html" aria-label="Open Cockpit settings">Settings</a>`;
-    const versionBadge = header.children[0].querySelector("span:last-child");
-    if (versionBadge) versionBadge.textContent = "beta";
+      <a class="cockpit-admin-link" href="runtime-config-settings.html" aria-label="Open Manage workspace">Manage</a>`;
   }
 
   function initTerminal() {
@@ -1800,9 +1815,16 @@
       state.botEventUnsubscribe?.();
       state.gateway?.close();
     }, { once: true });
-    setWorkspaceMode("chat");
-    if (state.sessions[0]) await openChatSession(state.sessions[0]);
-    else setConnection("connected", "Ready for a new chat");
+    if (pageMode === "bot") {
+      setWorkspaceMode("bot");
+      const preferred = state.botProfiles.find((profile) => profile.name === (state.profile || "default")) || state.botProfiles[0];
+      if (preferred) await openBotChat(preferred);
+      else setConnection("connected", "No Bot Mode profiles are available");
+    } else {
+      setWorkspaceMode("chat");
+      if (state.sessions[0]) await openChatSession(state.sessions[0]);
+      else setConnection("connected", "Ready for a new chat");
+    }
   }
 
   start().catch((error) => {

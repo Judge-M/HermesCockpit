@@ -6,7 +6,7 @@ Hermes Cockpit is a mobile-friendly browser interface for [Hermes Agent](https:/
 
 ## What works
 
-- Live Hermes chat over the native `/api/pty` WebSocket
+- Live Hermes chat through the authenticated gateway, with the native `/api/pty` terminal available from Chat
 - Automatic reconnect with a keep-alive terminal session
 - Resume recent Hermes sessions
 - Use any model returned by Hermes' model catalog
@@ -17,7 +17,7 @@ Hermes Cockpit is a mobile-friendly browser interface for [Hermes Agent](https:/
 - Configure every live auxiliary route with provider, model, inheritance, and reasoning-effort selectors
 - Operate Hermes' native multi-profile Kanban boards, tasks, dependencies, workers, runs, dispatch, and orchestration from a responsive visual board
 - Launch the matching native vLLM Semantic Router control plane from the Models workspace when it is deployed
-- Real Bot Mode roster from Hermes' gateway protocol, including the same profile metadata used by Hermes Desktop
+- A dedicated Bot Mode chat workspace backed by Hermes' gateway protocol, including the same profile metadata used by Hermes Desktop
 - Resume each bot's canonical hidden `Bot Chat`, including its existing conversation history, or create it when one does not exist
 - Native Bot Mode transcript with independently scrollable conversation, live task state, subagent status, and tool activity from Hermes gateway events
 - Keyboard input, mobile composer input, terminal selection, copy, and paste
@@ -25,10 +25,11 @@ Hermes Cockpit is a mobile-friendly browser interface for [Hermes Agent](https:/
 - Responsive desktop and mobile layouts
 - Live views for Hermes health, profiles, sessions, system statistics, tools, toolsets, skills, and model options
 - Native Cockpit controls for enabling toolsets and skills, adding/testing/enabling/deleting MCP servers, and creating/editing eligible skills
-- Full schema-driven Hermes configuration editor, including every field published by `/api/config/schema`, organized into human-facing settings areas with a complete Advanced fallback
+- One Manage workspace for profiles, schema-driven configuration, all backend actions, and advanced raw configuration
+- Every field published by `/api/config/schema`, organized into human-facing settings areas with a complete Advanced fallback
 - Per-profile active selection, model assignment, routing description, and `SOUL.md` editing
 - Automatic redaction of credential-like fields in raw API inspectors and copied telemetry snapshots
-- Typed Advanced Controls for 170 reviewed command paths across 44 CLI-only and partially API-backed Hermes families
+- Guided forms for 170 reviewed extended actions across 44 CLI-only and partially API-backed Hermes families; command syntax stays inside collapsed diagnostics
 - Authenticated, user-scoped command jobs with bounded output, destructive-action confirmations, interactive responses, stop controls, and reload-safe job reattachment
 
 Hermes Cockpit follows a strict coverage rule: every user-facing capability exposed by the installed Hermes backend or `hermes` CLI must have a real Cockpit surface, and every Cockpit control must call a real operation. CLI-only capabilities must be implemented through a narrowly allowlisted server-side bridge—not a browser-accessible shell. Missing coverage is tracked as unfinished work in [BACKEND-COVERAGE.md](BACKEND-COVERAGE.md); it is not represented with invented data or dead controls.
@@ -111,16 +112,16 @@ Selecting a different model sends Hermes' native `/model` command to the current
 ## Repository layout
 
 - `dist/live-control.html` — live Hermes terminal and controls
+- `dist/bot-mode.html` — dedicated Bot Mode roster, canonical Bot Chat, transcript, tasks, subagents, and activity
 - `dist/kanban.html` — live Hermes Kanban boards, task lifecycle, workers, runs, dependencies, and orchestration
 - `dist/models-providers.html` — provider onboarding, model catalog curation, profile assignments, and Semantic Router access
 - `dist/hermes-client.js` — Hermes REST/WebSocket client
 - `dist/hermes-client.css` — responsive live-client styles
-- `dist/mesh-topology.html` — live Hermes reachability, gateway/profile, session, and system overview
+- `dist/mesh-topology.html` — focused Hermes health, capacity, component, profile, and runtime overview
 - `dist/tool-registry.html` — live MCP server, toolset, skill, and profile inventory with native management controls
 - `dist/acp-telemetry.html` — live read-only endpoint telemetry and redacted snapshots
-- `dist/runtime-config-settings.html` — full schema-driven configuration, model, profile, and identity management
-- `dist/backend-control.html` — plain-language Control Center organizing all 354 live API/control-plane operations and 170 reviewed host workflows into 16 guided control areas, with protocol details collapsed by default
-- `dist/cli-control.html` — typed Advanced Controls for the reviewed CLI-only operation registry; it never exposes an arbitrary command prompt
+- `dist/runtime-config-settings.html` — the unified Manage workspace: profile identity, full schema configuration, and 524 guided actions across 16 management areas
+- `dist/backend-control.html` and `dist/cli-control.html` — compatibility URLs that redirect older bookmarks into Manage → Actions
 - `server/judge-m-control-plane/` — Hermes dashboard plugin extension that mounts the authenticated, allowlisted command bridge
 - `BACKEND-COVERAGE.md` — backend-to-interface coverage ledger and acceptance rule
 - `CLI-COVERAGE.md` — installed Hermes command coverage summary and secure bridge requirements
@@ -133,4 +134,4 @@ Selecting a different model sends Hermes' native `/model` command to the current
 
 ## Project status
 
-This is an independent community frontend and is not affiliated with or endorsed by Nous Research or the Hermes team. The tested Hermes `0.21.7` base schema contains 348 operations: 337 authenticated `/api` controls plus 11 login, OAuth, asset, and SPA-shell operations. The installed Cockpit control-plane plugin adds 6 authenticated routes, so the deployed Control Center currently presents 354 live native operations. The installed CLI has 72 top-level command families and 422 canonical command/subcommand nodes. The reviewed overlap is 22 direct API families, 21 partial API families, 5 generic config/env equivalents, 2 gateway/WebSocket families, and 22 genuinely CLI-only families. Advanced Controls registers 170 typed, allowlisted operation paths: 43 paths from the 22 genuinely CLI-only families plus 127 missing paths from 22 partial or generic API families. Together, the live Control Center inventory contains 524 capabilities.
+This is an independent community frontend and is not affiliated with or endorsed by Nous Research or the Hermes team. The tested Hermes `0.21.7` base schema contains 348 operations: 337 authenticated `/api` controls plus 11 login, OAuth, asset, and SPA-shell operations. The installed Cockpit control-plane plugin adds 6 authenticated routes, so Manage currently presents 354 live direct actions. The installed CLI has 72 top-level command families and 422 canonical command/subcommand nodes. The reviewed overlap is 22 direct API families, 21 partial API families, 5 generic config/env equivalents, 2 gateway/WebSocket families, and 22 genuinely CLI-only families. Manage also registers 170 typed, allowlisted extended actions: 43 paths from the 22 genuinely CLI-only families plus 127 missing paths from 22 partial or generic API families. Together, the live inventory contains 524 actions.

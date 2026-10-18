@@ -3,12 +3,10 @@
 
   const TIMEOUT = 9000;
   const definitions = [
-    {id: "portal", label: "Cockpit portal", path: "/api/health"},
     {id: "health", label: "Hermes health", path: "/hermes/api/health"},
     {id: "status", label: "Runtime status", path: "/hermes/api/status"},
     {id: "stats", label: "Host statistics", path: "/hermes/api/system/stats"},
     {id: "sessionStats", label: "Session statistics", path: "/hermes/api/sessions/stats"},
-    {id: "sessions", label: "Recent sessions", path: "/hermes/api/sessions?limit=8&order=recent&min_messages=1"},
     {id: "profiles", label: "Profiles", path: "/hermes/api/profiles"},
     {id: "egress", label: "Egress", path: "/hermes/api/egress/status"},
     {id: "localModels", label: "Local models", path: "/hermes/api/local-models/status"},
@@ -75,14 +73,6 @@
     $("system-auth").hidden = !Object.values(state.results).some((result) => result.status === 401 || result.status === 403);
   }
 
-  function setPathState(id, result, detailId, healthyText) {
-    const target = document.querySelector(`[data-node="${id}"]`);
-    const link = document.querySelector(`[data-link="${id}"]`);
-    target?.classList.toggle("is-ok", Boolean(result?.ok)); target?.classList.toggle("is-error", Boolean(result && !result.ok));
-    link?.classList.toggle("is-ok", Boolean(result?.ok)); link?.classList.toggle("is-error", Boolean(result && !result.ok));
-    $(detailId).textContent = result?.ok ? healthyText : errorText(result);
-  }
-
   function renderSummary() {
     const health = state.results.health, status = state.results.status, sessionStats = state.results.sessionStats;
     const statusData = status?.data || {}, disk = statusData.disk || {};
@@ -98,8 +88,6 @@
     const totals = sessionStats?.data || {};
     $("summary-sessions").textContent = sessionStats?.ok ? display(first(totals, ["total", "active_store"])) : "Unavailable";
     $("summary-sessions-detail").textContent = sessionStats?.ok ? `${display(totals.messages)} messages · ${display(totals.archived ?? 0)} archived` : errorText(sessionStats);
-    setPathState("portal", state.results.portal, "path-portal-detail", `Portal responded in ${state.results.portal?.elapsed} ms`);
-    setPathState("hermes", health, "path-hermes-detail", `Hermes ${display(first(health?.data, ["displayVersion", "version"]))} responded in ${health?.elapsed} ms`);
   }
 
   function renderComponents() {
@@ -163,17 +151,6 @@
     });
   }
 
-  function renderSessions() {
-    const root = $("system-sessions"), result = state.results.sessions; root.replaceChildren();
-    if (!result?.ok) { root.append(node("div", "unavailable-state", `Sessions unavailable: ${errorText(result)}`)); return; }
-    const sessions = asList(result.data, ["sessions", "items", "results"]);
-    if (!sessions.length) { root.append(node("div", "empty-state", "Hermes returned no sessions matching the current query.")); return; }
-    sessions.slice(0, 8).forEach((session) => {
-      const row = node("div", "session-row"), main = node("div", "session-main"); main.append(node("strong", "", display(first(session, ["title", "name", "session_id", "id"]))), node("span", "", `${display(first(session, ["profile", "profile_name"]) || "Profile unavailable")} · ${formatDate(first(session, ["updated_at", "last_activity", "modified_at", "created_at"]))}`));
-      row.append(main, node("div", "session-count", `${display(first(session, ["message_count", "messages_count", "num_messages"]) || 0)} messages`)); root.append(row);
-    });
-  }
-
   function renderEndpoints() {
     const root = $("system-endpoints"); root.replaceChildren(); definitions.forEach((definition) => {
       const result = state.results[definition.id], card = node("article", "endpoint-card"), head = node("div", "endpoint-head"); head.append(node("strong", "", definition.label), node("span", `endpoint-status ${result?.ok ? "is-ok" : "is-error"}`, result?.ok ? `HTTP ${result.status}` : "Unavailable")); card.append(head, node("code", "", definition.path), node("p", "", result ? `${result.elapsed} ms browser fetch${result.ok ? "" : ` · ${errorText(result)}`}` : "Waiting for request")); root.append(card);
@@ -188,7 +165,7 @@
     if (state.refreshing) return; state.refreshing = true; const button = $("system-refresh"); button.classList.add("is-busy"); button.disabled = true;
     try {
       const results = await Promise.all(definitions.map(request)); results.forEach((result) => { state.results[result.definition.id] = result; });
-      setConnection(); renderSummary(); renderComponents(); renderCapacity(); renderCapabilities(); renderProfiles(); renderSessions(); renderEndpoints(); $("system-updated").textContent = `Updated ${new Date().toLocaleTimeString([], {hour: "numeric", minute: "2-digit", second: "2-digit"})}`;
+      setConnection(); renderSummary(); renderComponents(); renderCapacity(); renderCapabilities(); renderProfiles(); renderEndpoints(); $("system-updated").textContent = `Updated ${new Date().toLocaleTimeString([], {hour: "numeric", minute: "2-digit", second: "2-digit"})}`;
     } finally { state.refreshing = false; button.classList.remove("is-busy"); button.disabled = false; }
   }
 

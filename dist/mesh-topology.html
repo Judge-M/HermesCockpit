@@ -13,7 +13,7 @@
   <div id="shared-header"></div><div id="shared-sidebar"></div>
   <div class="system-shell"><main class="system-workspace" data-workspace="true">
     <header class="system-heading">
-      <div><div class="eyebrow"><span class="material-symbols-outlined">hub</span>System</div><h1>Your Hermes deployment, as it is now</h1><p>Live service health, capacity, profiles, and request paths. Nothing here is simulated.</p></div>
+      <div><div class="eyebrow"><span class="material-symbols-outlined">hub</span>System</div><h1>Your Hermes deployment, as it is now</h1><p>Live service health, capacity, profiles, and runtime readiness.</p></div>
       <div class="heading-actions"><span id="system-connection" class="status-pill is-loading"><span></span>Connecting</span><span id="system-updated" class="updated-label">Not refreshed</span><button id="system-refresh" class="icon-button" type="button" aria-label="Refresh system data" title="Refresh system data"><span class="material-symbols-outlined">refresh</span></button></div>
     </header>
     <div id="system-auth" class="auth-notice" hidden><span class="material-symbols-outlined">lock</span><div><strong>Hermes sign-in is required</strong><p>This workspace reads the authenticated Hermes API and never stores your credentials.</p></div><a href="/hermes/login?next=%2Fcockpit%2Fmesh-topology.html">Sign in</a></div>
@@ -24,17 +24,6 @@
       <article class="summary-card"><div class="summary-label"><span class="material-symbols-outlined">forum</span>Session store</div><strong id="summary-sessions">—</strong><p id="summary-sessions-detail">Reading real session totals</p></article>
     </section>
     <section class="system-grid system-grid-primary">
-      <article class="panel topology-panel">
-        <header class="panel-heading"><div><span class="section-kicker">Observed path</span><h2>How this browser reaches Hermes</h2><p>Each connection below is verified by a same-origin request from this page.</p></div><span class="truth-badge">Logical path · not a peer map</span></header>
-        <div id="request-path" class="request-path" aria-label="Observed service path">
-          <div class="path-node"><span class="node-icon material-symbols-outlined">devices</span><div><small>Client</small><strong>This browser</strong><span>Authenticated session</span></div></div>
-          <div class="path-link" data-link="portal"><span></span><small>HTTPS</small></div>
-          <div class="path-node" data-node="portal"><span class="node-icon material-symbols-outlined">shield_lock</span><div><small>Entry point</small><strong>Hermes Cockpit</strong><span id="path-portal-detail">Checking portal health</span></div><i></i></div>
-          <div class="path-link" data-link="hermes"><span></span><small>Reverse proxy</small></div>
-          <div class="path-node" data-node="hermes"><span class="node-icon material-symbols-outlined">smart_toy</span><div><small>Runtime</small><strong>Hermes server</strong><span id="path-hermes-detail">Checking runtime health</span></div><i></i></div>
-        </div>
-        <div class="boundary-note"><span class="material-symbols-outlined">info</span><div><strong>No physical mesh API is available here</strong><p>Tailscale peers, WireGuard keys, ACLs, packet traffic, and transport latency are not exposed by Hermes or the portal, so Cockpit does not invent nodes or links for them.</p></div></div>
-      </article>
       <article class="panel components-panel"><header class="panel-heading"><div><span class="section-kicker">Live components</span><h2>Service readiness</h2><p>Reported by Hermes status and health APIs.</p></div></header><div id="component-list" class="component-list"><div class="loading-row">Loading component health…</div></div></article>
     </section>
     <section class="system-grid">
@@ -43,12 +32,11 @@
     </section>
     <section class="system-grid">
       <article class="panel profiles-panel"><header class="panel-heading"><div><span class="section-kicker">Identities</span><h2>Configured profiles</h2><p id="profiles-summary">Reading the Hermes profile roster.</p></div><a href="runtime-config-settings.html">Manage profiles <span class="material-symbols-outlined">arrow_forward</span></a></header><div id="system-profiles" class="profile-grid"><div class="loading-row">Loading profiles…</div></div></article>
-      <article class="panel sessions-panel"><header class="panel-heading"><div><span class="section-kicker">Recent activity</span><h2>Latest sessions</h2><p>Real sessions returned by Hermes, not placeholder agents.</p></div><a href="live-control.html">Open Chat <span class="material-symbols-outlined">arrow_forward</span></a></header><div id="system-sessions" class="session-list"><div class="loading-row">Loading sessions…</div></div></article>
     </section>
     <section class="panel diagnostics-panel"><header class="panel-heading"><div><span class="section-kicker">Diagnostics</span><h2>Endpoint checks</h2><p>HTTP status and browser-observed fetch duration for every source used above.</p></div><button id="copy-system-snapshot" class="secondary-button" type="button"><span class="material-symbols-outlined">content_copy</span>Copy snapshot</button></header><div id="system-endpoints" class="endpoint-grid"></div></section>
   </main></div>
-  <script src="system-workspace.js?v=20261017a"></script>
+  <script src="system-workspace.js?v=20261017d"></script>
   <script>window.currentPage="mesh-topology";</script>
-  <script src="shell-data.js?v=20261015g"></script><script src="shell.js?v=20261017c"></script><link rel="stylesheet" href="prototype.css?v=20261017b">
+  <script src="shell-data.js?v=20261017d"></script><script src="shell.js?v=20261017d"></script><link rel="stylesheet" href="prototype.css?v=20261017b">
 </body>
 </html>

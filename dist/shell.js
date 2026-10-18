@@ -2,7 +2,7 @@
   "use strict";
 
   const HERMES_BASE = "/hermes";
-  const BUILD_ID = "20261017c";
+  const BUILD_ID = "20261017d";
   const versionedHref = href => {
     const [path, hash = ""] = href.split("#");
     const separator = path.includes("?") ? "&" : "?";
@@ -10,16 +10,15 @@
   };
   const primary = [
     { path: "live-control", href: "live-control.html", icon: "chat", label: "Chat" },
+    { path: "bot-mode", href: "bot-mode.html", icon: "smart_toy", label: "Bot Mode" },
     { path: "kanban", href: "kanban.html", icon: "view_kanban", label: "Board" },
     { path: "models-providers", href: "models-providers.html", icon: "model_training", label: "Models" },
     { path: "tool-registry", href: "tool-registry.html", icon: "handyman", label: "Tools" },
     { path: "mesh-topology", href: "mesh-topology.html", icon: "dns", label: "System" }
   ];
   const secondary = [
-    { path: "runtime-config-settings", href: "runtime-config-settings.html", icon: "tune", label: "Settings" },
-    { path: "acp-telemetry", href: "acp-telemetry.html", icon: "monitoring", label: "Observability" },
-    { path: "backend-control", href: "backend-control.html", icon: "apps", label: "Capabilities" },
-    { path: "cli-control", href: "cli-control.html", icon: "terminal", label: "CLI controls" }
+    { path: "runtime-config-settings", href: "runtime-config-settings.html", icon: "tune", label: "Manage" },
+    { path: "acp-telemetry", href: "acp-telemetry.html", icon: "monitoring", label: "Observability" }
   ];
   const navLink = (item, mobile = false) => {
     const active = item.path === window.currentPage;
@@ -43,7 +42,7 @@
       </div>
       <div class="hc-header-actions">
         <a href="${versionedHref("models-providers.html#add-provider")}" class="hc-header-button"><span class="material-symbols-outlined">add</span><span>Add provider</span></a>
-        <a href="${versionedHref("runtime-config-settings.html")}" class="hc-icon-button" aria-label="Open settings" title="Settings"><span class="material-symbols-outlined">settings</span></a>
+        <a href="${versionedHref("runtime-config-settings.html")}" class="hc-icon-button" aria-label="Open Manage workspace" title="Manage Hermes"><span class="material-symbols-outlined">settings</span></a>
       </div>
     </header>`;
   if (sidebarHost) sidebarHost.innerHTML = `

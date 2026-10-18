@@ -243,7 +243,7 @@
 
   function operationSubtitle(operation) {
     if (!operation.available) return operation.unavailableReason || 'Unavailable on this installation';
-    if (operation.source === 'workflow') return operation.longRunning ? 'Managed host workflow · may take a while' : operation.interactive ? 'Interactive host workflow' : 'Managed host workflow';
+    if (operation.source === 'workflow') return operation.longRunning ? 'Extended action · may take a while' : operation.interactive ? 'Interactive extended action' : 'Extended action';
     if (operation.kind === 'access') return 'Browser access flow';
     if (operation.method === 'DELETE') return 'Removes or clears data';
     if (operation.kind === 'read') return 'View current information';
@@ -296,7 +296,7 @@
       id: `workflow:${raw.id}`,
       bridgeId: raw.id,
       source: 'workflow',
-      label: raw.title && String(raw.title).includes(' ') ? String(raw.title).trim().replace(/\.$/, '') : prettyLabel(raw.title || raw.command || 'Host workflow'),
+      label: raw.title && String(raw.title).includes(' ') ? String(raw.title).trim().replace(/\.$/, '') : prettyLabel(raw.title || raw.command || 'Extended action'),
       description,
       domain,
       kind: 'workflow',
@@ -377,7 +377,7 @@
     } else {
       state.workflowOperations = [];
       state.bridgeCounts = null;
-      state.errors.bridge = bridgeResult.reason?.message || 'Host workflows are unavailable.';
+      state.errors.bridge = bridgeResult.reason?.message || 'Extended actions are unavailable.';
     }
 
     state.operations = sortOperations([...state.apiOperations, ...state.workflowOperations]);
@@ -392,8 +392,8 @@
     renderInventoryDiagnostics();
     const errorCount = Object.keys(state.errors).length;
     if (!state.operations.length) setStatus('error', 'Hermes controls are unavailable');
-    else if (errorCount) setStatus('partial', `${state.operations.filter(item => item.available).length} capabilities available · one inventory needs attention`);
-    else setStatus('ready', `${state.operations.filter(item => item.available).length} capabilities available`);
+    else if (errorCount) setStatus('partial', `${state.operations.filter(item => item.available).length} actions available · one inventory needs attention`);
+    else setStatus('ready', `${state.operations.filter(item => item.available).length} actions available`);
     if (state.selectedId) {
       const selected = state.operations.find(item => item.id === state.selectedId);
       if (selected) renderOperation(selected);
@@ -417,7 +417,7 @@
     const apiCard = node('div', `bc-diag-card${state.errors.api ? ' is-error' : ''}`);
     apiCard.append(node('strong', '', state.errors.api ? 'Native controls unavailable' : 'Native Hermes API'), node('span', '', state.errors.api || `${state.apiOperations.length} operations from schema ${state.spec?.info?.version || 'version not reported'}`));
     const bridgeCard = node('div', `bc-diag-card${state.errors.bridge ? ' is-error' : ''}`);
-    bridgeCard.append(node('strong', '', state.errors.bridge ? 'Host workflows unavailable' : 'Reviewed host workflows'), node('span', '', state.errors.bridge || `${state.workflowOperations.length} registered · ${state.workflowOperations.filter(item => item.available).length} executable`));
+    bridgeCard.append(node('strong', '', state.errors.bridge ? 'Extended actions unavailable' : 'Reviewed extended actions'), node('span', '', state.errors.bridge || `${state.workflowOperations.length} registered · ${state.workflowOperations.filter(item => item.available).length} executable`));
     const coverageCard = node('div', 'bc-diag-card');
     coverageCard.append(node('strong', '', 'Coverage policy'), node('span', '', `${state.operations.length} total operations represented. Request paths and process arguments appear only inside each action's diagnostics.`));
     body.append(apiCard, bridgeCard, coverageCard);
@@ -427,7 +427,7 @@
     const select = $('domainFilter');
     const selected = select.value || state.domain;
     const domains = [...new Set(state.operations.map(item => item.domain))].sort((left, right) => domainDefinition(left).order - domainDefinition(right).order);
-    select.replaceChildren(new Option('All control areas', ''), ...domains.map(domain => new Option(domain, domain)));
+    select.replaceChildren(new Option('All management areas', ''), ...domains.map(domain => new Option(domain, domain)));
     select.value = domains.includes(selected) ? selected : '';
     state.domain = select.value;
   }
@@ -439,7 +439,7 @@
     state.operations.forEach(operation => counts.set(operation.domain, (counts.get(operation.domain) || 0) + 1));
     if (!counts.size) {
       const empty = node('div', 'bc-loading-card');
-      empty.append(icon('cloud_off'), node('span', '', 'No live Hermes capabilities are available. Open inventory diagnostics for details.'));
+      empty.append(icon('cloud_off'), node('span', '', 'No live Hermes actions are available. Open advanced diagnostics for details.'));
       container.append(empty);
       return;
     }
@@ -452,7 +452,7 @@
       iconWrap.append(icon(definition.icon));
       button.append(node('strong', '', definition.name), node('p', '', definition.description));
       const footer = node('span', 'bc-domain-footer');
-      footer.append(node('span', '', `${counts.get(definition.name)} capabilities`), icon('arrow_forward'));
+      footer.append(node('span', '', `${counts.get(definition.name)} actions`), icon('arrow_forward'));
       button.append(footer);
       button.addEventListener('click', () => {
         state.domain = definition.name;
@@ -487,18 +487,18 @@
     const container = $('operationList');
     container.replaceChildren();
     $('operationCount').textContent = `${state.filtered.length} / ${state.operations.length}`;
-    $('listEyebrow').textContent = state.domain || ($('searchInput').value ? 'Search results' : 'All capabilities');
+    $('listEyebrow').textContent = state.domain || ($('searchInput').value ? 'Search results' : 'All actions');
     $('listTitle').textContent = state.domain ? `Manage ${state.domain}` : 'Choose an action';
     if (!state.filtered.length) {
       const empty = node('div', 'bc-empty');
-      if (!state.domain && !$('searchInput').value && !$('kindFilter').value && !state.browseAll) empty.append(icon('category'), node('strong', '', 'Choose a control area'), node('span', '', 'Pick an area above or search for what you want to manage. Use “Show every capability” when you need the complete inventory.'));
-      else empty.append(icon('filter_alt_off'), node('strong', '', 'No matching capabilities'), node('span', '', 'Try a different phrase or clear one of the filters.'));
+      if (!state.domain && !$('searchInput').value && !$('kindFilter').value && !state.browseAll) empty.append(icon('category'), node('strong', '', 'Choose a management area'), node('span', '', 'Pick an area above or search for what you want to manage. Use “Show every action” when you need the complete inventory.'));
+      else empty.append(icon('filter_alt_off'), node('strong', '', 'No matching actions'), node('span', '', 'Try a different phrase or clear one of the filters.'));
       container.append(empty);
       return;
     }
     const groups = new Map();
     state.filtered.forEach(operation => {
-      const group = state.domain ? (operation.source === 'workflow' ? 'Host workflows' : operation.kind === 'access' ? 'Access flows' : operation.kind === 'read' ? 'Information & status' : 'Settings & actions') : operation.domain;
+      const group = state.domain ? (operation.source === 'workflow' ? 'Extended actions' : operation.kind === 'access' ? 'Sign-in & access' : operation.kind === 'read' ? 'Information & status' : 'Settings & actions') : operation.domain;
       if (!groups.has(group)) groups.set(group, []);
       groups.get(group).push(operation);
     });
@@ -539,7 +539,7 @@
     const workspace = $('operationWorkspace');
     workspace.replaceChildren();
     const empty = node('div', 'bc-empty bc-empty-large');
-    empty.append(icon('touch_app'), node('strong', '', 'Select a capability'), node('span', '', 'Every action here is connected to a real Hermes endpoint or reviewed host workflow.'));
+    empty.append(icon('touch_app'), node('strong', '', 'Select an action'), node('span', '', 'Every action here is connected to Hermes or a reviewed host operation.'));
     workspace.append(empty);
   }
 
@@ -555,7 +555,7 @@
     title.append(node('span', 'bc-eyebrow', operation.domain), node('h2', '', operation.label));
     title.append(node('p', '', operation.description || operationSubtitle(operation)));
     const badges = node('div', 'bc-badges');
-    badges.append(badge(operation.source === 'workflow' ? 'Host workflow' : operation.kind === 'access' ? 'Access flow' : operation.kind === 'read' ? 'Live information' : 'Native control', operation.source === 'workflow' ? 'is-purple' : ''));
+    badges.append(badge(operation.source === 'workflow' ? 'Extended action' : operation.kind === 'access' ? 'Sign-in & access' : operation.kind === 'read' ? 'Live information' : 'Direct action', operation.source === 'workflow' ? 'is-purple' : ''));
     badges.append(badge(operation.available ? 'Available' : 'Unavailable', operation.available ? 'is-good' : 'is-danger'));
     if (operation.risk === 'high') badges.append(badge('Confirmation required', 'is-danger'));
     else if (operation.risk === 'medium') badges.append(badge('Changes Hermes', 'is-warning'));
@@ -583,7 +583,7 @@
     form.noValidate = false;
     form.append(operationHeader(operation));
     if (!operation.available) {
-      form.append(callout(operation.unavailableReason || 'This capability is published by Hermes but is not available on this installation.', 'error'));
+      form.append(callout(operation.unavailableReason || 'This action is published by Hermes but is not available on this installation.', 'error'));
     }
     if (operation.source === 'workflow') renderWorkflowForm(operation, form);
     else renderApiForm(operation, form);
@@ -1205,8 +1205,8 @@
   }
 
   function renderWorkflowForm(operation, form) {
-    form.append(callout('This reviewed workflow runs through Hermes without a shell. Cockpit validates each supported option and keeps process details inside diagnostics.'));
-    if (operation.interactive) form.append(callout('This workflow may ask for input after it starts. A private response field will appear with the live result.', 'warning'));
+    form.append(callout('This reviewed extended action runs through Hermes without exposing a shell. Cockpit validates each supported option and keeps process details inside diagnostics.'));
+    if (operation.interactive) form.append(callout('This action may ask for input after it starts. A private response field will appear with the live result.', 'warning'));
     const section = node('section', 'bc-form-section');
     section.append(sectionHeading('Workflow options', operation.arguments.length + operation.positionals.length ? '* required where marked' : 'no additional values required'));
     const grid = node('div', 'bc-field-grid');
@@ -1228,7 +1228,7 @@
     const submit = node('button', `bc-button ${operation.risk === 'high' ? 'bc-button-danger' : 'bc-button-primary'}`);
     submit.type = 'submit';
     submit.disabled = !operation.available;
-    submit.append(icon('play_arrow'), node('span', '', operation.risk === 'high' ? 'Review workflow' : 'Run workflow'));
+    submit.append(icon('play_arrow'), node('span', '', operation.risk === 'high' ? 'Review action' : 'Run action'));
     actions.append(reset, submit);
     form.append(actions, workflowTechnicalDetails(operation));
     form.addEventListener('submit', event => {
@@ -1260,7 +1260,7 @@
       const {payload: result} = await readResponse(response);
       if (!response.ok) throw new Error(errorMessage(result, response));
       const job = result?.job || result;
-      if (!job?.job_id) throw new Error('Hermes started the workflow but did not return a job ID.');
+      if (!job?.job_id) throw new Error('Hermes started the action but did not return a job ID.');
       renderWorkflowJob(operation, form, job);
       scheduleJobPoll(operation, form, job.job_id, 500);
     } catch (error) {
@@ -1295,7 +1295,7 @@
       const inputRow = node('div', 'bc-job-input');
       const input = node('input', 'bc-input');
       input.type = 'password';
-      input.placeholder = 'Private response for the running workflow';
+      input.placeholder = 'Private response for the running action';
       input.autocomplete = 'new-password';
       const send = node('button', 'bc-button bc-button-primary');
       send.type = 'button';
@@ -1307,7 +1307,7 @@
     if (!terminal) {
       const stop = node('button', 'bc-button bc-button-ghost bc-inline-action');
       stop.type = 'button';
-      stop.append(icon('stop_circle'), node('span', '', 'Stop workflow'));
+      stop.append(icon('stop_circle'), node('span', '', 'Stop action'));
       stop.addEventListener('click', () => stopJob(operation, form, job.job_id, stop));
       body.append(stop);
     }
@@ -1380,7 +1380,7 @@
     const review = node('dl', 'bc-review-grid');
     const rows = [
       ['Control area', operation.domain],
-      ['Action', operation.source === 'workflow' ? 'Run managed workflow' : operation.method === 'DELETE' ? 'Remove or clear data' : 'Apply changes'],
+      ['Action', operation.source === 'workflow' ? 'Run extended action' : operation.method === 'DELETE' ? 'Remove or clear data' : 'Apply changes'],
       ['Impact', operation.risk === 'high' ? 'High — explicit confirmation required' : operation.risk === 'medium' ? 'Changes the connected Hermes installation' : 'Low']
     ];
     rows.forEach(([term, value]) => review.append(node('dt', '', term), node('dd', '', value)));
@@ -1400,7 +1400,7 @@
     const expected = operation.source === 'workflow' && operation.confirmation ? operation.confirmation : operation.method === 'DELETE' ? 'DELETE' : '';
     const execute = $('confirmExecute');
     execute.className = `bc-button ${expected ? 'bc-button-danger' : 'bc-button-primary'}`;
-    execute.textContent = operation.source === 'workflow' ? 'Run workflow' : operation.method === 'DELETE' ? 'Delete permanently' : 'Apply changes';
+    execute.textContent = operation.source === 'workflow' ? 'Run action' : operation.method === 'DELETE' ? 'Delete permanently' : 'Apply changes';
     execute.disabled = Boolean(expected);
     if (expected) {
       body.append(callout(`Type ${expected} exactly to continue.`, 'warning'));
@@ -1514,7 +1514,7 @@
   });
   document.addEventListener('keydown', event => {
     if (event.key === 'Escape' && !$('confirmDialog').hidden) closeConfirmation();
-    if (event.key === '/' && !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) {
+    if (event.key === '/' && !$('panel-controls')?.hidden && !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) {
       event.preventDefault();
       $('searchInput').focus();
     }

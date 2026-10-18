@@ -15,6 +15,7 @@
   <title>Hermes Cockpit — Control Center</title>
 </head>
 <body>
+  <script>location.replace(`runtime-config-settings.html?tab=controls${location.hash}`);</script>
   <div id="shared-header"></div><div id="shared-sidebar"></div>
 
   <main class="bc-shell" data-workspace="true">
@@ -107,6 +108,6 @@
   <script src="backend-control-workspace.js?v=20261017a"></script>
   <script>window.currentPage="backend-control"</script>
   <script src="shell-data.js?v=20261015g"></script>
-  <script src="shell.js?v=20261017c"></script>
+  <script src="shell.js?v=20261017d"></script>
 </body>
 </html>
