@@ -5,6 +5,7 @@
   if (root?.dataset.hermesClient !== "true") return;
 
   const API_BASE = root.dataset.hermesBase || "/hermes";
+  const CONTROL_PLANE = "/api/plugins/judge-m-control-plane";
   const pageMode = root.dataset.clientMode === "bot" ? "bot" : "chat";
   const feed = document.getElementById("execution-feed");
   const composer = document.getElementById("composer-input");
@@ -92,6 +93,11 @@
     subagentTail: "",
     botActivity: [],
     botPollTimer: null,
+    browserPreviewTimer: null,
+    browserPreviewInFlight: false,
+    browserPreviewSession: null,
+    browserProfileOriginal: false,
+    browserProfileName: "",
     voiceRecorder: null,
     voiceStream: null,
     voiceChunks: [],
@@ -260,9 +266,16 @@
         <p class="cockpit-help">Switch this conversation without exposing provider credentials.</p>
       </section>
       <section class="cockpit-panel-section cockpit-live-state">
-        <div class="cockpit-inspector-tabs" role="tablist"><button type="button" data-inspector-tab="tasks" data-active="true">Tasks <span id="cockpit-task-count">0</span></button><button type="button" data-inspector-tab="agents">Subagents <span id="cockpit-subagent-count">0</span></button><button type="button" data-inspector-tab="activity">Activity <span id="cockpit-activity-count">0</span></button></div>
+        <div class="cockpit-inspector-tabs" role="tablist"><button type="button" data-inspector-tab="tasks" data-active="true">Tasks <span id="cockpit-task-count">0</span></button><button type="button" data-inspector-tab="agents">Subagents <span id="cockpit-subagent-count">0</span></button><button type="button" data-inspector-tab="browser">Browser <span id="cockpit-browser-state">idle</span></button><button type="button" data-inspector-tab="activity">Activity <span id="cockpit-activity-count">0</span></button></div>
         <div class="cockpit-inspector-pane" data-inspector-pane="tasks"><div id="cockpit-task-list" class="cockpit-task-list"><p>No task list in this session.</p></div></div>
         <div class="cockpit-inspector-pane hidden" data-inspector-pane="agents"><div id="cockpit-subagent-list" class="cockpit-subagent-list"><p>No active subagents</p></div><div id="cockpit-subagent-detail" class="cockpit-subagent-detail hidden"><div class="cockpit-subagent-detail-head"><strong id="cockpit-subagent-detail-title">Subagent</strong><button id="cockpit-subagent-close" type="button" aria-label="Close subagent detail">×</button></div><pre id="cockpit-subagent-tail">Waiting for transcript…</pre><textarea id="cockpit-subagent-steer-text" rows="2" placeholder="Send guidance to this subagent"></textarea><div><button id="cockpit-subagent-steer" type="button">Send guidance</button><button id="cockpit-subagent-stop" type="button">Stop subagent</button></div></div></div>
+        <div class="cockpit-inspector-pane hidden" data-inspector-pane="browser">
+          <div class="cockpit-browser-preview">
+            <div class="cockpit-browser-bar"><div><strong id="cockpit-browser-title">Hermes Browser</strong><span id="cockpit-browser-url">Waiting for browser activity</span></div><button type="button" id="cockpit-browser-refresh" title="Refresh browser preview"><span class="material-symbols-outlined">refresh</span></button></div>
+            <div class="cockpit-browser-stage"><img id="cockpit-browser-frame" alt="Live view of the browser Hermes is controlling" hidden><div id="cockpit-browser-empty" class="cockpit-browser-empty"><span class="material-symbols-outlined">language</span><strong>Isolated Chromium is ready</strong><p>When Hermes navigates or interacts with a page, the live browser appears here automatically.</p></div></div>
+            <div class="cockpit-browser-privacy"><div><strong id="cockpit-browser-mode">Isolated browser</strong><span id="cockpit-browser-mode-help">Uses Hermes' private Chromium profile, separate from your personal browser.</span></div><label class="cockpit-browser-profile-toggle"><input id="cockpit-real-profile" type="checkbox"><span>Use a copied personal browser profile</span></label><p>Optional and sensitive: a copied profile may contain active logins, cookies, browser storage, history, and extensions. Hermes never points automation at the live profile.</p><button type="button" id="cockpit-save-browser-profile" disabled>Apply browser privacy setting</button></div>
+          </div>
+        </div>
         <div class="cockpit-inspector-pane hidden" data-inspector-pane="activity"><div id="cockpit-activity-list" class="cockpit-activity-list"><p>No tool activity in this session.</p></div></div>
       </section>
       <section class="cockpit-panel-section"><button type="button" class="cockpit-secondary-action" id="cockpit-export-session">Export conversation</button></section>`;
@@ -284,6 +297,9 @@
     document.getElementById("cockpit-refresh-bots")?.addEventListener("click", loadProfiles);
     document.getElementById("cockpit-apply-model")?.addEventListener("click", applySelectedModel);
     document.getElementById("cockpit-export-session")?.addEventListener("click", exportCurrentSession);
+    document.getElementById("cockpit-browser-refresh")?.addEventListener("click", () => refreshBrowserPreview(true));
+    document.getElementById("cockpit-real-profile")?.addEventListener("change", updateBrowserProfileSaveState);
+    document.getElementById("cockpit-save-browser-profile")?.addEventListener("click", saveBrowserProfileSetting);
     document.getElementById("cockpit-session-menu")?.addEventListener("click", showSessionActions);
     document.getElementById("cockpit-session-search")?.addEventListener("input", debounceSessionSearch);
     document.getElementById("cockpit-open-sessions")?.addEventListener("click", () => root.dataset.sessionsOpen = "true");
@@ -532,6 +548,122 @@
     document.querySelectorAll("[data-inspector-pane]").forEach((pane) => {
       pane.classList.toggle("hidden", pane.dataset.inspectorPane !== name);
     });
+    if (name === "browser") startBrowserPreview();
+    else stopBrowserPreview();
+  }
+
+  function stopBrowserPreview() {
+    if (state.browserPreviewTimer) window.clearInterval(state.browserPreviewTimer);
+    state.browserPreviewTimer = null;
+  }
+
+  function currentBrowserProfileName() {
+    return state.botProfile?.name || state.profile || "default";
+  }
+
+  function updateBrowserProfileSaveState() {
+    const input = document.getElementById("cockpit-real-profile");
+    const button = document.getElementById("cockpit-save-browser-profile");
+    if (button && input) button.disabled = input.checked === state.browserProfileOriginal;
+  }
+
+  async function loadBrowserProfileSetting() {
+    const profile = currentBrowserProfileName();
+    const input = document.getElementById("cockpit-real-profile");
+    if (!input) return;
+    try {
+      const config = await request(`/api/config?profile=${encodeURIComponent(profile)}&include_defaults=true`);
+      const enabled = config?.browser?.use_real_profile === true;
+      state.browserProfileName = profile;
+      state.browserProfileOriginal = enabled;
+      input.disabled = false;
+      input.checked = enabled;
+      text(document.getElementById("cockpit-browser-mode"), enabled ? "Copied personal profile" : "Isolated browser");
+      text(document.getElementById("cockpit-browser-mode-help"), enabled ? "Hermes uses an isolated copy of your browser data for signed-in sites." : "Uses Hermes' private Chromium profile, separate from your personal browser.");
+      updateBrowserProfileSaveState();
+    } catch (_) {
+      input.disabled = true;
+      text(document.getElementById("cockpit-browser-mode-help"), "Browser privacy settings are unavailable for this profile.");
+    }
+  }
+
+  async function saveBrowserProfileSetting() {
+    const input = document.getElementById("cockpit-real-profile");
+    const button = document.getElementById("cockpit-save-browser-profile");
+    if (!input || !button) return;
+    const next = input.checked;
+    if (next && !state.browserProfileOriginal) {
+      const accepted = globalThis.confirm("Use a copied personal browser profile for this Hermes profile? The copy can include active logins, cookies, history, storage, and extensions. Hermes will not automate the live profile.");
+      if (!accepted) { input.checked = state.browserProfileOriginal; updateBrowserProfileSaveState(); return; }
+    }
+    button.disabled = true;
+    button.textContent = "Saving…";
+    try {
+      const profile = currentBrowserProfileName();
+      await request(`/api/config?profile=${encodeURIComponent(profile)}`, {method: "PUT", body: JSON.stringify({profile, config: {browser: {use_real_profile: next}}})});
+      state.browserProfileOriginal = next;
+      state.browserProfileName = profile;
+      text(document.getElementById("cockpit-browser-mode"), next ? "Copied personal profile" : "Isolated browser");
+      text(document.getElementById("cockpit-browser-mode-help"), next ? "Hermes uses an isolated copy of your browser data for signed-in sites." : "Uses Hermes' private Chromium profile, separate from your personal browser.");
+      setBotStatus("Browser privacy setting saved");
+    } catch (error) {
+      input.checked = state.browserProfileOriginal;
+      setBotStatus(error.message || "Could not save browser privacy setting");
+    } finally {
+      button.textContent = "Apply browser privacy setting";
+      updateBrowserProfileSaveState();
+    }
+  }
+
+  function renderBrowserPreview(payload) {
+    const session = payload?.session || null;
+    state.browserPreviewSession = session;
+    const frame = document.getElementById("cockpit-browser-frame");
+    const empty = document.getElementById("cockpit-browser-empty");
+    const badge = document.getElementById("cockpit-browser-state");
+    if (!session) {
+      if (frame) { frame.hidden = true; frame.removeAttribute("src"); }
+      if (empty) { empty.hidden = false; empty.querySelector("strong").textContent = "Isolated Chromium is ready"; empty.querySelector("p").textContent = "When Hermes navigates or interacts with a page, the live browser appears here automatically."; }
+      text(badge, "idle");
+      text(document.getElementById("cockpit-browser-title"), "Hermes Browser");
+      text(document.getElementById("cockpit-browser-url"), "Waiting for browser activity");
+      return;
+    }
+    text(badge, session.preview_ready ? "live" : "start");
+    text(document.getElementById("cockpit-browser-title"), session.real_profile ? "Hermes Browser · copied profile" : "Hermes Browser · isolated");
+    text(document.getElementById("cockpit-browser-url"), session.url || "Browser session active");
+    if (!session.preview_ready || !frame) {
+      frame?.setAttribute("hidden", "");
+      if (empty) { empty.hidden = false; empty.querySelector("strong").textContent = "Browser is starting"; empty.querySelector("p").textContent = "Hermes has an active browser session; the first live frame will appear shortly."; }
+      return;
+    }
+    const next = `${apiUrl(`${CONTROL_PLANE}/browser-preview/${encodeURIComponent(session.id)}/frame`)}?t=${Date.now()}`;
+    frame.onload = () => { frame.hidden = false; if (empty) empty.hidden = true; };
+    frame.onerror = () => { frame.hidden = true; if (empty) empty.hidden = false; };
+    frame.src = next;
+  }
+
+  async function refreshBrowserPreview(force = false) {
+    if (state.browserPreviewInFlight && !force) return;
+    state.browserPreviewInFlight = true;
+    try {
+      const runtime = state.botSession?.runtimeId || "";
+      const query = runtime ? `?session_id=${encodeURIComponent(runtime)}` : "";
+      const payload = await request(`${CONTROL_PLANE}/browser-preview${query}`);
+      renderBrowserPreview(payload);
+    } catch (error) {
+      text(document.getElementById("cockpit-browser-state"), "offline");
+      text(document.getElementById("cockpit-browser-url"), error.message || "Browser preview unavailable");
+    } finally {
+      state.browserPreviewInFlight = false;
+    }
+  }
+
+  function startBrowserPreview() {
+    stopBrowserPreview();
+    loadBrowserProfileSetting();
+    refreshBrowserPreview(true);
+    state.browserPreviewTimer = window.setInterval(refreshBrowserPreview, 1200);
   }
 
   function setWorkspaceMode(mode) {
@@ -857,6 +989,12 @@
     else state.botActivity.push(next);
     if (state.botActivity.length > 60) state.botActivity.splice(0, state.botActivity.length - 60);
     renderBotActivity();
+    const browserTool = String(payload.name || payload.labels?.title || "").toLowerCase();
+    if (browserTool.startsWith("browser_") || browserTool.includes("browser navigate") || browserTool.includes("browser click") || browserTool.includes("browser type") || browserTool.includes("browser scroll")) {
+      selectInspectorTab("browser");
+      root.dataset.inspectorOpen = "true";
+      refreshBrowserPreview(true);
+    }
   }
 
   async function refreshBotSubagents() {

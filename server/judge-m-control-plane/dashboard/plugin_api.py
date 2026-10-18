@@ -3,17 +3,20 @@
 from __future__ import annotations
 
 import asyncio
+import base64
+import hashlib
 import importlib.util
 import json
 import os
 from pathlib import Path
+import secrets
 import sys
 import time
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException, Response
 
 
 router = APIRouter()
@@ -34,6 +37,8 @@ LINKS = [
 
 _CACHE: dict[str, Any] = {"at": 0.0, "payload": None}
 PREFERENCES_FILE = Path(os.environ.get("HERMES_HOME", "/root/.hermes")) / "judge-m-control-plane" / "model-menu.json"
+_BROWSER_PREVIEW_SALT = secrets.token_bytes(32)
+_BROWSER_FRAME_LIMIT = 8 * 1024 * 1024
 
 
 def _fetch_json(url: str, timeout: float = 4.0) -> dict[str, Any]:
@@ -185,6 +190,132 @@ async def save_model_menu(body: dict[str, Any]):
     preferences = _clean_model_preferences(body)
     await asyncio.to_thread(_write_model_preferences, preferences)
     return {"ok": True, "preferences": preferences}
+
+
+def _browser_preview_id(session_key: str) -> str:
+    return hashlib.sha256(_BROWSER_PREVIEW_SALT + session_key.encode("utf-8", "replace")).hexdigest()[:24]
+
+
+def _browser_preview_rows(requested_session: str = "") -> list[dict[str, Any]]:
+    """Return authenticated, redacted metadata for live agent-browser sessions.
+
+    The browser socket, CDP URL, raw task key, and copied-profile location never leave
+    the server.  Cockpit gets only an opaque process-local id and display metadata.
+    """
+
+    try:
+        from tools import browser_tool
+        from tools.browser_supervisor import SUPERVISOR_REGISTRY
+    except Exception:
+        return []
+
+    lock = getattr(browser_tool, "_cleanup_lock", None)
+    if lock is None:
+        active = dict(getattr(browser_tool, "_active_sessions", {}))
+        activity = dict(getattr(browser_tool, "_session_last_activity", {}))
+    else:
+        with lock:
+            active = dict(getattr(browser_tool, "_active_sessions", {}))
+            activity = dict(getattr(browser_tool, "_session_last_activity", {}))
+
+    rows = []
+    for session_key, raw in active.items():
+        info = raw if isinstance(raw, dict) else {}
+        owner = str(info.get("owner_task_id") or "")
+        if requested_session and requested_session not in {session_key, owner} and not session_key.startswith(f"{requested_session}::"):
+            continue
+        supervisor_key = session_key
+        supervisor = SUPERVISOR_REGISTRY.get(session_key)
+        if supervisor is None and owner:
+            supervisor = SUPERVISOR_REGISTRY.get(owner)
+            if supervisor is not None:
+                supervisor_key = owner
+        url, title, preview_ready = "", "", False
+        if supervisor is not None:
+            try:
+                snapshot = supervisor.snapshot()
+                preview_ready = bool(getattr(snapshot, "active", False))
+                tree = getattr(snapshot, "frame_tree", None)
+                top = tree.get("top", {}) if isinstance(tree, dict) else {}
+                url = str(top.get("url") or "")
+            except Exception:
+                preview_ready = False
+        features = info.get("features") if isinstance(info.get("features"), dict) else {}
+        rows.append({
+            "id": _browser_preview_id(session_key),
+            "supervisor_key": supervisor_key,
+            "url": url,
+            "title": title,
+            "preview_ready": preview_ready,
+            "real_profile": bool(features.get("real_profile")),
+            "backend": str(info.get("backend") or info.get("provider") or "local Chromium"),
+            "last_activity": float(activity.get(session_key) or 0),
+        })
+    rows.sort(key=lambda row: row["last_activity"], reverse=True)
+    return rows
+
+
+def _browser_preview_public(row: dict[str, Any]) -> dict[str, Any]:
+    return {key: value for key, value in row.items() if key != "supervisor_key"}
+
+
+def _capture_browser_preview(preview_id: str) -> bytes:
+    from tools.browser_supervisor import SUPERVISOR_REGISTRY
+
+    row = next((candidate for candidate in _browser_preview_rows() if candidate["id"] == preview_id), None)
+    if row is None:
+        raise HTTPException(status_code=404, detail="That browser session is no longer active.")
+    if not row["preview_ready"]:
+        raise HTTPException(status_code=409, detail="The browser is starting; a live frame is not ready yet.")
+    try:
+        capture = SUPERVISOR_REGISTRY.capture(row["supervisor_key"], timeout=3.0)
+        reply = capture.call(
+            "Page.captureScreenshot",
+            {"format": "jpeg", "quality": 76, "fromSurface": True, "optimizeForSpeed": True},
+            session_id=capture.page_session_id,
+            timeout=5.0,
+        )
+        encoded = ((reply.get("result") or {}).get("data") or "") if isinstance(reply, dict) else ""
+        frame = base64.b64decode(encoded, validate=True)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=409, detail="The live browser frame is temporarily unavailable.") from exc
+    if not frame or len(frame) > _BROWSER_FRAME_LIMIT:
+        raise HTTPException(status_code=502, detail="Hermes returned an invalid browser frame.")
+    return frame
+
+
+@router.get("/browser-preview")
+async def browser_preview(session_id: str = ""):
+    """Describe the most relevant active isolated browser without exposing CDP."""
+
+    requested_session = session_id.strip()
+    if not requested_session:
+        return {"ok": True, "active": False, "session": None, "active_count": 0, "mode": "live-cdp-frame"}
+    rows = await asyncio.to_thread(_browser_preview_rows, requested_session)
+    return {
+        "ok": True,
+        "active": bool(rows),
+        "session": _browser_preview_public(rows[0]) if rows else None,
+        "active_count": len(rows),
+        "mode": "live-cdp-frame",
+    }
+
+
+@router.get("/browser-preview/{preview_id}/frame")
+async def browser_preview_frame(preview_id: str):
+    """Capture one compressed frame through Hermes' in-process CDP supervisor."""
+
+    if not preview_id or len(preview_id) != 24 or any(char not in "0123456789abcdef" for char in preview_id):
+        raise HTTPException(status_code=404, detail="Unknown browser preview.")
+    frame = await asyncio.to_thread(_capture_browser_preview, preview_id)
+    etag = hashlib.sha256(frame).hexdigest()[:24]
+    return Response(
+        content=frame,
+        media_type="image/jpeg",
+        headers={"Cache-Control": "no-store, private", "ETag": f'"{etag}"', "X-Content-Type-Options": "nosniff"},
+    )
 
 
 def _mount_cli_bridge() -> None:

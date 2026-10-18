@@ -1242,6 +1242,159 @@ body[data-hermes-client="true"] main > div > div:nth-child(2) {
   padding-top: .65rem;
 }
 
+.cockpit-browser-preview {
+  display: grid;
+  gap: .65rem;
+}
+
+.cockpit-browser-bar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: .65rem;
+}
+
+.cockpit-browser-bar > div {
+  min-width: 0;
+  display: grid;
+  gap: .2rem;
+}
+
+.cockpit-browser-bar strong {
+  color: #eceff4;
+  font-size: .76rem;
+}
+
+.cockpit-browser-bar span:not(.material-symbols-outlined) {
+  overflow: hidden;
+  color: #718096;
+  font: 500 .6rem/1.35 "JetBrains Mono", monospace;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cockpit-browser-bar button {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 1.8rem;
+  height: 1.8rem;
+  border: 1px solid #434c5e;
+  border-radius: .4rem;
+  background: #242433;
+  color: #d8dee9;
+  cursor: pointer;
+}
+
+.cockpit-browser-bar .material-symbols-outlined {
+  font-size: 1rem;
+}
+
+.cockpit-browser-stage {
+  position: relative;
+  overflow: hidden;
+  min-height: 12rem;
+  border: 1px solid #34384d;
+  border-radius: .65rem;
+  background: #0d0d1c;
+}
+
+.cockpit-browser-stage img {
+  display: block;
+  width: 100%;
+  min-height: 12rem;
+  max-height: 29rem;
+  object-fit: contain;
+  object-position: top center;
+  background: #0d0d1c;
+}
+
+.cockpit-browser-stage img[hidden] {
+  display: none;
+}
+
+.cockpit-browser-empty {
+  min-height: 12rem;
+  display: grid;
+  place-content: center;
+  gap: .35rem;
+  padding: 1.2rem;
+  color: #718096;
+  text-align: center;
+}
+
+.cockpit-browser-empty .material-symbols-outlined {
+  color: #88c0d0;
+  font-size: 1.7rem;
+}
+
+.cockpit-browser-empty strong {
+  color: #d8dee9;
+  font-size: .75rem;
+}
+
+.cockpit-browser-empty p,
+.cockpit-browser-privacy p {
+  margin: 0;
+  color: #718096;
+  font-size: .64rem;
+  line-height: 1.5;
+}
+
+.cockpit-browser-privacy {
+  display: grid;
+  gap: .55rem;
+  border: 1px solid #34384d;
+  border-radius: .6rem;
+  background: #151522;
+  padding: .7rem;
+}
+
+.cockpit-browser-privacy > div {
+  display: grid;
+  gap: .2rem;
+}
+
+.cockpit-browser-privacy strong {
+  color: #d8dee9;
+  font-size: .7rem;
+}
+
+.cockpit-browser-privacy > div > span {
+  color: #94a3b8;
+  font-size: .63rem;
+  line-height: 1.4;
+}
+
+.cockpit-browser-profile-toggle {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  color: #eceff4;
+  font-size: .68rem;
+  font-weight: 650;
+}
+
+.cockpit-browser-profile-toggle input {
+  accent-color: #88c0d0;
+}
+
+#cockpit-save-browser-profile {
+  min-height: 2rem;
+  border: 1px solid #4c566a;
+  border-radius: .42rem;
+  background: #282a36;
+  color: #eceff4;
+  cursor: pointer;
+  font-size: .65rem;
+  font-weight: 650;
+}
+
+#cockpit-save-browser-profile:disabled {
+  cursor: default;
+  opacity: .42;
+}
+
 .cockpit-secondary-action {
   width: 100%;
   border: 1px solid #434c5e;

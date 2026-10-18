@@ -77,6 +77,10 @@ const settingsRuntime = read('dist/settings-workspace.js');
 assert.ok(settingsRuntime.includes('function settingDescription') && settingsRuntime.includes('setting-technical'), 'Settings do not provide plain-language descriptions with optional technical details');
 assert.ok(settingsRuntime.includes('dataset.format="lines"') && settingsRuntime.includes('dataset.format==="lines"'), 'Primitive list settings are not presented as line-based editors');
 assert.ok(!settingsRuntime.includes('key.className="setting-path"'), 'Raw config keys are still exposed as primary setting labels');
+const liveRuntime = read('dist/hermes-client.js');
+const controlPlaneRuntime = read('server/judge-m-control-plane/dashboard/plugin_api.py');
+assert.ok(liveRuntime.includes('data-inspector-tab="browser"') && liveRuntime.includes('/browser-preview') && liveRuntime.includes('use_real_profile'), 'Live chat is missing the native browser preview or privacy control');
+assert.ok(controlPlaneRuntime.includes('@router.get("/browser-preview")') && controlPlaneRuntime.includes('Page.captureScreenshot') && controlPlaneRuntime.includes('_BROWSER_PREVIEW_SALT'), 'Control plane is missing the authenticated CDP frame adapter');
 for (const operation of ['/profiles', '/profiles/active', '/setup-command', '/soul', '/description', '/describe-auto', '/export', '/profiles/import', '/config/schema', '/config/defaults', '/config/raw']) {
   assert.ok(settingsRuntime.includes(operation), `Profiles & Settings is missing ${operation}`);
 }

@@ -20,6 +20,8 @@ Hermes Cockpit is a mobile-friendly browser interface for [Hermes Agent](https:/
 - A dedicated Bot Mode chat workspace backed by Hermes' gateway protocol, including the same profile metadata used by Hermes Desktop
 - Resume each bot's canonical hidden `Bot Chat`, including its existing conversation history, or create it when one does not exist
 - Native Bot Mode transcript with independently scrollable conversation, live task state, subagent status, and tool activity from Hermes gateway events
+- A native Browser inspector beside Chat and Bot Mode that automatically opens during Hermes browser-tool activity and shows live frames from Hermes' isolated Chromium session
+- Browser privacy controls that clearly distinguish the isolated browser from the optional copied personal-browser profile
 - Keyboard input, mobile composer input, terminal selection, copy, and paste
 - Hermes' existing sign-in flow; Cockpit does not store provider credentials
 - Responsive desktop and mobile layouts
@@ -102,11 +104,21 @@ Cockpit keeps a random terminal attachment ID in browser session storage. This l
 
 Selecting a different model sends Hermes' native `/model` command to the current chat. Opening a Bot Mode entry resolves the same canonical `Bot Chat` session used by Hermes Desktop and resumes its real transcript. It does not rewrite provider configuration or expose provider secrets to the page.
 
+## Live Browser preview
+
+Open **Browser** in the chat inspector to watch the Chromium session used by Hermes' browser tools. Cockpit automatically selects this panel when it sees browser navigation, clicking, typing, or scrolling activity. The same panel is available in desktop and mobile layouts; it does not require Hermes Desktop, VNC, or a separate browser window.
+
+The preview is a real read-only capture of the active Hermes browser page. The control-plane plugin discovers the in-process browser supervisor and captures a compressed frame through its trusted CDP connection. Cockpit receives only an opaque preview ID, the current page URL, status metadata, and the rendered image. It never receives a DevTools address, browser socket, raw Hermes task key, or copied-profile filesystem path.
+
+Hermes normally runs browser automation in its isolated Chromium environment. **Use a copied personal browser profile** is an explicit per-profile option for sites that need existing login sessions. A copied profile can contain cookies and other authenticated browser state, so Cockpit shows a warning before enabling it and never points automation at the live profile directory. Changes apply to subsequent browser sessions.
+
 ## Security notes
 
 - Put Hermes behind HTTPS and authentication before exposing it beyond localhost.
 - Keep Cockpit and Hermes on the same trusted origin so Hermes' secure session cookie can protect the API.
 - Do not replace the WebSocket ticket flow with a long-lived token in JavaScript.
+- Never expose Chromium's CDP/DevTools endpoint directly to the LAN or Tailscale. Keep browser preview behind Hermes' authenticated, same-origin plugin API.
+- Treat copied personal-browser profiles as credentials. Prefer isolated Chromium and enable the copied-profile option only for a profile that needs it.
 - The repository contains no credentials. The vendored xterm runtime is included under its MIT license.
 
 ## Repository layout
@@ -122,7 +134,7 @@ Selecting a different model sends Hermes' native `/model` command to the current
 - `dist/acp-telemetry.html` — live read-only endpoint telemetry and redacted snapshots
 - `dist/runtime-config-settings.html` — the unified Manage workspace: profile identity, full schema configuration, and 524 guided actions across 16 management areas
 - `dist/backend-control.html` and `dist/cli-control.html` — compatibility URLs that redirect older bookmarks into Manage → Actions
-- `server/judge-m-control-plane/` — Hermes dashboard plugin extension that mounts the authenticated, allowlisted command bridge
+- `server/judge-m-control-plane/` — Hermes dashboard plugin extension that mounts the authenticated command bridge and read-only browser-preview adapter
 - `BACKEND-COVERAGE.md` — backend-to-interface coverage ledger and acceptance rule
 - `CLI-COVERAGE.md` — installed Hermes command coverage summary and secure bridge requirements
 - `CAPABILITY-INVENTORY.md` — generated human-readable list of all 422 canonical CLI command nodes and all 348 OpenAPI operations

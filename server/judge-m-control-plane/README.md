@@ -16,6 +16,8 @@ The bridge is intentionally narrow:
 
 Hermes' global dashboard cookie/token middleware protects every `/api/plugins/*` endpoint before its plugin runtime gate and route handler. `plugin_api.py` mounts `cli_bridge.py` under that normal plugin API prefix and the bridge additionally requires a stable authenticated dashboard identity for all job access; there is no browser-accessible arbitrary shell.
 
+The same plugin provides a read-only Browser preview adapter. It uses Hermes' trusted in-process browser supervisor to capture the active page through CDP, but never returns the CDP address, browser socket, raw task identifier, or copied-profile path to the browser. Preview identifiers are opaque, process-local values and frames are returned with private, no-store caching headers.
+
 ## Endpoints
 
 - `GET /cli-operations` — typed operation catalog
@@ -23,5 +25,7 @@ Hermes' global dashboard cookie/token middleware protects every `/api/plugins/*`
 - `GET /cli-jobs` and `GET /cli-jobs/{job_id}` — inspect work and bounded output
 - `POST /cli-jobs/{job_id}/input` — answer an interactive prompt
 - `DELETE /cli-jobs/{job_id}` — stop the process group
+- `GET /browser-preview?session_id=...` — list preview-safe metadata for the caller's active Hermes browser session
+- `GET /browser-preview/{preview_id}/frame` — capture the current browser page as an authenticated JPEG frame
 
-The frontend for these endpoints is `dist/cli-control.html` in the repository root.
+The command frontend is the Manage workspace in `dist/runtime-config-settings.html`. The Browser preview is part of the inspector rail in `dist/live-control.html` and `dist/bot-mode.html`.
