@@ -1,0 +1,140 @@
+diff --git a/hermes_cli/middleware.py b/hermes_cli/middleware.py
+index 753b664..0da5acf 100644
+--- a/hermes_cli/middleware.py
++++ b/hermes_cli/middleware.py
+@@ -20,9 +20,11 @@ TOOL_REQUEST_MIDDLEWARE = "tool_request"
+ TOOL_EXECUTION_MIDDLEWARE = "tool_execution"
+ LLM_REQUEST_MIDDLEWARE = "llm_request"
+ LLM_EXECUTION_MIDDLEWARE = "llm_execution"
++MODEL_ROUTE_MIDDLEWARE = "model_route"
+ 
+ VALID_MIDDLEWARE: set[str] = {
+     TOOL_REQUEST_MIDDLEWARE, TOOL_EXECUTION_MIDDLEWARE, LLM_REQUEST_MIDDLEWARE, LLM_EXECUTION_MIDDLEWARE,
++    MODEL_ROUTE_MIDDLEWARE,
+ }
+ 
+ 
+@@ -132,6 +134,26 @@ def apply_tool_request_middleware(
+     )
+ 
+ 
++def apply_model_route_middleware(
++    slot: str, route: dict[str, Any], **context: Any,
++) -> RequestMiddlewareResult:
++    """Allow plugins to replace a resolved route with another concrete provider/model.
++
++    Callers remain responsible for validating and resolving credentials for the
++    returned route.  This middleware cannot execute a model or bypass provider
++    authentication; failures retain the route Hermes already resolved.
++    """
++    from hermes_cli.plugins import has_middleware
++
++    if not has_middleware(MODEL_ROUTE_MIDDLEWARE):
++        return RequestMiddlewareResult(payload=route, original_payload=route)
++    original_route = _safe_copy(route)
++    return _apply_request_chain(
++        MODEL_ROUTE_MIDDLEWARE, "route", [], original_route,
++        slot=slot, route=_safe_copy(original_route), original_route=original_route, **context,
++    )
++
++
+ def run_llm_execution_middleware(
+     request: dict[str, Any], next_call: Callable[[dict[str, Any]], Any], **context: Any) -> Any:
+     """Run provider execution through registered LLM execution middleware."""
+diff --git a/tools/delegate_tool.py b/tools/delegate_tool.py
+index dc3b7af..6730151 100644
+--- a/tools/delegate_tool.py
++++ b/tools/delegate_tool.py
+@@ -409,7 +409,7 @@ def _build_children(
+     ``(children, None)`` or ``([], error)`` on an explicit-pin preflight failure."""
+     from tools.delegation_live_log import wrap_progress_callback
+     from tools.delegation_output_schema import append_output_contract
+-    overrides = {
++    base_overrides = {
+         "override_provider": creds["provider"], "override_base_url": creds["base_url"],
+         "override_api_key": creds["api_key"], "override_api_mode": creds["api_mode"],
+         "override_request_overrides": creds.get("request_overrides"),
+@@ -419,6 +419,38 @@ def _build_children(
+     }
+     children = []
+     for i, t in enumerate(task_list):
++        child_creds = creds
++        child_routing_cfg = routing_cfg
++        try:
++            from hermes_cli.middleware import apply_model_route_middleware
++
++            route_result = apply_model_route_middleware(
++                "subagent",
++                {"provider": creds.get("provider"), "model": creds.get("model")},
++                task="delegate_task", goal=t.get("goal") or "", prompt="\n".join(
++                    value for value in (str(t.get("goal") or ""), str(t.get("context") or "")) if value
++                ),
++                session_id=str(getattr(parent_agent, "session_id", "") or ""),
++                profile_name=str(getattr(parent_agent, "profile_name", "") or ""),
++            )
++            routed = route_result.payload
++            if route_result.changed and isinstance(routed, dict) and routed.get("provider") and routed.get("model"):
++                child_routing_cfg = {
++                    **(routing_cfg if isinstance(routing_cfg, dict) else {}),
++                    "provider": routed["provider"], "model": routed["model"],
++                }
++                child_creds = _resolve_delegation_credentials(child_routing_cfg, parent_agent)
++        except Exception as exc:
++            logger.warning("Subagent semantic route failed; retaining native route: %s", exc)
++        overrides = {
++            **base_overrides,
++            "override_provider": child_creds["provider"], "override_base_url": child_creds["base_url"],
++            "override_api_key": child_creds["api_key"], "override_api_mode": child_creds["api_mode"],
++            "override_request_overrides": child_creds.get("request_overrides"),
++            "override_acp_command": child_creds.get("command"),
++            "override_acp_args": child_creds.get("args"),
++            "routing_cfg": child_routing_cfg,
++        }
+         _task_schema = task_schemas[i] if i < len(task_schemas) else None
+         _child_context = t.get("context")
+         if _task_schema is not None:
+@@ -427,7 +459,7 @@ def _build_children(
+             child = _build_child_preserving_parent_tools(
+                 task_index=i, goal=t["goal"], context=_child_context,
+                 toolsets=None,  # always inherit the parent's toolsets
+-                model=creds["model"], max_iterations=max_iterations, task_count=len(task_list),
++                model=child_creds["model"], max_iterations=max_iterations, task_count=len(task_list),
+                 parent_agent=parent_agent, role=_normalize_role(t.get("role") or top_role), **overrides,
+             )
+         except ValueError as exc:
+diff --git a/agent/auxiliary_client.py b/agent/auxiliary_client.py
+index 10a5b18..117822d 100644
+--- a/agent/auxiliary_client.py
++++ b/agent/auxiliary_client.py
+@@ -7500,6 +7500,31 @@ def _prepare_aux_request(
+     back to the resolved base_url when the client exposes none."""
+     resolved_provider, resolved_model, resolved_base_url, resolved_api_key, resolved_api_mode = _resolve_task_provider_model(
+         task, provider, model, base_url, api_key)
++    if task and task != "judge_m_semantic_router":
++        try:
++            from hermes_cli.middleware import apply_model_route_middleware
++
++            prompt_parts = []
++            for message in messages[-12:] if isinstance(messages, list) else []:
++                if not isinstance(message, dict):
++                    continue
++                content = message.get("content")
++                if isinstance(content, str):
++                    prompt_parts.append(content)
++            route_result = apply_model_route_middleware(
++                "auxiliary",
++                {"provider": resolved_provider, "model": resolved_model},
++                task=task, prompt="\n".join(prompt_parts)[-12000:],
++            )
++            routed = route_result.payload
++            if route_result.changed and isinstance(routed, dict) and routed.get("provider") and routed.get("model"):
++                provider, model = str(routed["provider"]), str(routed["model"])
++                base_url = api_key = None
++                resolved_provider, resolved_model, resolved_base_url, resolved_api_key, resolved_api_mode = (
++                    _resolve_task_provider_model(task, provider, model, base_url, api_key)
++                )
++        except Exception as exc:
++            logger.warning("Auxiliary semantic route failed for %s; retaining native route: %s", task, exc)
+     if api_mode:
+         resolved_api_mode = api_mode
+     effective_extra_body = _get_task_extra_body(task)

@@ -92,6 +92,9 @@
     selectedSubagent: null,
     subagentTail: "",
     botActivity: [],
+    routingDecisions: [],
+    routingTimer: null,
+    routingInFlight: false,
     botPollTimer: null,
     browserPreviewTimer: null,
     browserPreviewInFlight: false,
@@ -266,9 +269,10 @@
         <p class="cockpit-help">Switch this conversation without exposing provider credentials.</p>
       </section>
       <section class="cockpit-panel-section cockpit-live-state">
-        <div class="cockpit-inspector-tabs" role="tablist"><button type="button" data-inspector-tab="tasks" data-active="true">Tasks <span id="cockpit-task-count">0</span></button><button type="button" data-inspector-tab="agents">Subagents <span id="cockpit-subagent-count">0</span></button><button type="button" data-inspector-tab="browser">Browser <span id="cockpit-browser-state">idle</span></button><button type="button" data-inspector-tab="activity">Activity <span id="cockpit-activity-count">0</span></button></div>
+        <div class="cockpit-inspector-tabs" role="tablist"><button type="button" data-inspector-tab="tasks" data-active="true">Tasks <span id="cockpit-task-count">0</span></button><button type="button" data-inspector-tab="agents">Subagents <span id="cockpit-subagent-count">0</span></button><button type="button" data-inspector-tab="routing">Routing <span id="cockpit-routing-count">0</span></button><button type="button" data-inspector-tab="browser">Browser <span id="cockpit-browser-state">idle</span></button><button type="button" data-inspector-tab="activity">Activity <span id="cockpit-activity-count">0</span></button></div>
         <div class="cockpit-inspector-pane" data-inspector-pane="tasks"><div id="cockpit-task-list" class="cockpit-task-list"><p>No task list in this session.</p></div></div>
         <div class="cockpit-inspector-pane hidden" data-inspector-pane="agents"><div id="cockpit-subagent-list" class="cockpit-subagent-list"><p>No active subagents</p></div><div id="cockpit-subagent-detail" class="cockpit-subagent-detail hidden"><div class="cockpit-subagent-detail-head"><strong id="cockpit-subagent-detail-title">Subagent</strong><button id="cockpit-subagent-close" type="button" aria-label="Close subagent detail">×</button></div><pre id="cockpit-subagent-tail">Waiting for transcript…</pre><textarea id="cockpit-subagent-steer-text" rows="2" placeholder="Send guidance to this subagent"></textarea><div><button id="cockpit-subagent-steer" type="button">Send guidance</button><button id="cockpit-subagent-stop" type="button">Stop subagent</button></div></div></div>
+        <div class="cockpit-inspector-pane hidden" data-inspector-pane="routing"><div id="cockpit-routing-metrics" class="cockpit-routing-metrics">No routing metrics yet.</div><div id="cockpit-routing-list" class="cockpit-routing-list"><p>No semantic-routing decisions in this profile yet.</p></div></div>
         <div class="cockpit-inspector-pane hidden" data-inspector-pane="browser">
           <div class="cockpit-browser-preview">
             <div class="cockpit-browser-bar"><div><strong id="cockpit-browser-title">Hermes Browser</strong><span id="cockpit-browser-url">Waiting for browser activity</span></div><button type="button" id="cockpit-browser-refresh" title="Refresh browser preview"><span class="material-symbols-outlined">refresh</span></button></div>
@@ -550,6 +554,82 @@
     });
     if (name === "browser") startBrowserPreview();
     else stopBrowserPreview();
+    if (name === "routing") startRoutingPolling();
+    else stopRoutingPolling();
+  }
+
+  function stopRoutingPolling() {
+    if (state.routingTimer) window.clearInterval(state.routingTimer);
+    state.routingTimer = null;
+  }
+
+  function renderRoutingDecisions() {
+    const host = document.getElementById("cockpit-routing-list");
+    const metricsHost = document.getElementById("cockpit-routing-metrics");
+    text(document.getElementById("cockpit-routing-count"), state.routingDecisions.length);
+    if (metricsHost && state.routingMetrics) {
+      const metrics = state.routingMetrics;
+      metricsHost.textContent = `${metrics.decisions || 0} decisions · ${metrics.fallbacks || 0} fallbacks · ${metrics.cache_hits || 0} cache hits · p95 ${metrics.latency_ms?.p95 ?? "—"} ms`;
+    }
+    if (!host) return;
+    host.replaceChildren();
+    if (!state.routingDecisions.length) {
+      const empty = document.createElement("p");
+      empty.textContent = "No semantic-routing decisions in this profile yet.";
+      host.append(empty);
+      return;
+    }
+    for (const decision of state.routingDecisions.slice(0, 50)) {
+      const row = document.createElement("article");
+      row.className = "cockpit-routing-row";
+      row.dataset.fallback = decision.fallback ? "true" : "false";
+      const heading = document.createElement("div");
+      const title = document.createElement("strong");
+      const categoryLabels = { tools: "Authorized tools", memory: "Memory retrieval", escalation: "Safe escalation", verification: "Answer verification" };
+      title.textContent = categoryLabels[decision.category] || `${decision.slot || "model"}${decision.task ? ` · ${decision.task}` : ""}`;
+      const badge = document.createElement("span");
+      badge.textContent = decision.fallback ? "fallback" : decision.routed ? "routed" : "native";
+      heading.append(title, badge);
+      const selected = decision.selected ? `${decision.selected.provider} / ${decision.selected.model}` : Array.isArray(decision.selected_tools) ? decision.selected_tools.join(", ") : Array.isArray(decision.selected_memory) ? (decision.selected_memory.join(", ") || "Memory skipped") : Array.isArray(decision.verdicts) ? `${decision.verdicts.length} verifier result${decision.verdicts.length === 1 ? "" : "s"}` : "Native route retained";
+      const detail = document.createElement("p");
+      detail.textContent = selected;
+      const meta = document.createElement("small");
+      const score = typeof decision.reported_score === "number" ? ` · router score ${Math.round(decision.reported_score * 100)}%` : "";
+      const candidateInfo = Array.isArray(decision.eligible) ? ` · ${decision.eligible.length} eligible${Array.isArray(decision.excluded) && decision.excluded.length ? ` / ${decision.excluded.length} excluded` : ""}` : "";
+      const correlation = decision.correlation_id ? ` · id ${String(decision.correlation_id).slice(0, 8)}` : "";
+      const shadow = decision.shadow ? ` · shadow ${decision.shadow.disagreed ? "disagreed" : decision.shadow.error ? "failed" : "agreed"}` : "";
+      meta.textContent = `${decision.policy || "balanced"}${decision.adapter ? ` · ${decision.adapter}` : ""}${decision.latency_ms != null ? ` · ${decision.latency_ms} ms` : ""}${decision.cache_hit ? " · cache hit" : ""}${score}${candidateInfo}${shadow}${correlation}${decision.reason ? ` · ${decision.reason}` : ""}`;
+      row.append(heading, detail, meta);
+      host.append(row);
+    }
+  }
+
+  async function refreshRoutingDecisions() {
+    if (state.routingInFlight) return;
+    state.routingInFlight = true;
+    try {
+      const profile = state.botSession?.profile || state.profile || "default";
+      const session = state.runtimeId || state.botSession?.runtime_id || state.botSession?.session_id || "";
+      const query = `profile=${encodeURIComponent(profile)}${session ? `&session_id=${encodeURIComponent(session)}` : ""}&limit=50`;
+      const [payload, metrics] = await Promise.all([
+        request(`${CONTROL_PLANE}/semantic-routing/decisions?${query}`),
+        request(`${CONTROL_PLANE}/semantic-routing/metrics?profile=${encodeURIComponent(profile)}`),
+      ]);
+      state.routingDecisions = Array.isArray(payload?.decisions) ? payload.decisions : [];
+      state.routingMetrics = metrics?.metrics || null;
+      renderRoutingDecisions();
+    } catch (error) {
+      const host = document.getElementById("cockpit-routing-list");
+      if (host) host.textContent = `Routing inspector unavailable: ${error.message}`;
+    } finally {
+      state.routingInFlight = false;
+    }
+  }
+
+  function startRoutingPolling() {
+    stopRoutingPolling();
+    refreshRoutingDecisions();
+    state.routingTimer = window.setInterval(refreshRoutingDecisions, 2500);
   }
 
   function stopBrowserPreview() {
@@ -1301,16 +1381,45 @@
     }
   }
 
+  async function semanticSessionParams(profile, prompt, task = "") {
+    try {
+      const response = await request(`${CONTROL_PLANE}/semantic-routing/decide`, {
+        method: "POST",
+        body: JSON.stringify({
+          profile: profile || "default",
+          slot: "primary",
+          task,
+          prompt: String(prompt || "New Hermes conversation").slice(0, 12000),
+          session_id: state.sessionKey
+        })
+      });
+      const decision = response?.decision;
+      if (decision) {
+        state.routingDecisions = [decision, ...state.routingDecisions].slice(0, 50);
+        renderRoutingDecisions();
+      }
+      const selected = decision?.routed ? decision.selected : null;
+      if (selected?.provider && selected?.model) {
+        return { provider: selected.provider, model: selected.model };
+      }
+    } catch (_) {
+      // A router outage must never prevent Hermes from creating a session.
+    }
+    return {};
+  }
+
   async function newSession() {
     const profile = state.profile || document.getElementById("cockpit-profile-picker")?.value || "default";
     setConnection("connecting", "Creating chat…");
     try {
       ensureBotEventHandler();
+      const routed = await semanticSessionParams(profile, composer?.value || "New interactive chat");
       const created = await gateway().call("session.create", {
         profile,
         title: "New chat",
         hidden: false,
-        follow_profile_config: true
+        follow_profile_config: true,
+        ...routed
       }, 30000);
       const storedId = created?.stored_session_id || created?.session_id;
       if (!storedId) throw new Error("Hermes did not return a new session.");
@@ -1616,9 +1725,10 @@
     if (!picker) return;
     try {
       const profile = state.profile ? `?profile=${encodeURIComponent(state.profile)}` : "";
-      const [info, options] = await Promise.all([
+      const [info, options, menu] = await Promise.all([
         request(`/api/model/info${profile}`),
-        request(`/api/model/options${profile ? `${profile}&` : "?"}include_unconfigured=true`)
+        request(`/api/model/options${profile ? `${profile}&` : "?"}include_unconfigured=true`),
+        request(`${CONTROL_PLANE}/model-menu`).catch(() => null)
       ]);
       state.currentModel = info.model || "";
       text(document.getElementById("cockpit-model"), info.model ? `${info.provider || "provider"} / ${info.model}` : "Not configured");
@@ -1627,13 +1737,18 @@
       for (const provider of providers) {
         const group = document.createElement("optgroup");
         const providerId = provider.slug || provider.id || provider.provider || provider.name || "provider";
+        const preference = menu?.preferences?.providers?.[providerId] || {};
+        if (preference.enabled === false && info.provider !== providerId) continue;
+        const visible = new Set(Array.isArray(preference.visible_models) ? preference.visible_models : []);
+        const curated = preference.mode === "curated";
         group.label = provider.display_name || provider.name || providerId;
         for (const model of provider.models || []) {
           const name = modelName(model);
           if (!name) continue;
+          if (curated && !visible.has(name) && name !== info.model) continue;
           const option = document.createElement("option");
           option.value = name;
-          option.textContent = name;
+          option.textContent = preference.labels?.[name] || name;
           option.dataset.provider = providerId;
           if (name === info.model) option.selected = true;
           group.append(option);
@@ -1725,11 +1840,13 @@
     });
     const existing = (lookup?.sessions || []).find((row) => row?.title === "Bot Chat" || row?.root_title === "Bot Chat");
     if (existing?.id) return { ...existing, resumeId: existing.resolved_id || existing.id };
+    const routed = await semanticSessionParams(name, `${botTitle(profile)} persistent Bot Chat`, "bot_chat");
     const created = await rpc.call("session.create", {
       profile: name,
       title: "Bot Chat",
       hidden: true,
-      follow_profile_config: true
+      follow_profile_config: true,
+      ...routed
     });
     const runtimeId = created?.session_id;
     const storedId = created?.stored_session_id;

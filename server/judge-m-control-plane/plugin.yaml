@@ -1,5 +1,5 @@
 name: judge-m-control-plane
-version: 0.3.0
-description: "Responsive Judge-M infrastructure overview, model catalog, and typed CLI controls for Hermes."
+version: 0.4.0
+description: "Responsive Judge-M control plane with model, semantic-routing, browser, and typed CLI controls for Hermes."
 author: "Judge-M"
 kind: standalone

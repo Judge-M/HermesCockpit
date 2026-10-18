@@ -6,6 +6,7 @@ import asyncio
 import base64
 import hashlib
 import importlib.util
+import ipaddress
 import json
 import os
 from pathlib import Path
@@ -14,6 +15,7 @@ import sys
 import time
 from typing import Any
 from urllib.error import HTTPError, URLError
+from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
 from fastapi import APIRouter, HTTPException, Response
@@ -96,6 +98,13 @@ def _clean_model_preferences(body: dict[str, Any]) -> dict[str, Any]:
             if model_id and model_id.lower() not in seen and len(visible) < 512:
                 seen.add(model_id.lower())
                 visible.append(model_id)
+        routing = []
+        routing_seen = set()
+        for value in raw.get("routing_models") or []:
+            model_id = str(value).strip()[:256]
+            if model_id and model_id.lower() not in routing_seen and len(routing) < 512:
+                routing_seen.add(model_id.lower())
+                routing.append(model_id)
         labels = {}
         if isinstance(raw.get("labels"), dict):
             for model_id, label in list(raw["labels"].items())[:512]:
@@ -106,6 +115,7 @@ def _clean_model_preferences(body: dict[str, Any]) -> dict[str, Any]:
             "enabled": bool(raw.get("enabled", True)),
             "mode": "curated" if raw.get("mode") == "curated" else "all",
             "visible_models": visible,
+            "routing_models": routing,
             "labels": labels,
         }
     order = []
@@ -137,6 +147,18 @@ def _model_catalog(refresh: bool = False) -> dict[str, Any]:
         models = [str(model) for model in (raw.get("models") or []) if str(model).strip()]
         authenticated = bool(raw.get("authenticated"))
         user_defined = bool(raw.get("is_user_defined"))
+        endpoint = str(
+            raw.get("base_url") or raw.get("api_url") or raw.get("endpoint") or raw.get("api_base") or ""
+        ).strip()
+        local = bool(raw.get("local") is True or raw.get("is_local") is True)
+        if endpoint and not local:
+            host = (urlparse(endpoint).hostname or "").strip("[]").lower()
+            try:
+                address = ipaddress.ip_address(host)
+                local = bool((address.is_private or address.is_loopback) and not address.is_link_local)
+            except ValueError:
+                local = host == "localhost" or host.endswith(".local")
+        metadata = raw.get("model_metadata") if isinstance(raw.get("model_metadata"), dict) else {}
         rows.append({
             "slug": slug,
             "name": str(raw.get("name") or raw.get("label") or slug),
@@ -148,6 +170,8 @@ def _model_catalog(refresh: bool = False) -> dict[str, Any]:
             "total_models": int(raw.get("total_models") or len(models)),
             "warning": str(raw.get("warning") or ""),
             "source": str(raw.get("source") or ""),
+            "local": local,
+            "model_metadata": metadata,
         })
     return {
         "providers": rows,
@@ -190,6 +214,133 @@ async def save_model_menu(body: dict[str, Any]):
     preferences = _clean_model_preferences(body)
     await asyncio.to_thread(_write_model_preferences, preferences)
     return {"ok": True, "preferences": preferences}
+
+
+def _load_semantic_routing_module():
+    """Load the runtime module when dashboard APIs are mounted standalone by Hermes."""
+
+    module_name = "judge_m_control_plane_semantic_routing"
+    cached = sys.modules.get(module_name)
+    if cached is not None:
+        return cached
+    module_path = Path(__file__).parent.parent / "semantic_routing.py"
+    spec = importlib.util.spec_from_file_location(module_name, module_path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Could not load semantic routing module from {module_path}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    try:
+        spec.loader.exec_module(module)
+    except Exception:
+        sys.modules.pop(module_name, None)
+        raise
+    return module
+
+
+@router.get("/semantic-routing")
+async def semantic_routing_config(profile: str = "default"):
+    """Return profile-scoped native semantic-routing controls and eligible models."""
+
+    module = _load_semantic_routing_module()
+    catalog = await asyncio.to_thread(_model_catalog, False)
+    config = await asyncio.to_thread(module.load_config, profile)
+    candidates = [candidate.public() for candidate in module.candidates_from_catalog(catalog, config["policy"])]
+    return {"ok": True, "profile": profile, "config": config, "candidates": candidates}
+
+
+@router.put("/semantic-routing")
+async def save_semantic_routing_config(body: dict[str, Any], profile: str = "default"):
+    """Validate and atomically persist profile-scoped semantic-routing controls."""
+
+    module = _load_semantic_routing_module()
+    try:
+        config = await asyncio.to_thread(module.save_config, profile, body)
+    except (ValueError, OSError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"ok": True, "profile": profile, "config": config}
+
+
+@router.post("/semantic-routing/decide")
+async def semantic_routing_decide(body: dict[str, Any]):
+    """Resolve one requested slot to a concrete eligible Hermes provider/model pair."""
+
+    module = _load_semantic_routing_module()
+    profile = str(body.get("profile") or "default")
+    catalog = await asyncio.to_thread(_model_catalog, False)
+    config = await asyncio.to_thread(module.load_config, profile)
+    authoritative = [candidate.public() for candidate in module.candidates_from_catalog(catalog, "balanced")]
+    requested = body.get("candidates")
+    if isinstance(requested, list):
+        requested_keys = {
+            f"{str(row.get('provider') or '').lower()}/{str(row.get('model') or '')}".lower()
+            for row in requested if isinstance(row, dict)
+        }
+        candidates = [row for row in authoritative if f"{row['provider']}/{row['model']}".lower() in requested_keys]
+    else:
+        candidates = authoritative
+    result = await asyncio.to_thread(
+        module.decide,
+        profile=profile,
+        slot=str(body.get("slot") or "primary"),
+        task=str(body.get("task") or ""),
+        prompt=str(body.get("prompt") or "")[:12000],
+        candidates=candidates,
+        native=body.get("native") if isinstance(body.get("native"), dict) else {},
+        session_id=str(body.get("session_id") or ""),
+        requirements=body.get("requirements") if isinstance(body.get("requirements"), dict) else {},
+    )
+    return {"ok": True, "decision": result}
+
+
+@router.get("/semantic-routing/decisions")
+async def semantic_routing_decisions(profile: str = "", session_id: str = "", limit: int = 50):
+    """Return bounded, prompt-redacted routing records for Cockpit's inspector."""
+
+    module = _load_semantic_routing_module()
+    return {"ok": True, "decisions": module.decision_traces(profile=profile, session_id=session_id, limit=limit)}
+
+
+@router.get("/semantic-routing/metrics")
+async def semantic_routing_metrics(profile: str = ""):
+    module = _load_semantic_routing_module()
+    return {"ok": True, "metrics": module.routing_metrics(profile=profile)}
+
+
+@router.post("/semantic-routing/escalate")
+async def semantic_routing_escalate(body: dict[str, Any]):
+    module = _load_semantic_routing_module()
+    profile = str(body.get("profile") or "default")
+    catalog = await asyncio.to_thread(_model_catalog, False)
+    candidates = [candidate.public() for candidate in module.candidates_from_catalog(catalog, "balanced")]
+    decision = await asyncio.to_thread(
+        module.evaluate_escalation, profile=profile, session_id=str(body.get("session_id") or ""),
+        current=body.get("current") if isinstance(body.get("current"), dict) else {}, candidates=candidates,
+        error_count=int(body.get("error_count") or 0), side_effects=bool(body.get("side_effects")),
+    )
+    return {"ok": True, "decision": decision}
+
+
+@router.post("/semantic-routing/verify")
+async def semantic_routing_verify(body: dict[str, Any]):
+    module = _load_semantic_routing_module()
+    result = await asyncio.to_thread(
+        module.verify_output, profile=str(body.get("profile") or "default"),
+        prompt=str(body.get("prompt") or "")[:12000], output=str(body.get("output") or "")[:100000],
+        session_id=str(body.get("session_id") or ""),
+    )
+    return {"ok": True, "verification": result}
+
+
+@router.post("/semantic-routing/outcome")
+async def semantic_routing_outcome(body: dict[str, Any]):
+    module = _load_semantic_routing_module()
+    saved = module.record_outcome(
+        decision_id=str(body.get("decision_id") or ""),
+        outcome=body.get("outcome") if isinstance(body.get("outcome"), dict) else {},
+    )
+    if not saved:
+        raise HTTPException(status_code=404, detail="Routing decision is no longer in the bounded trace window")
+    return {"ok": True}
 
 
 def _browser_preview_id(session_key: str) -> str:

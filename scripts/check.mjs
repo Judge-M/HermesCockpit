@@ -81,6 +81,21 @@ const liveRuntime = read('dist/hermes-client.js');
 const controlPlaneRuntime = read('server/judge-m-control-plane/dashboard/plugin_api.py');
 assert.ok(liveRuntime.includes('data-inspector-tab="browser"') && liveRuntime.includes('/browser-preview') && liveRuntime.includes('use_real_profile'), 'Live chat is missing the native browser preview or privacy control');
 assert.ok(controlPlaneRuntime.includes('@router.get("/browser-preview")') && controlPlaneRuntime.includes('Page.captureScreenshot') && controlPlaneRuntime.includes('_BROWSER_PREVIEW_SALT'), 'Control plane is missing the authenticated CDP frame adapter');
+assert.ok(liveRuntime.includes('data-inspector-tab="routing"') && liveRuntime.includes('/semantic-routing/decisions') && liveRuntime.includes('semanticSessionParams'), 'Live chat is missing primary semantic routing or its decision inspector');
+assert.ok(controlPlaneRuntime.includes('@router.put("/semantic-routing")') && controlPlaneRuntime.includes('@router.post("/semantic-routing/decide")'), 'Control plane is missing native semantic-routing APIs');
+for (const route of ['/semantic-routing/metrics', '/semantic-routing/escalate', '/semantic-routing/verify', '/semantic-routing/outcome']) {
+  assert.ok(controlPlaneRuntime.includes(route), `Control plane is missing ${route}`);
+}
+const modelWorkspace = read('dist/models-providers.html');
+assert.ok(modelWorkspace.includes('id="semantic-enabled"') && modelWorkspace.includes('Semantic Auto') && modelWorkspace.includes('data-model-routing'), 'Models workspace is missing routing policy, slot modes, or eligibility controls');
+for (const control of ['semantic-default-mode', 'semantic-tool-provider', 'semantic-memory-provider', 'semantic-shadow-provider', 'semantic-escalation', 'semantic-verification', 'semantic-cache']) {
+  assert.ok(modelWorkspace.includes(`id="${control}"`), `Models workspace is missing ${control}`);
+}
+assert.ok(!modelWorkspace.includes(':8700/'), 'Models workspace still delegates semantic routing to an external dashboard');
+const routingRuntime = read('server/judge-m-control-plane/semantic_routing.py');
+assert.ok(routingRuntime.includes('ROUTER_TASK = "judge_m_semantic_router"') && routingRuntime.includes('def route_tools') && routingRuntime.includes('def route_memory') && routingRuntime.includes('def evaluate_escalation') && routingRuntime.includes('def verify_output') && routingRuntime.includes('prompt_fingerprint'), 'Runtime plugin is missing decision-model recursion protection, resource routing, bounded evaluation, or redacted traces');
+assert.ok(read('server/hermes-runtime-patches/semantic-routing-hooks.patch').includes('MODEL_ROUTE_MIDDLEWARE'), 'Hermes subagent/auxiliary model-routing seam is not tracked');
+assert.ok(read('server/hermes-runtime-patches/semantic-routing-memory-hooks.patch').includes('MEMORY_ROUTE_MIDDLEWARE'), 'Hermes memory-routing seam is not tracked');
 for (const operation of ['/profiles', '/profiles/active', '/setup-command', '/soul', '/description', '/describe-auto', '/export', '/profiles/import', '/config/schema', '/config/defaults', '/config/raw']) {
   assert.ok(settingsRuntime.includes(operation), `Profiles & Settings is missing ${operation}`);
 }
@@ -137,5 +152,5 @@ for (const command of ['auth priority', 'profile install', 'sessions recover', '
 assert.ok(bridge.includes('create_subprocess_exec') && !bridge.includes('shell=True'), 'CLI bridge must execute argv directly');
 assert.ok(bridge.includes('termios.ECHO') && bridge.includes('_owner_key'), 'CLI bridge is missing PTY or owner isolation');
 assert.ok(read('dist/cli-control.html').includes('/cli-operations') && read('dist/cli-control.html').includes('/cli-jobs'), 'Advanced Controls is missing bridge integration');
-assert.ok(read('server/judge-m-control-plane/dashboard/manifest.json').includes('"version": "0.3.0"'), 'Unexpected control-plane plugin version');
+assert.ok(read('server/judge-m-control-plane/dashboard/manifest.json').includes('"version": "0.4.0"'), 'Unexpected control-plane plugin version');
 console.log(`PASS: ${provenance.files.length} baseline hashes; ${intentional.size} intentional source changes; ${screens.length} screens; local references and runtime assets; ${inlineScripts} inline scripts and shared shell syntax; vendored cockpit girl asset; blank password defaults.`);

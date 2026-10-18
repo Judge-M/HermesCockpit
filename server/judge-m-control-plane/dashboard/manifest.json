@@ -1,9 +1,9 @@
 {
   "name": "judge-m-control-plane",
   "label": "Control Plane",
-  "description": "Infrastructure health, model-menu curation, and allowlisted Hermes controls.",
+  "description": "Infrastructure health, model curation, semantic routing, and allowlisted Hermes controls.",
   "icon": "Activity",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "tab": {
     "path": "/control-plane",
     "position": "after:analytics"

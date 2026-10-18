@@ -12,11 +12,11 @@ Hermes Cockpit is a mobile-friendly browser interface for [Hermes Agent](https:/
 - Use any model returned by Hermes' model catalog
 - Add model providers through OAuth, API keys, or custom OpenAI-compatible endpoints without editing configuration files
 - Validate provider credentials and endpoints before saving them to Hermes
-- Curate the model picker with per-model visibility and friendly labels
-- Assign main and auxiliary/subagent models per Hermes profile
+- Curate the model picker with per-model visibility, friendly labels, and a separate semantic-routing allow-list
+- Assign fixed, native automatic, or Semantic Auto behavior to primary, subagent, and live auxiliary slots per Hermes profile
 - Configure every live auxiliary route with provider, model, inheritance, and reasoning-effort selectors
 - Operate Hermes' native multi-profile Kanban boards, tasks, dependencies, workers, runs, dispatch, and orchestration from a responsive visual board
-- Launch the matching native vLLM Semantic Router control plane from the Models workspace when it is deployed
+- Configure native semantic routing in the Models workspace, including shared or dedicated model/tool/memory routers, System One-compatible or generic structured adapters, true inheritance, deterministic policy/fallback, passive shadow comparison, bounded verification/escalation controls, safe caching, and redacted decision history
 - A dedicated Bot Mode chat workspace backed by Hermes' gateway protocol, including the same profile metadata used by Hermes Desktop
 - Resume each bot's canonical hidden `Bot Chat`, including its existing conversation history, or create it when one does not exist
 - Native Bot Mode transcript with independently scrollable conversation, live task state, subagent status, and tool activity from Hermes gateway events
@@ -126,7 +126,7 @@ Hermes normally runs browser automation in its isolated Chromium environment. **
 - `dist/live-control.html` — live Hermes terminal and controls
 - `dist/bot-mode.html` — dedicated Bot Mode roster, canonical Bot Chat, transcript, tasks, subagents, and activity
 - `dist/kanban.html` — live Hermes Kanban boards, task lifecycle, workers, runs, dependencies, and orchestration
-- `dist/models-providers.html` — provider onboarding, model catalog curation, profile assignments, and Semantic Router access
+- `dist/models-providers.html` — provider onboarding, model catalog and routing eligibility, fixed/Semantic Auto assignments, and native semantic-routing policy
 - `dist/hermes-client.js` — Hermes REST/WebSocket client
 - `dist/hermes-client.css` — responsive live-client styles
 - `dist/mesh-topology.html` — focused Hermes health, capacity, component, profile, and runtime overview
@@ -134,7 +134,9 @@ Hermes normally runs browser automation in its isolated Chromium environment. **
 - `dist/acp-telemetry.html` — live read-only endpoint telemetry and redacted snapshots
 - `dist/runtime-config-settings.html` — the unified Manage workspace: profile identity, full schema configuration, and 524 guided actions across 16 management areas
 - `dist/backend-control.html` and `dist/cli-control.html` — compatibility URLs that redirect older bookmarks into Manage → Actions
-- `server/judge-m-control-plane/` — Hermes dashboard plugin extension that mounts the authenticated command bridge and read-only browser-preview adapter
+- `server/judge-m-control-plane/` — Hermes plugin extension for authenticated command controls, browser preview, model curation, and native semantic routing
+- `server/hermes-runtime-patches/semantic-routing-hooks.patch` — narrow Hermes 0.21.7 model-route middleware seam for subagent and auxiliary invocation routing
+- `server/hermes-runtime-patches/semantic-routing-memory-hooks.patch` — memory-prefetch seam that can only narrow Hermes-authorized providers
 - `BACKEND-COVERAGE.md` — backend-to-interface coverage ledger and acceptance rule
 - `CLI-COVERAGE.md` — installed Hermes command coverage summary and secure bridge requirements
 - `CAPABILITY-INVENTORY.md` — generated human-readable list of all 422 canonical CLI command nodes and all 348 OpenAPI operations

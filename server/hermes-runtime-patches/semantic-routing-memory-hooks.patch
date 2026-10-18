@@ -1,0 +1,81 @@
+diff --git a/hermes_cli/middleware.py b/hermes_cli/middleware.py
+--- a/hermes_cli/middleware.py
++++ b/hermes_cli/middleware.py
+@@ -22,9 +22,10 @@ LLM_REQUEST_MIDDLEWARE = "llm_request"
+ LLM_EXECUTION_MIDDLEWARE = "llm_execution"
+ MODEL_ROUTE_MIDDLEWARE = "model_route"
++MEMORY_ROUTE_MIDDLEWARE = "memory_route"
+ 
+ VALID_MIDDLEWARE: set[str] = {
+     TOOL_REQUEST_MIDDLEWARE, TOOL_EXECUTION_MIDDLEWARE, LLM_REQUEST_MIDDLEWARE, LLM_EXECUTION_MIDDLEWARE,
+-    MODEL_ROUTE_MIDDLEWARE,
++    MODEL_ROUTE_MIDDLEWARE, MEMORY_ROUTE_MIDDLEWARE,
+ }
+ 
+ 
+@@ -154,6 +155,33 @@ def apply_model_route_middleware(
+     )
+ 
+ 
++def apply_memory_route_middleware(sources: list[str], **context: Any) -> RequestMiddlewareResult:
++    """Allow plugins to narrow the memory providers already authorized by Hermes."""
++    from hermes_cli.plugins import has_middleware, invoke_middleware
++
++    original = list(sources)
++    if not has_middleware(MEMORY_ROUTE_MIDDLEWARE):
++        return RequestMiddlewareResult(payload=original, original_payload=original)
++    current = list(original)
++    trace: list[dict[str, Any]] = []
++    for result in invoke_middleware(
++        MEMORY_ROUTE_MIDDLEWARE, _payload_key="sources",
++        **middleware_payload(sources=list(current), original_sources=list(original), **context),
++    ):
++        if not isinstance(result, dict) or not isinstance(result.get("sources"), list):
++            continue
++        requested = [str(value) for value in result["sources"]]
++        # A plugin may only narrow the original authorized set, never add a provider.
++        current = [source for source in original if source in requested]
++        trace.append({
++            key: result[key] for key in ("source", "reason", "name")
++            if isinstance(result.get(key), str)
++        })
++    return RequestMiddlewareResult(
++        payload=current, original_payload=original, changed=bool(trace), trace=trace,
++    )
++
++
+ def run_llm_execution_middleware(
+     request: dict[str, Any], next_call: Callable[[dict[str, Any]], Any], **context: Any) -> Any:
+     """Run provider execution through registered LLM execution middleware."""
+diff --git a/agent/memory_manager.py b/agent/memory_manager.py
+--- a/agent/memory_manager.py
++++ b/agent/memory_manager.py
+@@ -514,8 +514,27 @@ class MemoryManager:
+         if not clean_query:
+             return ""
+         clean_query = _redact_for_provider(clean_query)
++        providers = list(self._providers)
++        try:
++            from hermes_cli.middleware import apply_memory_route_middleware
++
++            route_result = apply_memory_route_middleware(
++                [provider.name for provider in providers],
++                query=clean_query, session_id=session_id,
++            )
++            if route_result.changed:
++                selected = set(route_result.payload)
++                providers = [provider for provider in providers if provider.name in selected]
++                if not providers:
++                    return ""
++        except Exception as exc:
++            logger.warning(
++                "Memory semantic route failed; retaining native authorized providers: %s", exc,
++            )
+         parts = self._each_provider(
+-            "prefetch failed (non-fatal)", lambda p: self._prefetch_provider(p, clean_query, session_id=session_id),
++            "prefetch failed (non-fatal)",
++            lambda p: self._prefetch_provider(p, clean_query, session_id=session_id),
++            providers=providers,
+         )
+         return "\n\n".join(p for p in parts if p and p.strip())
+ 
