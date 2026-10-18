@@ -74,6 +74,9 @@ assert.ok(kanbanRuntime.includes('state.workflow.columns') && kanbanRuntime.incl
 assert.ok(!/placeholder card|sample card|mock task|demo task/i.test(kanbanRuntime), 'Kanban must not contain placeholder task data');
 const settingsWorkspace = read('dist/runtime-config-settings.html');
 const settingsRuntime = read('dist/settings-workspace.js');
+assert.ok(settingsRuntime.includes('function settingDescription') && settingsRuntime.includes('setting-technical'), 'Settings do not provide plain-language descriptions with optional technical details');
+assert.ok(settingsRuntime.includes('dataset.format="lines"') && settingsRuntime.includes('dataset.format==="lines"'), 'Primitive list settings are not presented as line-based editors');
+assert.ok(!settingsRuntime.includes('key.className="setting-path"'), 'Raw config keys are still exposed as primary setting labels');
 for (const operation of ['/profiles', '/profiles/active', '/setup-command', '/soul', '/description', '/describe-auto', '/export', '/profiles/import', '/config/schema', '/config/defaults', '/config/raw']) {
   assert.ok(settingsRuntime.includes(operation), `Profiles & Settings is missing ${operation}`);
 }
