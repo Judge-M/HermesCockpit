@@ -77,9 +77,17 @@ assert.equal(new Set(inventory.apiOperations.map(operation => `${operation.metho
 assert.ok(read('CAPABILITY-INVENTORY.md').includes('| `login` |'), 'Human-readable inventory is missing the login command');
 assert.ok(read('dist/backend-control.html').includes('countSchemaOperations'), 'Control Center does not disclose full schema operation count');
 const bridge = read('server/judge-m-control-plane/dashboard/cli_bridge.py');
-const allowlist = bridge.match(/ALLOWED_COMMANDS = \{([\s\S]*?)\n\}/);
-assert.ok(allowlist, 'CLI bridge allowlist is missing');
-assert.equal([...allowlist[1].matchAll(/^\s+"[^"]+",$/gm)].length, 43, 'Unexpected CLI bridge operation count');
+const countBridgeSet = name => {
+  const match = bridge.match(new RegExp(`${name} = \\{([\\s\\S]*?)\\n\\}`));
+  assert.ok(match, `${name} is missing`);
+  return [...match[1].matchAll(/^\s+"[^"]+",$/gm)].length;
+};
+assert.equal(countBridgeSet('CLI_ONLY_COMMANDS'), 43, 'Unexpected native CLI-only operation count');
+assert.equal(countBridgeSet('PARTIAL_API_GAP_COMMANDS'), 126, 'Unexpected partial-family bridge operation count');
+assert.ok(bridge.includes('ALLOWED_COMMANDS = CLI_ONLY_COMMANDS | PARTIAL_API_GAP_COMMANDS'), 'CLI bridge registries are not composed into one allowlist');
+for (const command of ['auth priority', 'profile install', 'sessions recover', 'skills snapshot import', 'mcp serve']) {
+  assert.ok(bridge.includes(`"${command}",`), `CLI bridge is missing ${command}`);
+}
 assert.ok(bridge.includes('create_subprocess_exec') && !bridge.includes('shell=True'), 'CLI bridge must execute argv directly');
 assert.ok(bridge.includes('termios.ECHO') && bridge.includes('_owner_key'), 'CLI bridge is missing PTY or owner isolation');
 assert.ok(read('dist/cli-control.html').includes('/cli-operations') && read('dist/cli-control.html').includes('/cli-jobs'), 'Advanced Controls is missing bridge integration');

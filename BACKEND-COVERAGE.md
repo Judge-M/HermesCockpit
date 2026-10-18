@@ -35,8 +35,8 @@ When Hermes has no browser API for a CLI capability, Cockpit uses a server-side 
 | Backups, imports, diagnostics, hooks and checkpoints | Operations workspace | Required |
 | Dashboard themes, fonts and plugins | Appearance & Plugins | Required |
 | Cross-machine/Tailscale service topology | Mesh | Required through a deployment bridge |
-| 22 genuinely CLI-only families with no Hermes browser contract | Advanced Controls | Integrated (43 typed, allowlisted executable paths; live command and reload-safe job history verified) |
-| Remaining CLI-only portions of partial API families | Matching purpose-built workspace | Required through the same reviewed bridge contract |
+| 22 genuinely CLI-only families with no Hermes browser contract | Advanced Controls | Integrated (43 typed, allowlisted executable paths) |
+| CLI-only portions of partial/generic API families | Advanced Controls and matching workspaces | Integrated in bridge (126 typed paths across 22 families; purpose-built placement remains part of each workspace's product gate) |
 
 ## Completion gate
 
