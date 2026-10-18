@@ -10,8 +10,8 @@
     {
       "path": "dist/shell.js",
       "baseline_sha256": "bdf48772916e959367811c6e976d98fe09af0c024f08d5b01d6c26b6e719d26a",
-      "reason": "Use embedded shell data for direct file previews, disable demo persistence and simulated controls on the live client, and expose live connection status.",
-      "verification": "scripts/check.mjs validates both shell.js and the embedded shell-data.js syntax and fallback marker."
+      "reason": "Replace the icon-only implementation catalog with labeled task-oriented navigation, live Hermes status, direct provider onboarding, and a compact mobile navigation sheet.",
+      "verification": "scripts/check.mjs validates the shared shell syntax and requires navigation for every deployed Cockpit screen."
     },
     {
       "path": "dist/acp-telemetry.html",
@@ -46,7 +46,7 @@
     {
       "path": "dist/prototype.css",
       "baseline_sha256": "a06d112ae5cdcae1146d820a9f26d0ab45c5db9be3951e94a9cfe4db5655fbb1",
-      "reason": "Make the shared navigation usable as a mobile bottom bar and prevent horizontal page overflow.",
+      "reason": "Provide a labeled desktop navigation rail, a compact mobile bottom bar and sheet, and responsive workspace spacing without horizontal overflow.",
       "verification": "scripts/check.mjs records this as an intentional source change; responsive viewport checks cover the shared shell."
     }
   ]

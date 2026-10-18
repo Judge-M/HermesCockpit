@@ -10,6 +10,11 @@ Hermes Cockpit is a mobile-friendly browser interface for [Hermes Agent](https:/
 - Automatic reconnect with a keep-alive terminal session
 - Resume recent Hermes sessions
 - Use any model returned by Hermes' model catalog
+- Add model providers through OAuth, API keys, or custom OpenAI-compatible endpoints without editing configuration files
+- Validate provider credentials and endpoints before saving them to Hermes
+- Curate the model picker with per-model visibility and friendly labels
+- Assign main and auxiliary/subagent models per Hermes profile
+- Launch the matching native vLLM Semantic Router control plane from the Models workspace when it is deployed
 - Real Bot Mode roster from Hermes' gateway protocol, including the same profile metadata used by Hermes Desktop
 - Resume each bot's canonical hidden `Bot Chat`, including its existing conversation history, or create it when one does not exist
 - Native Bot Mode transcript with independently scrollable conversation, live task state, subagent status, and tool activity from Hermes gateway events
@@ -99,6 +104,7 @@ Selecting a different model sends Hermes' native `/model` command to the current
 ## Repository layout
 
 - `dist/live-control.html` — live Hermes terminal and controls
+- `dist/models-providers.html` — provider onboarding, model catalog curation, profile assignments, and Semantic Router access
 - `dist/hermes-client.js` — Hermes REST/WebSocket client
 - `dist/hermes-client.css` — responsive live-client styles
 - `dist/mesh-topology.html` — live Hermes reachability, gateway/profile, session, and system overview
