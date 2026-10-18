@@ -83,9 +83,9 @@ const countBridgeSet = name => {
   return [...match[1].matchAll(/^\s+"[^"]+",$/gm)].length;
 };
 assert.equal(countBridgeSet('CLI_ONLY_COMMANDS'), 43, 'Unexpected native CLI-only operation count');
-assert.equal(countBridgeSet('PARTIAL_API_GAP_COMMANDS'), 126, 'Unexpected partial-family bridge operation count');
+assert.equal(countBridgeSet('PARTIAL_API_GAP_COMMANDS'), 127, 'Unexpected partial-family bridge operation count');
 assert.ok(bridge.includes('ALLOWED_COMMANDS = CLI_ONLY_COMMANDS | PARTIAL_API_GAP_COMMANDS'), 'CLI bridge registries are not composed into one allowlist');
-for (const command of ['auth priority', 'profile install', 'sessions recover', 'skills snapshot import', 'mcp serve']) {
+for (const command of ['auth priority', 'profile install', 'sessions recover', 'skills snapshot import', 'skills update', 'mcp serve']) {
   assert.ok(bridge.includes(`"${command}",`), `CLI bridge is missing ${command}`);
 }
 assert.ok(bridge.includes('create_subprocess_exec') && !bridge.includes('shell=True'), 'CLI bridge must execute argv directly');

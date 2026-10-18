@@ -216,6 +216,7 @@ PARTIAL_API_GAP_COMMANDS = {
     "skills reset",
     "skills snapshot export",
     "skills snapshot import",
+    "skills update",
     "skills tap add",
     "skills tap list",
     "skills tap remove",
@@ -345,6 +346,9 @@ MEDIUM_RISK_WORDS = {
 
 SENSITIVE_WORDS = ("password", "passwd", "secret", "token", "api_key", "apikey", "credential")
 PATH_WORDS = ("path", "file", "dir", "directory", "cwd", "repo", "archive", "output")
+ARGUMENT_LABELS = {
+    ("skills update", "name"): "Target skill",
+}
 AMBIGUOUS_PATH_NAMES = {"source", "target", "config", "manifest", "database", "db"}
 
 _PARSER_CACHE: dict[str, tuple[argparse.ArgumentParser, dict[str, Any]]] | None = None
@@ -535,7 +539,7 @@ def _action_schema(command: str, action: argparse.Action, positional: bool) -> d
     default = None if sensitive else _json_value(action.default)
     return {
         "name": name,
-        "label": name.replace("_", " ").strip().title(),
+        "label": ARGUMENT_LABELS.get((command, name), name.replace("_", " ").strip().title()),
         "kind": _argument_kind(command, action),
         "required": bool(getattr(action, "required", False) or (positional and action.nargs not in ("?", "*"))),
         "choices": choices,

@@ -4,7 +4,7 @@ This directory contains the Hermes dashboard plugin files that Cockpit needs for
 
 The bridge is intentionally narrow:
 
-- 169 reviewed command paths are registered: 43 from the 22 genuinely CLI-only families and 126 missing paths from partial/generic API families;
+- 170 reviewed command paths are registered: 43 from the 22 genuinely CLI-only families and 127 missing paths from partial/generic API families;
 - request values are converted into an argument vector and never interpolated into a shell command;
 - arguments and positionals are derived from Hermes' installed parser, so the browser receives typed fields, choices, defaults, and help text;
 - destructive and host-lifecycle actions require an operation-specific confirmation phrase;

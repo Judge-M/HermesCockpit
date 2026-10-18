@@ -22,14 +22,14 @@ spec.loader.exec_module(module)
 operations = module._operations()
 families = {operation["family"] for operation in operations}
 assert len(module.CLI_ONLY_COMMANDS) == 43, "Native CLI-only registry changed without an inventory update"
-assert len(module.PARTIAL_API_GAP_COMMANDS) == 126, "Partial-family gap registry changed without an inventory update"
+assert len(module.PARTIAL_API_GAP_COMMANDS) == 127, "Partial-family gap registry changed without an inventory update"
 assert not module.CLI_ONLY_COMMANDS & module.PARTIAL_API_GAP_COMMANDS, "Bridge registries overlap"
-assert len(operations) == 169, f"Expected 169 operations, found {len(operations)}"
+assert len(operations) == 170, f"Expected 170 operations, found {len(operations)}"
 assert len(families) == 44, f"Expected 44 families, found {len(families)}"
 assert all(operation["availability"] for operation in operations), "One or more reviewed commands are unavailable"
 assert {operation["command"] for operation in operations} == module.ALLOWED_COMMANDS
 assert sum(operation["coverage"] == "cli_only" for operation in operations) == 43
-assert sum(operation["coverage"] == "partial_api_gap" for operation in operations) == 126
+assert sum(operation["coverage"] == "partial_api_gap" for operation in operations) == 127
 assert all(operation["confirmation"] for operation in operations if operation["risk"] == "high")
 
 for command in module.ALLOWED_COMMANDS:
@@ -46,7 +46,7 @@ required_partial_gaps = {
     "sessions optimize", "sessions repair", "sessions set-journal-mode",
     "sessions recover", "sessions pin", "sessions unpin", "sessions pinned",
     "skills trust", "skills untrust", "skills publish",
-    "skills snapshot export", "skills snapshot import",
+    "skills snapshot export", "skills snapshot import", "skills update",
     "skills tap add", "skills tap remove", "skills repair-official",
     "mcp serve", "mcp configure", "mcp picker",
 }
@@ -112,6 +112,31 @@ else:
 snapshot_parser, _metadata = module._load_parsers()["skills snapshot export"]
 snapshot_output = next(action for action in snapshot_parser._actions if action.dest == "output")
 assert module._clean_values("-", "output", False, module._path_policy("skills snapshot export", snapshot_output)) == ["-"]
+
+skills_update_operation = next(operation for operation in operations if operation["command"] == "skills update")
+assert skills_update_operation["coverage"] == "partial_api_gap"
+assert len(skills_update_operation["positionals"]) == 1
+target_argument = skills_update_operation["positionals"][0]
+assert target_argument["name"] == "name"
+assert target_argument["label"] == "Target skill"
+assert target_argument["kind"] == "text"
+assert target_argument["required"] is False
+force_argument = next(argument for argument in skills_update_operation["arguments"] if argument["name"] == "force")
+assert force_argument["kind"] == "boolean"
+assert force_argument["flags"] == ["--force"]
+skills_update_parser, _metadata = module._load_parsers()["skills update"]
+skills_update_argv, skills_update_redacted, skills_update_secrets = module._build_argv(
+    "skills update",
+    skills_update_parser,
+    "default",
+    {"force": True},
+    {"name": "web-search"},
+)
+assert skills_update_argv == [
+    module.HERMES_EXE, "--profile", "default", "skills", "update", "--force", "--", "web-search"
+]
+assert skills_update_redacted == skills_update_argv
+assert skills_update_secrets == []
 
 send_parser, _metadata = module._load_parsers()["send"]
 send_option = next(action for action in send_parser._actions if action.option_strings and action.dest != "help")

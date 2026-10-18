@@ -29,10 +29,10 @@ These are family counts, not one-to-one endpoint counts. A command family can ma
 
 ## Typed bridge coverage
 
-Advanced Controls now registers **169 reviewed executable paths across 44 families**:
+Advanced Controls now registers **170 reviewed executable paths across 44 families**:
 
 - 43 paths from the 22 genuinely CLI-only families: `browser`, `codex-runtime`, `proxy`, `lsp`, `send`, `pause`, `resume`, `verify`, `approvals`, `import-agent`, `console`, `bundles`, `connectors`, `usage`, `claw`, `vault`, `uninstall`, `acp`, `completion`, `dashboard`, `serve`, and `desktop`.
-- 126 command-level gaps from 22 partial or generic API families. These are the portions that the family-level REST match does not implement; API-backed siblings deliberately remain on REST.
+- 127 command-level gaps from 22 partial or generic API families. These are the portions that the family-level REST match does not implement; API-backed siblings deliberately remain on REST.
 
 ### CLI-only portions of partial or generic API families
 
@@ -57,7 +57,7 @@ Advanced Controls now registers **169 reviewed executable paths across 44 famili
 | `secrets` | 13 | `secrets bitwarden disable`, `secrets bitwarden install`, `secrets bitwarden setup`, `secrets bitwarden status`, `secrets bitwarden sync`, `secrets bitwarden token`, `secrets onepassword disable`, `secrets onepassword remove`, `secrets onepassword set`, `secrets onepassword setup`, `secrets onepassword status`, `secrets onepassword sync`, `secrets onepassword token` |
 | `sessions` | 13 | `sessions clean-markers`, `sessions optimize`, `sessions optimize-storage`, `sessions pin`, `sessions pinned`, `sessions recover`, `sessions repair`, `sessions repair-profiles`, `sessions repair-prompts`, `sessions repair-routing`, `sessions retitle-skills`, `sessions set-journal-mode`, `sessions unpin` |
 | `setup` | 1 | `setup` |
-| `skills` | 17 | `skills audit`, `skills check`, `skills config`, `skills diff`, `skills list-modified`, `skills opt-in`, `skills opt-out`, `skills publish`, `skills repair-official`, `skills reset`, `skills snapshot export`, `skills snapshot import`, `skills tap add`, `skills tap list`, `skills tap remove`, `skills trust`, `skills untrust` |
+| `skills` | 18 | `skills audit`, `skills check`, `skills config`, `skills diff`, `skills list-modified`, `skills opt-in`, `skills opt-out`, `skills publish`, `skills repair-official`, `skills reset`, `skills snapshot export`, `skills snapshot import`, `skills tap add`, `skills tap list`, `skills tap remove`, `skills trust`, `skills untrust`, `skills update` |
 | `slack` | 1 | `slack manifest` |
 | `worktree` | 2 | `worktree list`, `worktree prune` |
 
