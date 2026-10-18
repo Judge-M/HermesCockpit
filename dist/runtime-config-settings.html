@@ -59,9 +59,9 @@
       </section>
 
       <section id="panel-settings" class="workspace-panel" data-panel="settings" hidden>
-        <div class="settings-toolbar"><div class="settings-intro"><div class="section-kicker">Profile configuration</div><h2>Settings for <span id="settings-profile-name">—</span></h2><p>Only saved overrides are written. Hermes defaults remain visible beside every field.</p></div><div class="settings-save-actions"><span id="settings-save-summary" class="save-summary">No unsaved changes</span><button id="discard-settings" class="secondary-button" type="button" disabled>Discard</button><button id="save-settings" class="primary-button" type="button" disabled>Save changes</button></div></div>
-        <div class="settings-filter-bar"><label class="search-box" for="settings-search"><span class="material-symbols-outlined">search</span><input id="settings-search" type="search" placeholder="Search every setting, description, or key"></label><label class="mobile-category-picker" for="settings-category-select"><span>Category</span><select id="settings-category-select"></select></label><button id="clear-settings-search" class="quiet-button" type="button" hidden>Clear search</button></div>
-        <div class="settings-layout"><aside class="category-sidebar" aria-label="Settings categories"><div class="category-title">Categories</div><nav id="settings-categories"></nav></aside><div class="settings-content"><div id="settings-loading" class="loading-state"><span class="material-symbols-outlined spin">progress_activity</span><div><strong>Loading settings</strong><span>Reading the profile schema, saved values, and Hermes defaults.</span></div></div><div id="settings-results-heading" class="results-heading" hidden></div><div id="settings-fields" class="settings-fields"></div><div id="settings-empty" class="empty-state" hidden><span class="material-symbols-outlined">search_off</span><h3>No settings match</h3><p>Try a different search term or category.</p></div></div></div>
+        <div class="settings-toolbar"><div class="settings-intro"><div class="section-kicker">Profile configuration</div><h2>Settings for <span id="settings-profile-name">—</span></h2><p>Navigate by purpose instead of internal schema names. Every setting published by Hermes remains available.</p></div><div class="settings-save-actions"><span id="settings-save-summary" class="save-summary">No unsaved changes</span><button id="discard-settings" class="secondary-button" type="button" disabled>Discard</button><button id="save-settings" class="primary-button" type="button" disabled>Save changes</button></div></div>
+        <div class="settings-filter-bar"><label class="search-box" for="settings-search"><span class="material-symbols-outlined">search</span><input id="settings-search" type="search" placeholder="Find any setting by purpose, description, or key"></label><label class="mobile-category-picker" for="settings-category-select"><span>Settings area</span><select id="settings-category-select"></select></label><button id="clear-settings-search" class="quiet-button" type="button" hidden>Clear search</button></div>
+        <div class="settings-layout"><aside class="category-sidebar" aria-label="Settings areas"><div class="category-title">Settings areas</div><nav id="settings-categories"></nav></aside><div class="settings-content"><div id="settings-loading" class="loading-state"><span class="material-symbols-outlined spin">progress_activity</span><div><strong>Loading settings</strong><span>Reading the profile schema, saved values, and Hermes defaults.</span></div></div><section id="settings-concept-summary" class="concept-summary" hidden aria-live="polite"></section><div id="settings-results-heading" class="results-heading" hidden></div><div id="settings-fields" class="settings-fields"></div><div id="settings-empty" class="empty-state" hidden><span class="material-symbols-outlined">search_off</span><h3>No settings match</h3><p>Try a different search term or settings area.</p></div></div></div>
       </section>
 
       <section id="panel-advanced" class="workspace-panel" data-panel="advanced" hidden>
@@ -97,9 +97,9 @@
   <div id="workspace-toast" class="workspace-toast" role="status" aria-live="polite" hidden></div>
   <script>window.currentPage="runtime-config-settings";</script>
   <script src="shell-data.js?v=20261015g"></script>
-  <script src="shell.js?v=20261017b"></script>
+  <script src="shell.js?v=20261017c"></script>
   <link rel="stylesheet" href="prototype.css?v=20261017b">
-  <link rel="stylesheet" href="settings-workspace.css?v=20261017a">
-  <script src="settings-workspace.js?v=20261017a"></script>
+  <link rel="stylesheet" href="settings-workspace.css?v=20261017c">
+  <script src="settings-workspace.js?v=20261017c"></script>
 </body>
 </html>

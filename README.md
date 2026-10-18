@@ -14,6 +14,8 @@ Hermes Cockpit is a mobile-friendly browser interface for [Hermes Agent](https:/
 - Validate provider credentials and endpoints before saving them to Hermes
 - Curate the model picker with per-model visibility and friendly labels
 - Assign main and auxiliary/subagent models per Hermes profile
+- Configure every live auxiliary route with provider, model, inheritance, and reasoning-effort selectors
+- Operate Hermes' native multi-profile Kanban boards, tasks, dependencies, workers, runs, dispatch, and orchestration from a responsive visual board
 - Launch the matching native vLLM Semantic Router control plane from the Models workspace when it is deployed
 - Real Bot Mode roster from Hermes' gateway protocol, including the same profile metadata used by Hermes Desktop
 - Resume each bot's canonical hidden `Bot Chat`, including its existing conversation history, or create it when one does not exist
@@ -23,7 +25,7 @@ Hermes Cockpit is a mobile-friendly browser interface for [Hermes Agent](https:/
 - Responsive desktop and mobile layouts
 - Live views for Hermes health, profiles, sessions, system statistics, tools, toolsets, skills, and model options
 - Native Cockpit controls for enabling toolsets and skills, adding/testing/enabling/deleting MCP servers, and creating/editing eligible skills
-- Full schema-driven Hermes configuration editor, including every field published by `/api/config/schema`
+- Full schema-driven Hermes configuration editor, including every field published by `/api/config/schema`, organized into human-facing settings areas with a complete Advanced fallback
 - Per-profile active selection, model assignment, routing description, and `SOUL.md` editing
 - Automatic redaction of credential-like fields in raw API inspectors and copied telemetry snapshots
 - Typed Advanced Controls for 170 reviewed command paths across 44 CLI-only and partially API-backed Hermes families
@@ -60,6 +62,11 @@ Copy the contents of `dist/` to your web server, then serve it under `/cockpit/`
 ```nginx
 location /cockpit/ {
     alias /srv/hermes-cockpit/;
+    # Cockpit is a small static control plane. Revalidate it so navigation
+    # cannot reopen an older HTML shell after a deployment.
+    add_header Cache-Control "no-store, no-cache, must-revalidate" always;
+    add_header Pragma "no-cache" always;
+    expires -1;
     try_files $uri $uri/ /cockpit/live-control.html;
 }
 
@@ -104,6 +111,7 @@ Selecting a different model sends Hermes' native `/model` command to the current
 ## Repository layout
 
 - `dist/live-control.html` — live Hermes terminal and controls
+- `dist/kanban.html` — live Hermes Kanban boards, task lifecycle, workers, runs, dependencies, and orchestration
 - `dist/models-providers.html` — provider onboarding, model catalog curation, profile assignments, and Semantic Router access
 - `dist/hermes-client.js` — Hermes REST/WebSocket client
 - `dist/hermes-client.css` — responsive live-client styles

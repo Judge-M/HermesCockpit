@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <meta content="web_dashboard" name="shell-type">
+  <link href="vendor/fonts.css" rel="stylesheet">
+  <link href="vendor/material-symbols.css" rel="stylesheet">
+  <link href="kanban-workspace.css?v=20261017a" rel="stylesheet">
+  <title>Hermes Cockpit — Kanban</title>
+</head>
+<body class="kb-body">
+  <div id="shared-header"></div><div id="shared-sidebar"></div>
+  <div class="kb-shell-offset">
+    <main class="kb-workspace" data-workspace="true">
+      <header class="kb-topbar">
+        <div class="kb-title-block">
+          <div class="kb-kicker"><span class="material-symbols-outlined">view_kanban</span><span>Hermes workflow</span></div>
+          <div class="kb-title-row">
+            <h1>Kanban</h1>
+            <span class="kb-live-pill" id="livePill"><i></i><span>Connecting</span></span>
+          </div>
+          <p>Plan work, route it to profiles, and follow every agent run from intake to completion.</p>
+        </div>
+        <div class="kb-top-actions">
+          <label class="kb-board-select"><span>Board</span><select id="boardSelect" aria-label="Active Kanban board"><option value="">Loading boards…</option></select></label>
+          <button class="kb-button kb-button-ghost" id="boardMenuButton" type="button"><span class="material-symbols-outlined">tune</span><span>Board settings</span></button>
+          <button class="kb-button kb-button-primary" id="newTaskButton" type="button" disabled><span class="material-symbols-outlined">add</span><span>New task</span></button>
+        </div>
+      </header>
+
+      <section class="kb-status-banner is-loading" id="statusBanner" aria-live="polite">
+        <span class="material-symbols-outlined">hourglass_top</span>
+        <div><strong>Loading your workflow</strong><p>Reading boards, columns, tasks, and active workers from Hermes.</p></div>
+        <button id="retryButton" type="button" hidden>Try again</button>
+      </section>
+
+      <section class="kb-commandbar" aria-label="Board controls">
+        <label class="kb-search"><span class="material-symbols-outlined">search</span><input id="searchInput" type="search" placeholder="Search tasks, people, or projects" autocomplete="off"></label>
+        <div class="kb-filter-row">
+          <label class="kb-compact-select"><span>Assignee</span><select id="assigneeFilter"><option value="">Everyone</option></select></label>
+          <label class="kb-compact-select"><span>Project</span><select id="tenantFilter"><option value="">All projects</option></select></label>
+          <label class="kb-check"><input id="archivedToggle" type="checkbox"><span>Archived</span></label>
+        </div>
+        <div class="kb-command-actions">
+          <button class="kb-icon-button" id="workersButton" type="button" title="Active workers"><span class="material-symbols-outlined">smart_toy</span><b id="workerCount">0</b></button>
+          <button class="kb-button kb-button-ghost" id="dispatchButton" type="button" disabled><span class="material-symbols-outlined">rocket_launch</span><span>Dispatch ready work</span></button>
+          <button class="kb-icon-button" id="refreshButton" type="button" title="Refresh board"><span class="material-symbols-outlined">refresh</span></button>
+          <button class="kb-icon-button" id="diagnosticsButton" type="button" title="Diagnostics"><span class="material-symbols-outlined">troubleshoot</span></button>
+        </div>
+      </section>
+
+      <section class="kb-stats" id="statsBar" aria-label="Board summary">
+        <article><span class="material-symbols-outlined">inventory_2</span><div><strong id="statOpen">—</strong><small>Open work</small></div></article>
+        <article><span class="material-symbols-outlined">play_circle</span><div><strong id="statRunning">—</strong><small>Running</small></div></article>
+        <article><span class="material-symbols-outlined">error</span><div><strong id="statBlocked">—</strong><small>Needs attention</small></div></article>
+        <article><span class="material-symbols-outlined">task_alt</span><div><strong id="statDone">—</strong><small>Completed</small></div></article>
+        <article class="kb-stat-wide"><span class="material-symbols-outlined">schedule</span><div><strong id="statOldest">—</strong><small>Oldest ready task</small></div></article>
+      </section>
+
+      <section class="kb-board-region" id="boardRegion" aria-label="Kanban board">
+        <div class="kb-board-loading" id="boardLoading">
+          <div class="kb-skeleton-column"></div><div class="kb-skeleton-column"></div><div class="kb-skeleton-column"></div><div class="kb-skeleton-column"></div>
+        </div>
+        <div class="kb-board" id="board" hidden></div>
+        <div class="kb-empty-state" id="emptyState" hidden>
+          <span class="material-symbols-outlined">view_kanban</span>
+          <h2>This board is ready for its first task</h2>
+          <p>Create a real Hermes task, assign it to a profile, or leave it in triage for the orchestrator.</p>
+          <button class="kb-button kb-button-primary" id="emptyCreateButton" type="button"><span class="material-symbols-outlined">add</span>Create task</button>
+        </div>
+        <div class="kb-unavailable-state" id="unavailableState" hidden>
+          <span class="material-symbols-outlined">extension_off</span>
+          <h2>Kanban is unavailable</h2>
+          <p id="unavailableCopy">Hermes did not publish the Kanban workspace for this profile.</p>
+          <button class="kb-button kb-button-ghost" id="unavailableRetryButton" type="button">Retry connection</button>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="kb-drawer-backdrop" id="drawerBackdrop" hidden></div>
+  <aside class="kb-drawer" id="taskDrawer" aria-labelledby="drawerTitle" aria-hidden="true">
+    <header class="kb-drawer-header">
+      <div><span class="kb-eyebrow" id="drawerEyebrow">Task</span><h2 id="drawerTitle">Task details</h2></div>
+      <button class="kb-icon-button" id="drawerClose" type="button" aria-label="Close task details"><span class="material-symbols-outlined">close</span></button>
+    </header>
+    <div class="kb-drawer-body" id="drawerBody"></div>
+  </aside>
+
+  <div class="kb-modal-backdrop" id="modalBackdrop" hidden>
+    <section class="kb-modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <header class="kb-modal-header"><div><span class="kb-eyebrow" id="modalEyebrow">Kanban</span><h2 id="modalTitle">Dialog</h2><p id="modalSubtitle"></p></div><button class="kb-icon-button" id="modalClose" type="button" aria-label="Close"><span class="material-symbols-outlined">close</span></button></header>
+      <form id="modalForm">
+        <div class="kb-modal-body" id="modalBody"></div>
+        <footer class="kb-modal-footer" id="modalFooter"><button class="kb-button kb-button-ghost" id="modalCancel" type="button">Cancel</button><button class="kb-button kb-button-primary" id="modalSubmit" type="submit">Save</button></footer>
+      </form>
+    </section>
+  </div>
+
+  <div class="kb-toast-stack" id="toastStack" aria-live="polite"></div>
+
+  <script>window.currentPage="kanban"</script>
+  <script src="kanban-workspace.js?v=20261017a"></script>
+  <script src="shell-data.js?v=20261015g"></script>
+  <script src="shell.js?v=20261017c"></script>
+  <link rel="stylesheet" href="prototype.css?v=20261017b">
+</body>
+</html>

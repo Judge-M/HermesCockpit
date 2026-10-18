@@ -20,7 +20,7 @@ for (const entry of provenance.files) {
   }
   assert.equal(hash, entry.imported_sha256, `Imported baseline differs: ${entry.path}`);
 }
-const screens = ['live-control', 'models-providers', 'mesh-topology', 'tool-registry', 'acp-telemetry', 'runtime-config-settings', 'backend-control', 'cli-control'];
+const screens = ['live-control', 'kanban', 'models-providers', 'mesh-topology', 'tool-registry', 'acp-telemetry', 'runtime-config-settings', 'backend-control', 'cli-control'];
 let inlineScripts = 0;
 for (const screen of screens) {
   const html = read(`dist/${screen}.html`);
@@ -60,6 +60,17 @@ new vm.Script(read('dist/system-workspace.js'), {filename:'system-workspace.js'}
 new vm.Script(read('dist/observability-workspace.js'), {filename:'observability-workspace.js'});
 assert.ok(existsSync(path.join(root, 'dist/system-workspace.css')), 'Missing System workspace stylesheet');
 assert.ok(existsSync(path.join(root, 'dist/observability-workspace.css')), 'Missing Observability workspace stylesheet');
+const kanbanScreen = read('dist/kanban.html');
+const kanbanRuntime = read('dist/kanban-workspace.js');
+assert.ok(existsSync(path.join(root, 'dist/kanban-workspace.css')), 'Missing Kanban workspace stylesheet');
+assert.ok(kanbanScreen.includes('id="shared-header"') && kanbanScreen.includes('id="shared-sidebar"'), 'Kanban is missing the shared shell hosts');
+assert.ok(kanbanScreen.includes('window.currentPage="kanban"') && kanbanScreen.includes('kanban-workspace.js'), 'Kanban screen registration is incomplete');
+new vm.Script(kanbanRuntime, {filename:'kanban-workspace.js'});
+for (const operation of ['/boards', '/board', '/stats', '/workflow', '/orchestration', '/profiles', '/model-options', '/tasks', '/comments', '/links', '/attachments', '/estimate', '/decompose', '/specify', '/reassign', '/reclaim', '/runs', '/workers/active', '/dispatch']) {
+  assert.ok(kanbanRuntime.includes(operation), `Kanban workspace is missing ${operation}`);
+}
+assert.ok(kanbanRuntime.includes('state.workflow.columns') && kanbanRuntime.includes('state.workflow.manual'), 'Kanban columns and moves must come from the server workflow');
+assert.ok(!/placeholder card|sample card|mock task|demo task/i.test(kanbanRuntime), 'Kanban must not contain placeholder task data');
 const settingsWorkspace = read('dist/runtime-config-settings.html');
 const settingsRuntime = read('dist/settings-workspace.js');
 for (const operation of ['/profiles', '/profiles/active', '/setup-command', '/soul', '/description', '/describe-auto', '/export', '/profiles/import', '/config/schema', '/config/defaults', '/config/raw']) {

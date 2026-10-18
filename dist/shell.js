@@ -2,8 +2,15 @@
   "use strict";
 
   const HERMES_BASE = "/hermes";
+  const BUILD_ID = "20261017c";
+  const versionedHref = href => {
+    const [path, hash = ""] = href.split("#");
+    const separator = path.includes("?") ? "&" : "?";
+    return `${path}${separator}v=${BUILD_ID}${hash ? `#${hash}` : ""}`;
+  };
   const primary = [
     { path: "live-control", href: "live-control.html", icon: "chat", label: "Chat" },
+    { path: "kanban", href: "kanban.html", icon: "view_kanban", label: "Board" },
     { path: "models-providers", href: "models-providers.html", icon: "model_training", label: "Models" },
     { path: "tool-registry", href: "tool-registry.html", icon: "handyman", label: "Tools" },
     { path: "mesh-topology", href: "mesh-topology.html", icon: "dns", label: "System" }
@@ -16,7 +23,7 @@
   ];
   const navLink = (item, mobile = false) => {
     const active = item.path === window.currentPage;
-    return `<a class="hc-nav-link${active ? " is-active" : ""}${mobile ? " hc-mobile-link" : ""}" data-path="${item.path}" href="${item.href}"${active ? ' aria-current="page"' : ""}>
+    return `<a class="hc-nav-link${active ? " is-active" : ""}${mobile ? " hc-mobile-link" : ""}" data-path="${item.path}" href="${versionedHref(item.href)}"${active ? ' aria-current="page"' : ""}>
       <span class="material-symbols-outlined">${item.icon}</span><span>${item.label}</span>
     </a>`;
   };
@@ -25,7 +32,7 @@
   const sidebarHost = document.getElementById("shared-sidebar");
   if (headerHost) headerHost.innerHTML = `
     <header class="hc-header">
-      <a class="hc-brand" href="live-control.html" aria-label="Hermes Cockpit home">
+      <a class="hc-brand" href="${versionedHref("live-control.html")}" aria-label="Hermes Cockpit home">
         <img alt="Hermes Aviator Girl Logo" src="assets/hermes-aviator-girl.jpg">
         <span><strong>Hermes</strong><small>Cockpit</small></span>
       </a>
@@ -35,8 +42,8 @@
         <span id="shared-hermes-version"></span>
       </div>
       <div class="hc-header-actions">
-        <a href="models-providers.html#add-provider" class="hc-header-button"><span class="material-symbols-outlined">add</span><span>Add provider</span></a>
-        <a href="runtime-config-settings.html" class="hc-icon-button" aria-label="Open settings" title="Settings"><span class="material-symbols-outlined">settings</span></a>
+        <a href="${versionedHref("models-providers.html#add-provider")}" class="hc-header-button"><span class="material-symbols-outlined">add</span><span>Add provider</span></a>
+        <a href="${versionedHref("runtime-config-settings.html")}" class="hc-icon-button" aria-label="Open settings" title="Settings"><span class="material-symbols-outlined">settings</span></a>
       </div>
     </header>`;
   if (sidebarHost) sidebarHost.innerHTML = `
@@ -53,7 +60,7 @@
       <button class="hc-sheet-backdrop" data-close-more aria-label="Close menu"></button>
       <section class="hc-sheet-panel" aria-label="More destinations">
         <div class="hc-sheet-handle"></div><div class="hc-sheet-title"><strong>More</strong><button data-close-more aria-label="Close menu"><span class="material-symbols-outlined">close</span></button></div>
-        ${[primary[3], ...secondary].map(item => navLink(item)).join("")}
+        ${[...primary.slice(3), ...secondary].map(item => navLink(item)).join("")}
       </section>
     </div>`;
 
@@ -71,7 +78,7 @@
     if (event.key === "Escape") setMore(false);
     if ((event.ctrlKey || event.metaKey) && event.key === ",") {
       event.preventDefault();
-      location.href = "runtime-config-settings.html";
+      location.href = versionedHref("runtime-config-settings.html");
     }
   });
 
