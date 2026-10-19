@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="shell-type" content="web_dashboard">
+  <title>Hermes Cockpit — Bot Mode</title>
+  <link href="vendor/fonts.css" rel="stylesheet">
+  <link href="vendor/material-symbols.css" rel="stylesheet">
+  <link href="vendor/xterm/xterm.css" rel="stylesheet">
+  <script src="vendor/tailwindcss-cdn.js"></script>
+  <script>tailwind.config={darkMode:"class",theme:{extend:{colors:{background:"#121221",surface:"#282A36","surface-container":"#1e1e2e","surface-container-low":"#1a1a2a","surface-container-lowest":"#0d0d1c","surface-secondary":"#3B4252",border:"#4C566A","border-muted":"#3B4252",primary:"#a3dcec",success:"#A3BE8C",warning:"#EBCB8B",danger:"#BF616A","text-primary":"#ECEFF4","text-secondary":"#D8DEE9","text-tertiary":"#94A3B8","text-quaternary":"#616E88"},fontFamily:{sans:["Inter","sans-serif"],mono:["JetBrains Mono","monospace"]}}}};</script>
+  <style>
+    html,body{margin:0;min-height:100%;background:#121221;color:#ECEFF4}body{overscroll-behavior:none}
+    .live-layout{display:grid;grid-template-columns:17rem minmax(0,1fr) 20rem;height:calc(100dvh - 3rem);padding-top:3rem;padding-left:14rem;overflow:hidden}
+    .live-main{min-width:0;min-height:0;display:flex;flex-direction:column}.live-side{min-width:0;min-height:0;border-left:1px solid #3B4252;background:#1a1a2a;overflow-y:auto}.live-session-side{min-width:0;min-height:0;border-right:1px solid #3B4252;background:#151522;overflow:hidden}
+    .live-loading{display:grid;min-height:28rem;place-items:center;color:#94A3B8;font:500 13px "JetBrains Mono",monospace}
+    .live-composer{position:sticky;bottom:0;z-index:8;display:flex;align-items:flex-end;gap:.5rem;border-top:1px solid #3B4252;background:#0d0d1c;padding:.75rem}
+    .live-composer textarea{min-height:2.7rem;max-height:12rem;flex:1;resize:vertical;border:1px solid #4C566A;border-radius:.5rem;background:#1e1e2e;color:#ECEFF4;padding:.7rem .8rem;font:14px Inter,sans-serif}
+    .live-composer button{display:inline-flex;min-height:2.7rem;align-items:center;justify-content:center;gap:.3rem;border:1px solid #4C566A;border-radius:.5rem;background:#282A36;color:#D8DEE9;padding:.55rem .7rem;cursor:pointer}.live-composer button:hover{border-color:#a3dcec;color:#a3dcec}.live-composer .send{border-color:#88c0d0;background:#a3dcec;color:#003640;font-weight:700}.hidden{display:none!important}
+    @media(max-width:1550px){.live-layout{grid-template-columns:15rem minmax(0,1fr);padding-left:0;padding-bottom:3.75rem}.live-side{position:fixed;z-index:45;inset:3rem 0 3.75rem auto;width:min(24rem,92vw);transform:translateX(105%);transition:transform .2s ease;box-shadow:-18px 0 60px rgb(0 0 0 / 45%)}body[data-inspector-open="true"] .live-side{transform:translateX(0)}}
+    @media(max-width:760px){.live-layout{grid-template-columns:1fr;padding-left:0}.live-session-side{position:fixed;z-index:46;inset:3rem auto 3.75rem 0;width:min(20rem,92vw);transform:translateX(-105%);transition:transform .2s ease;box-shadow:18px 0 60px rgb(0 0 0 / 45%)}body[data-sessions-open="true"] .live-session-side{transform:translateX(0)}.live-composer{flex-wrap:wrap}.live-composer textarea{order:-1;flex-basis:100%}.live-composer button{flex:1}.live-composer button span:not(.material-symbols-outlined){display:none}}
+  </style>
+</head>
+<body data-hermes-client="true" data-hermes-base="/hermes" data-client-mode="bot" class="font-sans">
+  <div id="shared-header"></div><div id="shared-sidebar"></div>
+  <main class="live-layout" data-workspace="true">
+    <aside id="live-session-sidebar" class="live-session-side"><div class="live-loading">Loading Bot Mode…</div></aside>
+    <section class="live-main"><div id="execution-feed"><div class="live-loading">Connecting to the Bot Mode gateway…</div></div><div class="live-composer" aria-label="Bot Mode prompt composer"><textarea id="composer-input" placeholder="Message this bot…" aria-label="Message this bot"></textarea><button id="voice-input" type="button" title="Dictate a prompt"><span class="material-symbols-outlined">mic</span><span>Voice</span></button><button id="attach-source" type="button" title="Attach a source file"><span class="material-symbols-outlined">attach_file</span><span>Attach</span></button><input id="source-file-input" class="hidden" type="file" multiple><button id="execute-prompt" class="send" type="button"><span>Send</span><span class="material-symbols-outlined">send</span></button></div></section>
+    <aside id="live-control-sidebar" class="live-side"><div class="live-loading">Loading live bot activity…</div></aside>
+  </main>
+  <div id="demo-notice" class="hidden" aria-live="polite"></div>
+  <script>document.getElementById("execute-prompt").addEventListener("click",()=>globalThis.hermesCockpit?.sendComposer());document.getElementById("composer-input").addEventListener("keydown",event=>{if(event.key==="Enter"&&!event.shiftKey){event.preventDefault();globalThis.hermesCockpit?.sendComposer()}});window.currentPage="bot-mode";</script>
+  <script src="shell-data.js?v=20261017d"></script><script src="shell.js?v=20261017d"></script><script src="vendor/xterm/xterm.js"></script><script src="hermes-client.js?v=20261017f"></script>
+  <link rel="stylesheet" href="prototype.css?v=20261017b"><link rel="stylesheet" href="hermes-client.css?v=20261017f">
+</body>
+</html>

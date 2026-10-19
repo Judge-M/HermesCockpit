@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <meta content="web_dashboard" name="shell-type">
+  <link href="vendor/fonts.css" rel="stylesheet">
+  <link href="vendor/material-symbols.css" rel="stylesheet">
+  <script src="vendor/tailwindcss-cdn.js"></script>
+  <script>
+    tailwind.config={darkMode:'class',theme:{extend:{colors:{background:'#121221',surface:'#282A36','surface-container':'#1e1e2e','surface-container-low':'#1a1a2a','surface-container-lowest':'#0d0d1c','surface-container-high':'#292839','surface-bright':'#383849','surface-secondary':'#3B4252',primary:'#a3dcec','primary-container':'#88c0d0',success:'#A3BE8C',warning:'#EBCB8B',error:'#ffb4ab','text-primary':'#ECEFF4','text-secondary':'#D8DEE9','text-tertiary':'#94A3B8','text-quaternary':'#616E88'},fontFamily:{sans:['Inter','sans-serif'],mono:['JetBrains Mono','monospace']}}}};
+  </script>
+  <link href="prototype.css?v=20261017b" rel="stylesheet">
+  <link href="backend-control-workspace.css?v=20261017a" rel="stylesheet">
+  <title>Hermes Cockpit — Control Center</title>
+</head>
+<body>
+  <script>location.replace(`runtime-config-settings.html?tab=controls${location.hash}`);</script>
+  <div id="shared-header"></div><div id="shared-sidebar"></div>
+
+  <main class="bc-shell" data-workspace="true">
+    <div class="bc-page">
+      <header class="bc-hero">
+        <div class="bc-hero-copy">
+          <div class="bc-eyebrow">Hermes Control Center</div>
+          <h1>Everything Hermes can do, in one workspace.</h1>
+          <p>Browse by what you want to manage, then use guided controls built directly from the connected Hermes server. Protocol details stay out of the way unless you open diagnostics.</p>
+        </div>
+        <div class="bc-connection" id="schemaStatus" data-state="loading" aria-live="polite">
+          <span class="bc-status-dot"></span>
+          <span id="schemaStatusText">Connecting to Hermes…</span>
+        </div>
+      </header>
+
+      <section class="bc-metrics" aria-label="Control coverage">
+        <article class="bc-metric"><span class="material-symbols-outlined">tune</span><div><strong id="apiControlCount">—</strong><span>native controls</span></div></article>
+        <article class="bc-metric"><span class="material-symbols-outlined">construction</span><div><strong id="workflowCount">—</strong><span>host workflows</span></div></article>
+        <article class="bc-metric"><span class="material-symbols-outlined">category</span><div><strong id="domainCount">—</strong><span>control areas</span></div></article>
+        <article class="bc-metric"><span class="material-symbols-outlined">verified_user</span><div><strong id="availableCount">—</strong><span>available now</span></div></article>
+      </section>
+
+      <section class="bc-toolbar" aria-label="Find a Hermes control">
+        <label class="bc-search">
+          <span class="material-symbols-outlined">search</span>
+          <input id="searchInput" type="search" placeholder="What do you want to manage?" autocomplete="off">
+          <kbd>/</kbd>
+        </label>
+        <select id="domainFilter" aria-label="Filter by control area"><option value="">All control areas</option></select>
+        <select id="kindFilter" aria-label="Filter by capability type">
+          <option value="">All capabilities</option>
+          <option value="read">Information &amp; status</option>
+          <option value="change">Settings &amp; actions</option>
+          <option value="workflow">Host workflows</option>
+          <option value="access">Access flows</option>
+        </select>
+        <button class="bc-button bc-button-secondary" id="reloadButton" type="button"><span class="material-symbols-outlined">refresh</span><span>Refresh</span></button>
+      </section>
+
+      <details class="bc-diagnostics bc-surface" id="inventoryDiagnostics">
+        <summary><span class="material-symbols-outlined">monitoring</span><span>Inventory diagnostics</span><span class="bc-summary-note">coverage, connection state, and technical metadata</span></summary>
+        <div class="bc-diagnostics-body" id="inventoryDiagnosticsBody">Waiting for the connected Hermes inventories.</div>
+      </details>
+
+      <section class="bc-domain-section" id="domainSection" aria-labelledby="domainHeading">
+        <div class="bc-section-heading">
+          <div><span class="bc-eyebrow">Control areas</span><h2 id="domainHeading">Start with a part of Hermes</h2></div>
+          <button class="bc-text-button" id="showEverythingButton" type="button">Show every capability <span class="material-symbols-outlined">arrow_forward</span></button>
+        </div>
+        <div class="bc-domain-grid" id="domainGrid"><div class="bc-loading-card"><span class="material-symbols-outlined">progress_activity</span><span>Building the live control map…</span></div></div>
+      </section>
+
+      <section class="bc-browser" id="controlBrowser" aria-label="Hermes capabilities">
+        <aside class="bc-action-pane bc-surface" aria-label="Available controls">
+          <header class="bc-pane-header">
+            <div><span class="bc-eyebrow" id="listEyebrow">All capabilities</span><h2 id="listTitle">Choose an action</h2></div>
+            <span class="bc-count" id="operationCount">—</span>
+          </header>
+          <div class="bc-action-list bc-scroll" id="operationList">
+            <div class="bc-empty"><span class="material-symbols-outlined">hourglass_top</span><strong>Loading live controls</strong><span>Hermes is publishing its current capabilities.</span></div>
+          </div>
+        </aside>
+
+        <section class="bc-workspace bc-surface" id="operationWorkspace" aria-live="polite">
+          <div class="bc-empty bc-empty-large">
+            <span class="material-symbols-outlined">touch_app</span>
+            <strong>Select a capability</strong>
+            <span>Every action here is connected to a real Hermes endpoint or reviewed host workflow.</span>
+          </div>
+        </section>
+      </section>
+    </div>
+  </main>
+
+  <div class="bc-modal" id="confirmDialog" role="dialog" aria-modal="true" aria-labelledby="confirmTitle" hidden>
+    <div class="bc-modal-panel bc-scroll">
+      <header class="bc-modal-header">
+        <div><span class="bc-eyebrow">Review before continuing</span><h2 id="confirmTitle">Confirm action</h2></div>
+        <button class="bc-icon-button" id="confirmClose" type="button" aria-label="Close confirmation"><span class="material-symbols-outlined">close</span></button>
+      </header>
+      <div class="bc-modal-body" id="confirmBody"></div>
+      <footer class="bc-modal-actions">
+        <button class="bc-button bc-button-secondary" id="confirmCancel" type="button">Cancel</button>
+        <button class="bc-button bc-button-primary" id="confirmExecute" type="button">Continue</button>
+      </footer>
+    </div>
+  </div>
+
+  <script src="backend-control-workspace.js?v=20261017a"></script>
+  <script>window.currentPage="backend-control"</script>
+  <script src="shell-data.js?v=20261015g"></script>
+  <script src="shell.js?v=20261017d"></script>
+</body>
+</html>

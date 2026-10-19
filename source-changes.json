@@ -4,49 +4,49 @@
     {
       "path": "dist/shell.json",
       "baseline_sha256": "26ce1725b769ec818d89316abd7b39b3b7376b328e60d49c24eeec1b05b6fe95",
-      "reason": "Use the checked-in Hermes Aviator Girl image for GitHub Pages and portable previews.",
-      "verification": "scripts/check.mjs validates this as an explicit intentional source change; all other imported files remain baseline-verified."
+      "reason": "Use the checked-in Hermes Aviator Girl image and a shared Cockpit shell with live Hermes status, native navigation, and no dependency on the official admin interface.",
+      "verification": "scripts/check.mjs validates this as an explicit intentional source change and rejects stale source drift."
     },
     {
       "path": "dist/shell.js",
       "baseline_sha256": "bdf48772916e959367811c6e976d98fe09af0c024f08d5b01d6c26b6e719d26a",
-      "reason": "Use embedded shell data for direct file previews, disable demo persistence and simulated controls on the live client, and expose live connection status.",
-      "verification": "scripts/check.mjs validates both shell.js and the embedded shell-data.js syntax and fallback marker."
+      "reason": "Replace the icon-only implementation catalog with labeled task-oriented navigation, live Hermes status, direct provider onboarding, and a compact mobile navigation sheet.",
+      "verification": "scripts/check.mjs validates the shared shell syntax and requires navigation for every deployed Cockpit screen."
     },
     {
       "path": "dist/acp-telemetry.html",
       "baseline_sha256": "fc204c87ee49fb173916fd087b1a382553350d572de943bf091ca670536843da",
-      "reason": "Connect Live Control to the authenticated Hermes REST and PTY WebSocket APIs while retaining the imported visual design and offline runtime assets.",
-      "verification": "scripts/check.mjs validates local assets and JavaScript syntax; deployment smoke tests exercise authentication, terminal connection, sessions, profiles, and model discovery."
+      "reason": "Replace fabricated ACP metrics and traces with authenticated, read-only Hermes health, status, statistics, sessions, and profiles, including credential redaction.",
+      "verification": "scripts/check.mjs validates local assets and JavaScript syntax; deployment smoke tests exercise all five live endpoints and responsive rendering."
     },
     {
       "path": "dist/live-control.html",
       "baseline_sha256": "2cb94b0b45923d764014e7e7b21abdff2caf45f973907737fb417e38378bcb9c",
-      "reason": "Use vendored local Tailwind, font, and Material Symbols assets so the demo runs without network access.",
-      "verification": "scripts/check.mjs verifies that the screen has no external stylesheet or script dependencies."
+      "reason": "Replace simulated peers, latency, throughput, and RPC logs with authenticated Hermes reachability, profile, session, status, and system data.",
+      "verification": "scripts/check.mjs verifies local assets and JavaScript syntax; deployment smoke tests confirm live API rendering and explicit unsupported-topology messaging."
     },
     {
       "path": "dist/mesh-topology.html",
       "baseline_sha256": "54990e7c8abfdb042e019893043806f97f42146365f924220038265c41496f64",
-      "reason": "Use vendored local Tailwind, font, and Material Symbols assets so the demo runs without network access.",
-      "verification": "scripts/check.mjs verifies that the screen has no external stylesheet or script dependencies."
+      "reason": "Replace simulated topology with authenticated Hermes service, profile, session, and system data, and route all supported work to native Cockpit screens.",
+      "verification": "scripts/check.mjs verifies local assets and JavaScript syntax; deployment smoke tests confirm model discovery, profile rendering, and safe unsupported states."
     },
     {
       "path": "dist/runtime-config-settings.html",
       "baseline_sha256": "e369d5452600af9cdcd690b460d5319336cc7ff4242efdfddcd1c64b79a83c49",
-      "reason": "Use vendored local Tailwind, font, and Material Symbols assets so the demo runs without network access.",
-      "verification": "scripts/check.mjs verifies that the screen has no external stylesheet or script dependencies."
+      "reason": "Replace simulated provider settings with authenticated, schema-driven editing for every Hermes configuration field plus per-profile active selection, model, description, and SOUL controls.",
+      "verification": "scripts/check.mjs verifies local assets and JavaScript syntax; deployment smoke tests confirm 896 live settings, profile controls, filtering, redacted inspection, and real write contracts."
     },
     {
       "path": "dist/tool-registry.html",
       "baseline_sha256": "a25ed2fc2bf517d2a9f2c83c83fbae4a75b47344ec5c7a61c1d909302ab36ea9",
-      "reason": "Use vendored local Tailwind, font, and Material Symbols assets so the demo runs without network access.",
+      "reason": "Use vendored assets and replace fabricated registry data with authenticated Hermes inventory plus native MCP, toolset, and skill controls without an admin-interface fallback.",
       "verification": "scripts/check.mjs verifies that the screen has no external stylesheet or script dependencies."
     },
     {
       "path": "dist/prototype.css",
       "baseline_sha256": "a06d112ae5cdcae1146d820a9f26d0ab45c5db9be3951e94a9cfe4db5655fbb1",
-      "reason": "Make the shared navigation usable as a mobile bottom bar and prevent horizontal page overflow.",
+      "reason": "Provide a labeled desktop navigation rail, a compact mobile bottom bar and sheet, and responsive workspace spacing without horizontal overflow.",
       "verification": "scripts/check.mjs records this as an intentional source change; responsive viewport checks cover the shared shell."
     }
   ]
