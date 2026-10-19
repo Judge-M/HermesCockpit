@@ -1,19 +1,47 @@
+"""Create a portable static Hermes Cockpit release directory."""
+
+from __future__ import annotations
+
+import argparse
 from pathlib import Path
-import re,json
-src=Path('/workspace/scratch/25f330814d33/upload');out=Path('dist');out.mkdir(exist_ok=True)
-ref=(src/'code.html').read_text()
-header=re.search(r'<header\b.*?</header>',ref,re.S).group()
-aside=re.search(r'<aside\b.*?</aside>',ref,re.S).group()
-(out/'shell.json').write_text(json.dumps({'header':header,'aside':aside}))
-paths=['mesh-topology','runtime-config-settings','live-control','acp-telemetry','tool-registry']
-for i,path in enumerate(paths):
- s=(src/('code'+(f'({i})' if i else '')+'.html')).read_text()
- s=re.sub(r'<header\b.*?</header>','<div id="shared-header"></div>',s,count=1,flags=re.S)
- s=re.sub(r'<aside\b.*?</aside>','<div id="shared-sidebar"></div>',s,count=1,flags=re.S)
- s=s.replace('class="pl-14"','class="pl-16"')
- s=s.replace('</body>',f'<script>window.currentPage={json.dumps(path)}</script><script src="shell.js"></script></body>')
- s=s.replace('</head>','<title>Hermes Copilot — '+path+'</title></head>')
- s=s.replace('<main ', '<main data-workspace="true" ',1)
- s=s.replace('</body>','<link rel="stylesheet" href="prototype.css"></body>')
- (out/(path+'.html')).write_text(s)
-(out/'index.html').write_text('<!doctype html><meta http-equiv="refresh" content="0;url=live-control.html"><title>Hermes Copilot</title><a href="live-control.html">Open Hermes Copilot</a>')
+import shutil
+
+
+ROOT = Path(__file__).resolve().parent
+DIST = ROOT / "dist"
+REQUIRED = (
+    "index.html",
+    "live-control.html",
+    "bot-mode.html",
+    "runtime-config-settings.html",
+    "hermes-client.js",
+    "shell.js",
+)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--output", type=Path, default=ROOT / "build" / "cockpit")
+    parser.add_argument("--check-only", action="store_true")
+    args = parser.parse_args()
+
+    missing = [name for name in REQUIRED if not (DIST / name).is_file()]
+    if missing:
+        parser.error(f"dist is incomplete: {', '.join(missing)}")
+    if args.check_only:
+        print(f"PASS: {len(REQUIRED)} required release files are present")
+        return 0
+
+    output = args.output.resolve()
+    if output == DIST.resolve() or DIST.resolve() in output.parents:
+        parser.error("output must not replace or be nested inside dist")
+    if output.exists():
+        shutil.rmtree(output)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copytree(DIST, output)
+    print(f"Built static release: {output}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

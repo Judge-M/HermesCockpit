@@ -43,6 +43,17 @@ Shadow routing is passive and never controls execution. Escalation is deliberate
 
 The command frontend is the Manage workspace in `dist/runtime-config-settings.html`. Browser preview and routing history are inspector panels in `dist/live-control.html` and `dist/bot-mode.html`. Model eligibility, policy, decision-model setup, fallbacks, tool routing, and per-slot `Semantic Auto` modes are in `dist/models-providers.html`.
 
+## Portable configuration
+
+The plugin ships with no installation-specific hosts or service links. Operators may set these variables in the Hermes service environment:
+
+- `HERMES_COCKPIT_PORTAL_URL` — optional portal origin that publishes `/api/overview`;
+- `JUDGEM_CONSOLE_URL` — backward-compatible alias for the portal origin;
+- `HERMES_COCKPIT_LINKS_JSON` — optional JSON list of absolute HTTP(S) service links;
+- `HERMES_HOME` — profile and Cockpit preference root.
+
+Invalid link entries are ignored, and a missing portal produces an explicit unconfigured state instead of a fabricated overview. See `docs/CONFIGURATION.md` in the repository root for examples.
+
 Hermes 0.21.7 already provides the request middleware used for safe tool selection. Apply `server/hermes-runtime-patches/semantic-routing-hooks.patch` to add the generic model-resolution seam used by subagent and auxiliary invocations. Apply `server/hermes-runtime-patches/semantic-routing-memory-hooks.patch` after it to add the authorized-provider memory-prefetch seam. Primary Cockpit sessions resolve their concrete route through Hermes' existing `session.create` provider/model override.
 
 ## Supported boundaries and honest limitations

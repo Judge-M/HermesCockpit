@@ -23,19 +23,46 @@ from fastapi import APIRouter, HTTPException, Response
 
 router = APIRouter()
 
-PORTAL_URL = os.environ.get("JUDGEM_CONSOLE_URL", "http://192.168.34.116:8088").rstrip("/")
-LINKS = [
-    {"id": "portal", "name": "Judge-M Portal", "kind": "Unified portal", "url": f"{PORTAL_URL}/"},
-    {"id": "proxmox", "name": "Proxmox VE", "kind": "Compute and LXC lifecycle", "url": "https://192.168.34.54:8006"},
-    {"id": "portainer", "name": "Portainer", "kind": "Docker fleet", "url": "https://192.168.34.116:9443"},
-    {"id": "cockpit", "name": "Cockpit", "kind": "Linux systems", "url": "https://192.168.34.116:9090"},
-    {"id": "grafana", "name": "Grafana", "kind": "Dashboards", "url": "http://192.168.34.116:3000"},
-    {"id": "prometheus", "name": "Prometheus", "kind": "Metrics", "url": "http://192.168.34.116:9091"},
-    {"id": "hermes", "name": "Hermes Web", "kind": "Web dashboard", "url": f"{PORTAL_URL}/hermes/"},
-    {"id": "mcpx", "name": "Lunar MCPX", "kind": "Tool gateway", "url": "http://192.168.34.235:5173"},
-    {"id": "router", "name": "Semantic Router", "kind": "Request routing", "url": "http://192.168.34.235:8899"},
-    {"id": "radiance", "name": "Radiance / Qwen", "kind": "Inference API", "url": "http://192.168.34.246:8000"},
-]
+PORTAL_URL = os.environ.get(
+    "HERMES_COCKPIT_PORTAL_URL",
+    os.environ.get("JUDGEM_CONSOLE_URL", ""),
+).strip().rstrip("/")
+
+
+def _configured_links() -> list[dict[str, str]]:
+    """Load optional operator links without shipping one installation's topology."""
+    links: list[dict[str, str]] = []
+    if PORTAL_URL:
+        links.extend([
+            {"id": "portal", "name": "Operations portal", "kind": "Unified portal", "url": f"{PORTAL_URL}/"},
+            {"id": "hermes", "name": "Hermes Web", "kind": "Web dashboard", "url": f"{PORTAL_URL}/hermes/"},
+        ])
+
+    raw = os.environ.get("HERMES_COCKPIT_LINKS_JSON", "").strip()
+    if not raw:
+        return links
+    try:
+        configured = json.loads(raw)
+    except (TypeError, ValueError):
+        return links
+    if not isinstance(configured, list):
+        return links
+
+    for index, item in enumerate(configured[:32]):
+        if not isinstance(item, dict):
+            continue
+        url = str(item.get("url") or "").strip()
+        parsed = urlparse(url)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            continue
+        link_id = str(item.get("id") or f"service-{index + 1}").strip()[:64]
+        name = str(item.get("name") or link_id).strip()[:96]
+        kind = str(item.get("kind") or "Service").strip()[:96]
+        links.append({"id": link_id, "name": name, "kind": kind, "url": url})
+    return links
+
+
+LINKS = _configured_links()
 
 _CACHE: dict[str, Any] = {"at": 0.0, "payload": None}
 PREFERENCES_FILE = Path(os.environ.get("HERMES_HOME", "/root/.hermes")) / "judge-m-control-plane" / "model-menu.json"
@@ -53,6 +80,17 @@ async def _load_overview() -> dict[str, Any]:
     now = time.monotonic()
     if _CACHE["payload"] is not None and now - float(_CACHE["at"]) < 5:
         return _CACHE["payload"]
+
+    if not PORTAL_URL:
+        result = {
+            "ok": False,
+            "source": None,
+            "error": "Optional operations portal is not configured.",
+            "overview": None,
+            "links": LINKS,
+        }
+        _CACHE.update(at=now, payload=result)
+        return result
 
     try:
         overview = await asyncio.to_thread(_fetch_json, f"{PORTAL_URL}/api/overview")

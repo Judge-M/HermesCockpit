@@ -79,6 +79,8 @@ assert.ok(settingsRuntime.includes('dataset.format="lines"') && settingsRuntime.
 assert.ok(!settingsRuntime.includes('key.className="setting-path"'), 'Raw config keys are still exposed as primary setting labels');
 const liveRuntime = read('dist/hermes-client.js');
 const controlPlaneRuntime = read('server/judge-m-control-plane/dashboard/plugin_api.py');
+assert.ok(controlPlaneRuntime.includes('HERMES_COCKPIT_PORTAL_URL') && controlPlaneRuntime.includes('HERMES_COCKPIT_LINKS_JSON'), 'Control plane is missing portable portal and service-link configuration');
+assert.ok(!/192\.168\.\d+\.\d+/.test(controlPlaneRuntime), 'Control plane contains a private installation address');
 assert.ok(liveRuntime.includes('data-inspector-tab="browser"') && liveRuntime.includes('/browser-preview') && liveRuntime.includes('use_real_profile'), 'Live chat is missing the native browser preview or privacy control');
 assert.ok(controlPlaneRuntime.includes('@router.get("/browser-preview")') && controlPlaneRuntime.includes('Page.captureScreenshot') && controlPlaneRuntime.includes('_BROWSER_PREVIEW_SALT'), 'Control plane is missing the authenticated CDP frame adapter');
 assert.ok(liveRuntime.includes('data-inspector-tab="routing"') && liveRuntime.includes('/semantic-routing/decisions') && liveRuntime.includes('semanticSessionParams'), 'Live chat is missing primary semantic routing or its decision inspector');
@@ -110,6 +112,12 @@ assert.ok(existsSync(path.join(root, 'dist/assets/hermes-aviator-girl.jpg')), 'M
 for (const asset of ['dist/vendor/tailwindcss-cdn.js', 'dist/vendor/tailwindcss-cdn-forms.js', 'dist/vendor/fonts.css', 'dist/vendor/material-symbols.css', 'dist/vendor/xterm/xterm.js', 'dist/vendor/xterm/xterm.css', 'dist/vendor/xterm/LICENSE']) {
   assert.ok(existsSync(path.join(root, asset)), `Missing vendored runtime asset: ${asset}`);
 }
+for (const releaseFile of ['compose.yaml', '.env.example', 'deploy/nginx.conf.template', 'scripts/install-hermes-extension.sh', 'docs/INSTALL.md', 'docs/CONFIGURATION.md', 'docs/UPGRADING.md', 'SECURITY.md', 'LICENSE']) {
+  assert.ok(existsSync(path.join(root, releaseFile)), `Missing public-release file: ${releaseFile}`);
+}
+assert.ok(read('scripts/run-cli-bridge-validation.py').includes('HERMES_SOURCE') && !read('scripts/run-cli-bridge-validation.py').includes('/tmp/cli_bridge.py'), 'CLI bridge validator is not portable');
+const readme = read('README.md');
+assert.ok(readme.includes('dist/assets/hermes-aviator-girl.jpg') && readme.includes('docker compose up -d'), 'README is missing the branded hero or quick start');
 const live = read('dist/live-control.html');
 assert.ok(live.includes('data-hermes-client="true"') && live.includes('data-hermes-base="/hermes"'), 'Live Control is missing Hermes client configuration');
 assert.ok(live.includes('hermes-client.js') && live.includes('vendor/xterm/xterm.js'), 'Live Control is missing its runtime');

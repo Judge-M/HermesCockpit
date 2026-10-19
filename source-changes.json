@@ -48,6 +48,12 @@
       "baseline_sha256": "a06d112ae5cdcae1146d820a9f26d0ab45c5db9be3951e94a9cfe4db5655fbb1",
       "reason": "Provide a labeled desktop navigation rail, a compact mobile bottom bar and sheet, and responsive workspace spacing without horizontal overflow.",
       "verification": "scripts/check.mjs records this as an intentional source change; responsive viewport checks cover the shared shell."
+    },
+    {
+      "path": "build.py",
+      "baseline_sha256": "8fd771ece5e8a046c11a54e3671697839f656a67aad0afc39f7b06b2aabbc6e8",
+      "reason": "Replace the non-portable one-time import path with a deterministic static release builder for cloned repositories.",
+      "verification": "CI runs build.py --check-only and the source-integrity check records this as an intentional change."
     }
   ]
 }
