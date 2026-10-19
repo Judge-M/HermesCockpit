@@ -6,6 +6,14 @@ map $http_upgrade $connection_upgrade {
 server {
     listen 80 default_server;
     server_name _;
+    server_tokens off;
+    client_max_body_size 64m;
+
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header Referrer-Policy "same-origin" always;
+    add_header Permissions-Policy "camera=(self), microphone=(self), geolocation=(), payment=(), usb=()" always;
+    add_header Content-Security-Policy "base-uri 'self'; object-src 'none'; frame-ancestors 'self'" always;
 
     location = /healthz {
         access_log off;
@@ -17,12 +25,25 @@ server {
         return 302 /cockpit/;
     }
 
+    location = /cockpit {
+        return 308 /cockpit/;
+    }
+
     location /cockpit/ {
         alias /usr/share/nginx/html/cockpit/;
         add_header Cache-Control "no-store, no-cache, must-revalidate" always;
         add_header Pragma "no-cache" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-Frame-Options "SAMEORIGIN" always;
+        add_header Referrer-Policy "same-origin" always;
+        add_header Permissions-Policy "camera=(self), microphone=(self), geolocation=(), payment=(), usb=()" always;
+        add_header Content-Security-Policy "base-uri 'self'; object-src 'none'; frame-ancestors 'self'" always;
         expires -1;
         try_files $uri $uri/ /cockpit/live-control.html;
+    }
+
+    location = /hermes {
+        return 308 /hermes/;
     }
 
     location /hermes/ {
@@ -31,6 +52,8 @@ server {
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection $connection_upgrade;
         proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Host $host;
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_set_header X-Forwarded-Prefix /hermes;

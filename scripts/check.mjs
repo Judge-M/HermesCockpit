@@ -112,12 +112,15 @@ assert.ok(existsSync(path.join(root, 'dist/assets/hermes-aviator-girl.jpg')), 'M
 for (const asset of ['dist/vendor/tailwindcss-cdn.js', 'dist/vendor/tailwindcss-cdn-forms.js', 'dist/vendor/fonts.css', 'dist/vendor/material-symbols.css', 'dist/vendor/xterm/xterm.js', 'dist/vendor/xterm/xterm.css', 'dist/vendor/xterm/LICENSE']) {
   assert.ok(existsSync(path.join(root, asset)), `Missing vendored runtime asset: ${asset}`);
 }
-for (const releaseFile of ['compose.yaml', '.env.example', 'deploy/nginx.conf.template', 'scripts/install-hermes-extension.sh', 'docs/INSTALL.md', 'docs/CONFIGURATION.md', 'docs/UPGRADING.md', 'SECURITY.md', 'LICENSE']) {
+for (const releaseFile of ['compose.yaml', '.env.example', 'deploy/nginx.conf.template', 'scripts/install-hermes-extension.sh', 'docs/INSTALL.md', 'docs/CONFIGURATION.md', 'docs/UPGRADING.md', 'docs/COMPATIBILITY.md', 'docs/DEVELOPMENT.md', 'docs/RELEASE-CHECKLIST.md', 'SECURITY.md', 'THIRD_PARTY_NOTICES.md', 'LICENSE', 'VERSION']) {
   assert.ok(existsSync(path.join(root, releaseFile)), `Missing public-release file: ${releaseFile}`);
+}
+for (const licenseFile of ['LICENSES/tailwindcss-MIT.txt', 'LICENSES/inter-OFL-1.1.txt', 'LICENSES/jetbrains-mono-OFL-1.1.txt', 'LICENSES/material-symbols-Apache-2.0.txt', 'dist/vendor/xterm/LICENSE']) {
+  assert.ok(existsSync(path.join(root, licenseFile)), `Missing vendored dependency license: ${licenseFile}`);
 }
 assert.ok(read('scripts/run-cli-bridge-validation.py').includes('HERMES_SOURCE') && !read('scripts/run-cli-bridge-validation.py').includes('/tmp/cli_bridge.py'), 'CLI bridge validator is not portable');
 const readme = read('README.md');
-assert.ok(readme.includes('dist/assets/hermes-aviator-girl.jpg') && readme.includes('docker compose up -d'), 'README is missing the branded hero or quick start');
+assert.ok(readme.includes('dist/assets/hermes-aviator-girl.jpg') && readme.includes('./scripts/bootstrap.sh'), 'README is missing the branded hero or quick start');
 const live = read('dist/live-control.html');
 assert.ok(live.includes('data-hermes-client="true"') && live.includes('data-hermes-base="/hermes"'), 'Live Control is missing Hermes client configuration');
 assert.ok(live.includes('hermes-client.js') && live.includes('vendor/xterm/xterm.js'), 'Live Control is missing its runtime');
@@ -130,7 +133,7 @@ for (const screen of navigationScreens) assert.ok(read('dist/shell.js').includes
 assert.ok(!read('dist/shell.js').includes('path: "backend-control"') && !read('dist/shell.js').includes('path: "cli-control"'), 'Redundant Capabilities or CLI navigation is still exposed');
 const systemScreen = read('dist/mesh-topology.html');
 assert.ok(!systemScreen.includes('Observed path') && !systemScreen.includes('Recent activity') && !systemScreen.includes('Nothing here is simulated.'), 'System still contains removed low-value panels or preview copy');
-assert.ok(read('dist/index.html').includes('url=live-control.html'));
+assert.ok(read('dist/index.html').includes('url=live-control.html') && read('dist/index.html').includes('<title>Hermes Cockpit</title>'), 'Static entry point is missing the product title or redirect');
 const inventory = JSON.parse(read('CAPABILITY-INVENTORY.json'));
 assert.equal(inventory.counts.cliTopLevelCommands, 72, 'Unexpected top-level CLI command count');
 assert.equal(inventory.counts.cliCanonicalCommandNodes, 422, 'Unexpected canonical CLI node count');
@@ -160,5 +163,9 @@ for (const command of ['auth priority', 'profile install', 'sessions recover', '
 assert.ok(bridge.includes('create_subprocess_exec') && !bridge.includes('shell=True'), 'CLI bridge must execute argv directly');
 assert.ok(bridge.includes('termios.ECHO') && bridge.includes('_owner_key'), 'CLI bridge is missing PTY or owner isolation');
 assert.ok(read('dist/cli-control.html').includes('/cli-operations') && read('dist/cli-control.html').includes('/cli-jobs'), 'Advanced Controls is missing bridge integration');
-assert.ok(read('server/judge-m-control-plane/dashboard/manifest.json').includes('"version": "0.4.0"'), 'Unexpected control-plane plugin version');
+const releaseVersion = read('VERSION').trim();
+assert.match(releaseVersion, /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/, 'VERSION is not semantic');
+assert.ok(read('server/judge-m-control-plane/plugin.yaml').includes(`version: ${releaseVersion}`), 'plugin.yaml version differs from VERSION');
+assert.equal(JSON.parse(read('server/judge-m-control-plane/dashboard/manifest.json')).version, releaseVersion, 'Dashboard manifest version differs from VERSION');
+assert.equal(JSON.parse(read('package.json')).version, releaseVersion, 'package.json version differs from VERSION');
 console.log(`PASS: ${provenance.files.length} baseline hashes; ${intentional.size} intentional source changes; ${screens.length} screens; local references and runtime assets; ${inlineScripts} inline scripts and shared shell syntax; vendored cockpit girl asset; blank password defaults.`);

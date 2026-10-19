@@ -1,6 +1,6 @@
 services:
   cockpit:
-    image: nginx:1.27.5-alpine
+    image: nginx:1.27.5-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10
     container_name: hermes-cockpit
     restart: unless-stopped
     ports:
@@ -10,6 +10,14 @@ services:
       NGINX_ENVSUBST_FILTER: HERMES_UPSTREAM
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /etc/nginx/conf.d:size=1m,mode=0755
+      - /var/cache/nginx:size=16m,mode=0755
+      - /var/run:size=1m,mode=0755
+      - /tmp:size=4m,mode=1777
     volumes:
       - ./dist:/usr/share/nginx/html/cockpit:ro
       - ./deploy/nginx.conf.template:/etc/nginx/templates/default.conf.template:ro
