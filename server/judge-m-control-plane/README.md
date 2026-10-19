@@ -16,13 +16,13 @@ The bridge is intentionally narrow:
 
 Hermes' global dashboard cookie/token middleware protects every `/api/plugins/*` endpoint before its plugin runtime gate and route handler. `plugin_api.py` mounts `cli_bridge.py` under that normal plugin API prefix and the bridge additionally requires a stable authenticated dashboard identity for all job access; there is no browser-accessible arbitrary shell.
 
-The same plugin provides a read-only Browser preview adapter. It uses Hermes' trusted in-process browser supervisor to capture the active page through CDP, but never returns the CDP address, browser socket, raw task identifier, or copied-profile path to the browser. Preview identifiers are opaque, process-local values and frames are returned with private, no-store caching headers.
+Live Browser preview uses the authenticated native gateway `browser.preview` method. Hermes checks that the requesting transport owns the live session, then captures a bounded JPEG in the process that owns the browser supervisor. No CDP address, browser socket, raw task identifier, or copied-profile path is exposed. This works with isolated plugin hosts; legacy plugin preview routes remain available only where the browser registry is local to that process.
 
 It also provides native semantic routing. Cockpit stores profile-scoped policy under `smart_model_routing`, registers a real `Semantic Router` auxiliary-model slot, resolves only concrete provider/model pairs from the curated model catalog, and exposes prompt-redacted decision history and aggregate metrics. The policy layer enforces verified-local, capability, health, allow-list, timeout, fallback, and recursion constraints before a decision can affect Hermes.
 
 Tool and memory routing can only narrow resources Hermes already authorized. Tool selections are pinned to the Hermes `turn_id`, so a tool-call loop sees a stable schema. Memory routing runs immediately before native provider prefetch and can select or skip an authorized source; it cannot add a provider, replace Hermes memory storage, or bypass source access control. Dedicated tool and memory decision models are optional and inherit the shared router when omitted.
 
-Shadow routing is passive and never controls execution. Escalation is deliberately next-turn-only and blocked after side-effecting actions by default. Verification uses bounded auxiliary calls with no tool schemas. Caching is off by default, stores successful routing decisions only, and includes profile, session, configuration, router identity, candidate metadata, and a process-salted prompt fingerprint in its key.
+Shadow routing is passive and never controls execution. Escalation evaluation and answer verification are manual API operations; this release does not automatically run them on chat turns, and the automatic switches are disabled in the UI. Escalation evaluation never changes a running session or replays actions. Verification uses bounded auxiliary calls with no tool schemas. Caching is off by default, stores successful routing decisions only, and includes owner, profile, session, configuration, router identity, candidate metadata, and a process-salted prompt fingerprint in its key.
 
 ## Endpoints
 
@@ -54,7 +54,7 @@ The plugin ships with no installation-specific hosts or service links. Operators
 
 Invalid link entries are ignored, and a missing portal produces an explicit unconfigured state instead of a fabricated overview. See `docs/CONFIGURATION.md` in the repository root for examples.
 
-Hermes 0.21.7 already provides the request middleware used for safe tool selection. Apply `server/hermes-runtime-patches/semantic-routing-hooks.patch` to add the generic model-resolution seam used by subagent and auxiliary invocations. Apply `server/hermes-runtime-patches/semantic-routing-memory-hooks.patch` after it to add the authorized-provider memory-prefetch seam. Primary Cockpit sessions resolve their concrete route through Hermes' existing `session.create` provider/model override.
+Hermes 0.21.7 already provides the request middleware used for safe tool selection. Apply `server/hermes-runtime-patches/semantic-routing-hooks.patch` for model resolution, then `semantic-routing-memory-hooks.patch` for authorized memory prefetch, `hosted-plugin-owner-scope.patch` for verified dashboard and runtime owner context, and `browser-preview-gateway.patch` for authenticated browser capture. The installer applies them in this order. Owner identity comes from Hermes' native session records before middleware is serialized to an isolated host. Unresolved gateway identity retains the native route. Primary Cockpit sessions resolve their concrete route through Hermes' existing `session.create` provider/model override.
 
 ## Supported boundaries and honest limitations
 
@@ -62,4 +62,4 @@ Hermes 0.21.7 already provides the request middleware used for safe tool selecti
 - Subagent routing resolves when each child is created; auxiliary routing resolves before the native auxiliary request.
 - Memory routing can choose among the installed `MemoryManager` providers. This Hermes version permits one external provider, so multiple logical stores must remain inside that provider's authorized implementation.
 - Escalation and verification are exposed as authenticated lifecycle-safe operations, but this Hermes version does not expose a public ordinary-turn completion hook for the plugin. Cockpit therefore does not pretend that either can interrupt or replay an active turn.
-- Complete prompts, credentials, tool outputs, and raw memory results are not persisted in routing traces. The process-local trace and cache are intentionally bounded and reset on restart.
+- Complete prompts, credentials, tool outputs, raw verifier text, and raw memory results are excluded from routing traces. Redacted routing history is shared across runtime and dashboard processes in a bounded SQLite store under the Hermes home. The decision cache remains process-local and resets on restart.

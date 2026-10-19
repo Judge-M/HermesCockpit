@@ -2,6 +2,7 @@
 set -eu
 
 node scripts/check.mjs
+node --test tests/*.test.js
 python scripts/validate-semantic-routing.py
 python build.py --check-only
 version=$(tr -d '\r\n' < VERSION)

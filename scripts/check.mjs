@@ -81,7 +81,7 @@ const liveRuntime = read('dist/hermes-client.js');
 const controlPlaneRuntime = read('server/judge-m-control-plane/dashboard/plugin_api.py');
 assert.ok(controlPlaneRuntime.includes('HERMES_COCKPIT_PORTAL_URL') && controlPlaneRuntime.includes('HERMES_COCKPIT_LINKS_JSON'), 'Control plane is missing portable portal and service-link configuration');
 assert.ok(!/192\.168\.\d+\.\d+/.test(controlPlaneRuntime), 'Control plane contains a private installation address');
-assert.ok(liveRuntime.includes('data-inspector-tab="browser"') && liveRuntime.includes('/browser-preview') && liveRuntime.includes('use_real_profile'), 'Live chat is missing the native browser preview or privacy control');
+assert.ok(liveRuntime.includes('data-inspector-tab="browser"') && liveRuntime.includes('gateway().call("browser.preview"') && liveRuntime.includes('use_real_profile'), 'Live chat is missing the native browser preview or privacy control');
 assert.ok(controlPlaneRuntime.includes('@router.get("/browser-preview")') && controlPlaneRuntime.includes('Page.captureScreenshot') && controlPlaneRuntime.includes('_BROWSER_PREVIEW_SALT'), 'Control plane is missing the authenticated CDP frame adapter');
 assert.ok(liveRuntime.includes('data-inspector-tab="routing"') && liveRuntime.includes('/semantic-routing/decisions') && liveRuntime.includes('semanticSessionParams'), 'Live chat is missing primary semantic routing or its decision inspector');
 assert.ok(controlPlaneRuntime.includes('@router.put("/semantic-routing")') && controlPlaneRuntime.includes('@router.post("/semantic-routing/decide")'), 'Control plane is missing native semantic-routing APIs');

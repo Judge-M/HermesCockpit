@@ -6,11 +6,12 @@ must match the installed Hermes API and CLI contracts.
 
 | Cockpit | Hermes Agent | Hermes commit | Support level |
 | --- | --- | --- | --- |
-| `0.4.x` | `0.21.7` | `71d34bad1045610252eda02ee79549436896e784` | Fully verified |
+| `0.4.x` | `0.21.7` | `71d34bad1045610252eda02ee79549436896e784` | Pinned runtime target; patch and installer checks verified |
 
-The compatibility job checks both Cockpit runtime patches against the official
+The compatibility job checks all Cockpit runtime patches against the official
 Hermes tag. The capability inventory was generated from the same commit and
-records 348 API operations and 170 reviewed CLI bridge operations.
+records 348 API operations and 170 reviewed CLI bridge operations. These checks
+do not replace authenticated, live-deployment acceptance testing.
 
 ## Other Hermes versions
 
@@ -20,12 +21,13 @@ plugin hooks, or session behavior even when the Cockpit pages still load.
 
 `--skip-patches` installs only the Cockpit plugin. This is useful for inspection
 or a deliberately reduced setup, but semantic routing for subagents, auxiliary
-models, and memory is not complete in that mode.
+models, and memory is not complete in that mode. Verified hosted owner context
+and native browser preview also require their runtime patches.
 
 Before declaring another Hermes version supported:
 
 1. regenerate and review the API/CLI capability inventory;
-2. rebase both runtime patches onto the exact upstream tag;
+2. rebase all runtime patches onto the exact upstream tag;
 3. run the CLI bridge validator in Hermes' managed Python runtime;
 4. run the browser smoke suite against a live deployment;
 5. exercise Chat, Bot Mode, Models, Manage, Browser preview, and Kanban;

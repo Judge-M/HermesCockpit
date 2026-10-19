@@ -12,18 +12,27 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from copy import deepcopy
 from dataclasses import dataclass
 import hashlib
+import http.client
 import ipaddress
 import json
 import logging
 import re
 import secrets
+import socket
 import threading
 import time
 import uuid
 from typing import Any, Iterable, Mapping, Optional
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
-from urllib.request import Request, urlopen
+from urllib.request import (
+    HTTPHandler,
+    HTTPRedirectHandler,
+    HTTPSHandler,
+    ProxyHandler,
+    Request,
+    build_opener,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -39,13 +48,88 @@ _TRACES: deque[dict[str, Any]] = deque(maxlen=_TRACE_LIMIT)
 _TRACE_LOCK = threading.RLock()
 _CACHE: dict[str, tuple[float, dict[str, Any]]] = {}
 _CACHE_LOCK = threading.RLock()
-_TOOL_SELECTIONS: dict[tuple[str, str, str], list[str]] = {}
+_TOOL_SELECTIONS: dict[tuple[str, str, str, str], list[str]] = {}
 _TOOL_SELECTIONS_LOCK = threading.RLock()
-_ESCALATIONS: dict[tuple[str, str], int] = {}
+_ESCALATIONS: dict[tuple[str, str, str], int] = {}
 _ESCALATION_LOCK = threading.RLock()
-_CIRCUITS: dict[str, dict[str, float]] = {}
+_CIRCUITS: dict[tuple[str, str], dict[str, float]] = {}
 _CIRCUIT_LOCK = threading.RLock()
 _FINGERPRINT_SALT = secrets.token_bytes(32)
+_SINGLE_USER_OWNER_SCOPE = "__single_user__"
+
+
+class _RejectRedirects(HTTPRedirectHandler):
+    """Do not let a configured decision endpoint escape its validated origin."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: D401
+        raise URLError("decision endpoints may not redirect")
+
+
+class _PinnedHTTPConnection(http.client.HTTPConnection):
+    """Connect to the address selected by endpoint validation, not a fresh DNS result."""
+
+    def __init__(self, host: str, pinned_address: str, **kwargs: Any):
+        self._pinned_address = pinned_address
+        super().__init__(host, **kwargs)
+
+    def connect(self) -> None:
+        self.sock = self._create_connection(
+            (self._pinned_address, self.port), self.timeout, self.source_address
+        )
+        if self._tunnel_host:
+            self._tunnel()
+
+
+class _PinnedHTTPSConnection(http.client.HTTPSConnection):
+    """HTTPS connection pinned to a validated address while retaining URL-host SNI."""
+
+    def __init__(self, host: str, pinned_address: str, **kwargs: Any):
+        self._pinned_address = pinned_address
+        super().__init__(host, **kwargs)
+
+    def connect(self) -> None:
+        self.sock = self._create_connection(
+            (self._pinned_address, self.port), self.timeout, self.source_address
+        )
+        if self._tunnel_host:
+            self._tunnel()
+        server_hostname = (self._tunnel_host or self.host).strip("[]")
+        self.sock = self._context.wrap_socket(self.sock, server_hostname=server_hostname)
+
+
+class _PinnedHTTPHandler(HTTPHandler):
+    def __init__(self, pinned_address: str):
+        super().__init__()
+        self._pinned_address = pinned_address
+
+    def http_open(self, req):  # noqa: D401
+        return self.do_open(
+            lambda host, **kwargs: _PinnedHTTPConnection(host, self._pinned_address, **kwargs), req
+        )
+
+
+class _PinnedHTTPSHandler(HTTPSHandler):
+    def __init__(self, pinned_address: str):
+        super().__init__()
+        self._pinned_address = pinned_address
+
+    def https_open(self, req):  # noqa: D401
+        return self.do_open(
+            lambda host, **kwargs: _PinnedHTTPSConnection(host, self._pinned_address, **kwargs),
+            req,
+            context=self._context,
+        )
+
+
+def _decision_opener(pinned_address: str):
+    # Disable environment proxies: otherwise the request would connect to the
+    # proxy rather than the address validated immediately before this call.
+    return build_opener(
+        ProxyHandler({}),
+        _PinnedHTTPHandler(pinned_address),
+        _PinnedHTTPSHandler(pinned_address),
+        _RejectRedirects(),
+    )
 
 
 DEFAULT_CONFIG: dict[str, Any] = {
@@ -146,26 +230,81 @@ def _normalize_model_refs(values: Any, limit: int = 16) -> list[dict[str, str]]:
     return rows
 
 
-def _validate_custom_endpoint(endpoint: str) -> None:
-    """Permit HTTPS or an explicitly local HTTP target; block metadata/link-local SSRF targets."""
+def _canonical_endpoint_address(value: ipaddress.IPv4Address | ipaddress.IPv6Address):
+    mapped = value.ipv4_mapped if isinstance(value, ipaddress.IPv6Address) else None
+    return mapped or value
+
+
+def _blocked_endpoint_address(value: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
+    value = _canonical_endpoint_address(value)
+    return value.is_link_local or value.is_multicast or value.is_unspecified or str(value) in {
+        "169.254.169.254",
+        "100.100.100.200",
+        "fd00:ec2::254",
+    }
+
+
+def _unsafe_endpoint_address(value: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
+    value = _canonical_endpoint_address(value)
+    return value.is_private or value.is_loopback or _blocked_endpoint_address(value)
+
+
+def _validated_endpoint(endpoint: str):
+    """Validate an endpoint and return its parsed URL plus the address to connect to."""
     if not endpoint:
-        return
+        return None, None
     parsed = urlparse(endpoint)
     if parsed.scheme not in {"http", "https"} or not parsed.hostname or parsed.username or parsed.password:
         raise ValueError("Decision endpoint must be an HTTP(S) URL without embedded credentials")
-    host = parsed.hostname.strip("[]").lower()
     try:
-        address = ipaddress.ip_address(host)
+        port = parsed.port or (443 if parsed.scheme == "https" else 80)
+    except ValueError as exc:
+        raise ValueError("Decision endpoint has an invalid port") from exc
+    host = parsed.hostname.strip("[]").lower()
+    host_for_ip = host.split("%", 1)[0]
+    try:
+        address = _canonical_endpoint_address(ipaddress.ip_address(host_for_ip))
     except ValueError:
         address = None
+
+    local = host == "localhost" or host.endswith(".local")
     if address is not None:
-        if address.is_link_local or address.is_multicast or address.is_unspecified or str(address) in {"169.254.169.254", "100.100.100.200"}:
+        if _blocked_endpoint_address(address):
             raise ValueError("Decision endpoint targets a blocked local metadata or link-local address")
-        local = address.is_private or address.is_loopback
+        # Explicit private/loopback IPs are a deliberate local-endpoint escape hatch.
+        local = local or address.is_private or address.is_loopback
+        pinned_address = str(address)
     else:
-        local = host in {"localhost"} or host.endswith(".local")
+        try:
+            resolved = []
+            seen = set()
+            for result in socket.getaddrinfo(host, port, type=socket.SOCK_STREAM):
+                if not result[4] or not result[4][0]:
+                    continue
+                candidate = _canonical_endpoint_address(
+                    ipaddress.ip_address(result[4][0].split("%", 1)[0])
+                )
+                if str(candidate) not in seen:
+                    seen.add(str(candidate))
+                    resolved.append(candidate)
+        except (OSError, ValueError) as exc:
+            raise ValueError("Decision endpoint hostname could not be resolved") from exc
+        if not resolved:
+            raise ValueError("Decision endpoint hostname could not be resolved")
+        # Local names may resolve to private/loopback addresses, but link-local,
+        # metadata, multicast, and unspecified targets are never permitted.
+        if any(_blocked_endpoint_address(value) for value in resolved):
+            raise ValueError("Decision endpoint targets a blocked local metadata or link-local address")
+        if not local and any(_unsafe_endpoint_address(value) for value in resolved):
+            raise ValueError("Decision endpoint hostname resolves to a blocked local or metadata address")
+        pinned_address = str(resolved[0])
     if parsed.scheme != "https" and not local:
         raise ValueError("Public decision endpoints must use HTTPS")
+    return parsed, pinned_address
+
+
+def _validate_custom_endpoint(endpoint: str) -> None:
+    _validated_endpoint(endpoint)
 
 
 def normalize_config(raw: Any) -> dict[str, Any]:
@@ -438,15 +577,15 @@ def _router_key(model: Mapping[str, Any]) -> str:
     return f"{model.get('provider', '')}/{model.get('model', '')}/{model.get('endpoint', '')}"
 
 
-def _circuit_open(model: Mapping[str, Any]) -> bool:
-    key = _router_key(model)
+def _circuit_open(model: Mapping[str, Any], owner_id: Any = "") -> bool:
+    key = (_owner_scope(owner_id), _router_key(model))
     with _CIRCUIT_LOCK:
         state = _CIRCUITS.get(key) or {}
         return float(state.get("open_until") or 0) > time.monotonic()
 
 
-def _note_router_result(model: Mapping[str, Any], success: bool) -> None:
-    key = _router_key(model)
+def _note_router_result(model: Mapping[str, Any], success: bool, owner_id: Any = "") -> None:
+    key = (_owner_scope(owner_id), _router_key(model))
     with _CIRCUIT_LOCK:
         state = _CIRCUITS.setdefault(key, {"failures": 0.0, "open_until": 0.0})
         if success:
@@ -457,27 +596,91 @@ def _note_router_result(model: Mapping[str, Any], success: bool) -> None:
                 state["open_until"] = time.monotonic() + 30
 
 
-def _trace(record: dict[str, Any]) -> None:
-    public = {key: value for key, value in record.items() if key not in {"prompt", "messages", "api_key"}}
+def _owner_scope(owner_id: Any) -> str:
+    """Normalize a server-established owner scope without storing raw identity data."""
+
+    value = _clean_text(owner_id, 128)
+    return value or _SINGLE_USER_OWNER_SCOPE
+
+
+def _trace(record: dict[str, Any], *, owner_id: Any = None) -> None:
+    owner_scope = _owner_scope(owner_id if owner_id is not None else record.get("_owner_scope"))
+    forbidden = {
+        "prompt", "messages", "api_key", "authorization", "access_token", "token", "secret",
+        "verdict", "answer", "output", "content", "body", "response", "raw_response",
+    }
+
+    def scrub(value: Any) -> Any:
+        if isinstance(value, Mapping):
+            return {
+                key: scrub(item)
+                for key, item in value.items()
+                if str(key).lower() not in forbidden
+            }
+        if isinstance(value, list):
+            return [scrub(item) for item in value]
+        if isinstance(value, tuple):
+            return [scrub(item) for item in value]
+        return value
+
+    public = scrub(record)
+    public.pop("_owner_scope", None)
     public["at"] = time.time()
-    public.setdefault("decision_id", uuid.uuid4().hex)
-    public.setdefault("correlation_id", public["decision_id"])
+    # These identifiers are safe routing metadata and must remain public even
+    # when the surrounding record is recursively redacted.
+    decision_id = public.get("decision_id")
+    if not isinstance(decision_id, str) or not decision_id:
+        decision_id = uuid.uuid4().hex
+    public["decision_id"] = decision_id
+    correlation_id = public.get("correlation_id")
+    public["correlation_id"] = correlation_id if isinstance(correlation_id, str) and correlation_id else decision_id
+    public["_owner_scope"] = owner_scope
     with _TRACE_LOCK:
         _TRACES.append(public)
+    state = globals().get("_ROUTING_STATE")
+    append_trace = getattr(state, "append_trace", None)
+    if append_trace is not None:
+        append_trace(public)
 
 
-def decision_traces(*, profile: str = "", session_id: str = "", limit: int = 50) -> list[dict[str, Any]]:
+def _public_trace(row: Mapping[str, Any]) -> dict[str, Any]:
+    return {key: deepcopy(value) for key, value in row.items() if not key.startswith("_")}
+
+
+def decision_traces(
+    *, profile: str = "", session_id: str = "", limit: int = 50, owner_id: Any = "",
+) -> list[dict[str, Any]]:
+    owner_scope = _owner_scope(owner_id)
+    state = globals().get("_ROUTING_STATE")
+    read_traces = getattr(state, "read_traces", None)
+    if read_traces is not None:
+        rows = read_traces(
+            owner_scope=owner_scope,
+            profile=profile,
+            session_id=session_id,
+            limit=limit,
+        )
+        if rows is not None:
+            return [_public_trace(row) for row in rows]
+        trace_store_enabled = getattr(state, "trace_store_enabled", None)
+        if trace_store_enabled is not None and trace_store_enabled():
+            return [{
+                "category": "trace_store",
+                "available": False,
+                "reason": "routing trace history is unavailable",
+            }]
     with _TRACE_LOCK:
         rows = list(_TRACES)
+    rows = [row for row in rows if row.get("_owner_scope", _SINGLE_USER_OWNER_SCOPE) == owner_scope]
     if profile:
         rows = [row for row in rows if row.get("profile") == profile]
     if session_id:
         rows = [row for row in rows if row.get("session_id") == session_id]
-    return rows[-max(1, min(200, int(limit or 50))):][::-1]
+    return [_public_trace(row) for row in rows[-max(1, min(200, int(limit or 50))):][::-1]]
 
 
-def routing_metrics(*, profile: str = "") -> dict[str, Any]:
-    rows = decision_traces(profile=profile, limit=200)
+def routing_metrics(*, profile: str = "", owner_id: Any = "") -> dict[str, Any]:
+    rows = decision_traces(profile=profile, limit=200, owner_id=owner_id)
     latencies = sorted(float(row["latency_ms"]) for row in rows if isinstance(row.get("latency_ms"), (int, float)))
     selections: dict[str, int] = {}
     for row in rows:
@@ -575,7 +778,6 @@ def _system_one_decision(
 ) -> tuple[str, Optional[float], list[str]]:
     decision_model = decision_model or cfg["decision_model"]
     endpoint = str(decision_model.get("endpoint") or "").rstrip("/")
-    _validate_custom_endpoint(endpoint)
     api_key = None
     if not endpoint:
         from agent.auxiliary_client import _resolve_task_provider_model
@@ -599,7 +801,10 @@ def _system_one_decision(
     if api_key:
         headers["Authorization"] = f"Bearer {api_key}"
     request = Request(endpoint, data=json.dumps(payload).encode("utf-8"), headers=headers, method="POST")
-    with urlopen(request, timeout=int(cfg["timeout_seconds"])) as response:
+    # Resolve and validate exactly once immediately before opening the socket;
+    # the transport pins that validated address to close the DNS/connect race.
+    _, pinned_address = _validated_endpoint(endpoint)
+    with _decision_opener(pinned_address).open(request, timeout=int(cfg["timeout_seconds"])) as response:
         result = json.loads(response.read().decode("utf-8"))
     return _find_selected(result)
 
@@ -633,10 +838,12 @@ def _generic_decision(
 def _invoke_decision(
     cfg: Mapping[str, Any], prompt: str, rows: list[Candidate], decision_model: Mapping[str, Any],
     *, decision_type: str = "select_model", tool_names: Optional[list[str]] = None,
+    owner_id: Any = "",
 ) -> tuple[str, Optional[float], list[str], str, int]:
     if not decision_model.get("provider") or not decision_model.get("model"):
         raise ValueError("decision model is not configured")
-    if _circuit_open(decision_model):
+    owner_scope = _owner_scope(owner_id)
+    if _circuit_open(decision_model, owner_scope):
         raise RuntimeError("decision backend circuit is temporarily open")
     adapter = _adapter_name(decision_model)
     started = time.monotonic()
@@ -650,18 +857,19 @@ def _invoke_decision(
                 cfg, prompt, rows, tool_names=tool_names, decision_model=decision_model,
                 decision_type=decision_type,
             )
-        _note_router_result(decision_model, True)
+        _note_router_result(decision_model, True, owner_scope)
         return selected, score, ordered, adapter, round((time.monotonic() - started) * 1000)
     except Exception:
-        _note_router_result(decision_model, False)
+        _note_router_result(decision_model, False, owner_scope)
         raise
 
 
 def decide(
     *, profile: str, slot: str, task: str, prompt: str, candidates: Iterable[Any],
     native: Optional[Mapping[str, Any]] = None, session_id: str = "",
-    requirements: Optional[Mapping[str, Any]] = None,
+    requirements: Optional[Mapping[str, Any]] = None, owner_id: Any = "",
 ) -> dict[str, Any]:
+    owner_scope = _owner_scope(owner_id)
     cfg = load_config(profile)
     all_rows = _candidate_rows(candidates)
     rows, excluded, constraints = _policy_filter(all_rows, cfg["policy"], requirements=requirements)
@@ -680,17 +888,17 @@ def decide(
     if not cfg["enabled"] or mode != "semantic" or task == ROUTER_TASK:
         result = {**base, "routed": False, "selected": None, "reason": "native route retained"}
         if cfg["enabled"]:
-            _trace(result)
+            _trace(result, owner_id=owner_scope)
         return result
     if not rows:
         result = {**base, "routed": False, "selected": None, "fallback": True, "reason": "no eligible models"}
-        _trace(result)
+        _trace(result, owner_id=owner_scope)
         return result
 
     decision_model = cfg["decision_model"]
     cache_cfg = cfg["cache"]
     cache_key = json.dumps([
-        profile, session_id, slot, task, base["config_version"], _router_key(decision_model),
+        owner_scope, profile, session_id, slot, task, base["config_version"], _router_key(decision_model),
         base["prompt_fingerprint"], [row.public() for row in rows],
     ], sort_keys=True, separators=(",", ":"))
     now = time.monotonic()
@@ -699,13 +907,13 @@ def decide(
             cached = _CACHE.get(cache_key)
             if cached and cached[0] > now:
                 result = {**deepcopy(cached[1]), "cache_hit": True, "latency_ms": 0}
-                _trace(result)
+                _trace(result, owner_id=owner_scope)
                 return result
 
     started = time.monotonic()
     try:
         selected_key, score, _ordered, adapter, latency = _invoke_decision(
-            cfg, prompt, rows, decision_model, decision_type="select_model",
+            cfg, prompt, rows, decision_model, decision_type="select_model", owner_id=owner_scope,
         )
         selected = next((row for row in rows if selected_key.lower() in {row.key.lower(), row.model.lower()}), None)
         if selected is None:
@@ -723,7 +931,7 @@ def decide(
         if shadow_cfg["enabled"] and shadow_model.get("provider") and shadow_model.get("model"):
             try:
                 shadow_key, shadow_score, _ranking, shadow_adapter, shadow_latency = _invoke_decision(
-                    cfg, prompt, rows, shadow_model, decision_type="select_model",
+                    cfg, prompt, rows, shadow_model, decision_type="select_model", owner_id=owner_scope,
                 )
                 shadow_selected = next((row for row in rows if shadow_key.lower() in {row.key.lower(), row.model.lower()}), None)
                 result["shadow"] = {
@@ -743,7 +951,7 @@ def decide(
             "reason": "configured eligible fallback" if fallback else "native route retained",
             "latency_ms": round((time.monotonic() - started) * 1000),
         }
-    _trace(result)
+    _trace(result, owner_id=owner_scope)
     if cache_cfg["enabled"] and result.get("routed") and not result.get("fallback"):
         with _CACHE_LOCK:
             if len(_CACHE) >= int(cache_cfg["max_entries"]):
@@ -761,14 +969,16 @@ def _resource_decision_model(cfg: Mapping[str, Any], resource: str) -> dict[str,
 
 def route_tools(
     *, profile: str, prompt: str, tools: list[dict[str, Any]], session_id: str = "", turn_id: str = "",
+    owner_id: Any = "",
 ) -> tuple[list[dict[str, Any]], Optional[dict[str, Any]]]:
+    owner_scope = _owner_scope(owner_id)
     cfg = load_config(profile)
     controls = cfg["tool_routing"]
     if not cfg["enabled"] or not controls["enabled"] or not cfg["context_optimization"]["tool_narrowing"] or len(tools) < 2:
         return tools, None
     names = [_clean_text(tool.get("function", {}).get("name") if isinstance(tool.get("function"), Mapping) else tool.get("name"), 256) for tool in tools]
     authorized = {name: tool for name, tool in zip(names, tools) if name}
-    turn_key = (profile, session_id, turn_id)
+    turn_key = (owner_scope, profile, session_id, turn_id)
     if turn_id:
         with _TOOL_SELECTIONS_LOCK:
             pinned = _TOOL_SELECTIONS.get(turn_key)
@@ -788,6 +998,7 @@ def route_tools(
     try:
         selected, score, ordered, adapter, latency = _invoke_decision(
             cfg, prompt, rows, decision_model, decision_type="select_tools", tool_names=names,
+            owner_id=owner_scope,
         )
         if not ordered and selected:
             ordered = [selected]
@@ -814,7 +1025,7 @@ def route_tools(
         }
         if score is not None:
             trace["reported_score"] = score
-        _trace(trace)
+        _trace(trace, owner_id=owner_scope)
         return routed, trace
     except Exception as exc:
         trace = {
@@ -825,14 +1036,16 @@ def route_tools(
             "error": _public_error(exc), "reason": "native authorized tool set retained",
             "latency_ms": round((time.monotonic() - started) * 1000),
         }
-        _trace(trace)
+        _trace(trace, owner_id=owner_scope)
         return tools, trace
 
 
 def route_memory(
     *, profile: str, prompt: str, sources: list[str], session_id: str = "",
+    owner_id: Any = "",
 ) -> tuple[list[str], Optional[dict[str, Any]]]:
     """Select only from memory providers Hermes already authorized for this turn."""
+    owner_scope = _owner_scope(owner_id)
     cfg = load_config(profile)
     controls = cfg["memory_routing"]
     authorized = list(dict.fromkeys(_clean_text(source, 128) for source in sources if _clean_text(source, 128)))
@@ -846,6 +1059,7 @@ def route_memory(
     try:
         selected, score, _ordered, adapter, latency = _invoke_decision(
             cfg, prompt, rows, decision_model, decision_type=f"select_memory:{controls['strategy']}",
+            owner_id=owner_scope,
         )
         selected_name = selected.removeprefix("memory/")
         if selected_name == "__skip__" and controls["allow_skip"]:
@@ -864,7 +1078,7 @@ def route_memory(
         }
         if score is not None:
             trace["reported_score"] = score
-        _trace(trace)
+        _trace(trace, owner_id=owner_scope)
         return routed, trace
     except Exception as exc:
         trace = {
@@ -875,32 +1089,33 @@ def route_memory(
             "error": _public_error(exc), "reason": "native authorized memory sources retained",
             "latency_ms": round((time.monotonic() - started) * 1000),
         }
-        _trace(trace)
+        _trace(trace, owner_id=owner_scope)
         return authorized, trace
 
 
 def evaluate_escalation(
     *, profile: str, session_id: str, current: Mapping[str, Any], candidates: Iterable[Any],
-    error_count: int = 0, side_effects: bool = False,
+    error_count: int = 0, side_effects: bool = False, owner_id: Any = "",
 ) -> dict[str, Any]:
     """Choose a next-turn model only; never replay a turn or an external action."""
+    owner_scope = _owner_scope(owner_id)
     cfg = load_config(profile)
     controls = cfg["escalation"]
     base = {
         "category": "escalation", "slot": "primary", "task": "safe_escalation", "profile": profile,
         "session_id": session_id, "config_version": _config_version(cfg), "routed": False,
     }
-    key = (profile, session_id)
+    key = (owner_scope, profile, session_id)
     with _ESCALATION_LOCK:
         used = _ESCALATIONS.get(key, 0)
     if not controls["enabled"]:
         return {**base, "reason": "escalation disabled"}
     if side_effects and not controls["allow_after_side_effects"]:
-        result = {**base, "reason": "blocked after a side-effecting tool action"}; _trace(result); return result
+        result = {**base, "reason": "blocked after a side-effecting tool action"}; _trace(result, owner_id=owner_scope); return result
     if int(error_count or 0) < controls["error_threshold"]:
         return {**base, "reason": "error threshold not reached"}
     if used >= controls["max_per_session"]:
-        result = {**base, "reason": "session escalation limit reached"}; _trace(result); return result
+        result = {**base, "reason": "session escalation limit reached"}; _trace(result, owner_id=owner_scope); return result
     rows, excluded, constraints = _policy_filter(_candidate_rows(candidates), cfg["policy"])
     allow = {f"{row['provider']}/{row['model']}".lower() for row in controls["eligible_models"]}
     if allow:
@@ -908,7 +1123,7 @@ def evaluate_escalation(
     current_key = f"{current.get('provider', '')}/{current.get('model', '')}".lower()
     selected = next((row for row in rows if row.key.lower() != current_key), None)
     if selected is None:
-        result = {**base, "reason": "no different eligible escalation model", "excluded": excluded}; _trace(result); return result
+        result = {**base, "reason": "no different eligible escalation model", "excluded": excluded}; _trace(result, owner_id=owner_scope); return result
     with _ESCALATION_LOCK:
         _ESCALATIONS[key] = used + 1
     result = {
@@ -916,12 +1131,13 @@ def evaluate_escalation(
         "replayed": False, "side_effects_replayed": False, "eligible": [row.key for row in rows],
         "excluded": excluded, "constraints": constraints,
     }
-    _trace(result)
+    _trace(result, owner_id=owner_scope)
     return result
 
 
 def verify_output(
     *, profile: str, prompt: str, output: str, session_id: str = "",
+    owner_id: Any = "",
 ) -> dict[str, Any]:
     """Run bounded, tool-free auxiliary verification; this never executes user tools."""
     cfg = load_config(profile)
@@ -975,19 +1191,30 @@ def verify_output(
     result = {**base, "routed": True, "verdicts": verdicts, "tool_calls_allowed": False,
               "parallel": len(models) > 1, "synthesis": synthesis,
               "prompt_fingerprint": _prompt_fingerprint(prompt)}
-    _trace(result)
+    _trace(result, owner_id=_owner_scope(owner_id))
     return result
 
 
-def record_outcome(*, decision_id: str, outcome: Mapping[str, Any]) -> bool:
+def record_outcome(*, decision_id: str, outcome: Mapping[str, Any], owner_id: Any = "") -> bool:
     """Attach bounded outcome metadata to a recent redacted trace."""
     allowed = {key: deepcopy(outcome[key]) for key in ("status", "latency_ms", "error_count", "cancelled") if key in outcome}
+    owner_scope = _owner_scope(owner_id)
+    updated = False
+    state = globals().get("_ROUTING_STATE")
+    update_trace_outcome = getattr(state, "update_trace_outcome", None)
+    if update_trace_outcome is not None:
+        updated = update_trace_outcome(
+            owner_scope=owner_scope,
+            decision_id=decision_id,
+            outcome=allowed,
+        )
     with _TRACE_LOCK:
         for row in reversed(_TRACES):
-            if row.get("decision_id") == decision_id:
+            if row.get("decision_id") == decision_id and row.get("_owner_scope", _SINGLE_USER_OWNER_SCOPE) == owner_scope:
                 row["outcome"] = allowed
-                return True
-    return False
+                updated = True
+                break
+    return updated
 
 
 def middleware_profile(context: Mapping[str, Any]) -> str:

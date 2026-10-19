@@ -65,6 +65,54 @@ patch_state() {
     fi
 }
 
+model_patch_state_without_memory_overlay() {
+    scratch_dir=$(mktemp -d "${TMPDIR:-/tmp}/hermes-cockpit-model-check.XXXXXX") || {
+        printf '%s\n' drifted
+        return 0
+    }
+    copy_failed=0
+    for patch_file in "$MODEL_PATCH" "$MEMORY_PATCH" "$OWNER_PATCH" "$BROWSER_PATCH"; do
+        patch_applied=0
+        if git -C "$HERMES_SOURCE" apply --reverse --check "$patch_file" >/dev/null 2>&1; then patch_applied=1; fi
+        patch_paths=$(git apply --numstat "$patch_file" 2>/dev/null | sed -n 's/^[0-9-][0-9-]*[[:space:]][0-9-][0-9]*[[:space:]]//p')
+        while IFS= read -r relative_path; do
+            [ -n "$relative_path" ] || continue
+            case "$relative_path" in */*) parent_dir=${relative_path%/*} ;; *) parent_dir=. ;; esac
+            if [ ! -f "$HERMES_SOURCE/$relative_path" ]; then
+                if [ "$patch_file" = "$MODEL_PATCH" ] || [ "$patch_file" = "$MEMORY_PATCH" ] || [ "$patch_applied" -eq 1 ]; then copy_failed=1; fi
+                continue
+            fi
+            if ! mkdir -p "$scratch_dir/$parent_dir" || ! cp "$HERMES_SOURCE/$relative_path" "$scratch_dir/$relative_path"; then
+                copy_failed=1
+            fi
+        done <<EOF
+$patch_paths
+EOF
+    done
+    if [ "$copy_failed" -ne 0 ]; then
+        rm -rf "$scratch_dir"
+        printf '%s\n' drifted
+        return 0
+    fi
+    for overlay_patch in "$BROWSER_PATCH" "$OWNER_PATCH" "$MEMORY_PATCH"; do
+        if git -C "$HERMES_SOURCE" apply --reverse --check "$overlay_patch" >/dev/null 2>&1 &&
+            ! (CDPATH= cd "$scratch_dir" && git apply --reverse --check "$overlay_patch" >/dev/null 2>&1 && git apply --reverse "$overlay_patch" >/dev/null 2>&1); then
+            rm -rf "$scratch_dir"
+            printf '%s\n' drifted
+            return 0
+        fi
+    done
+    if (CDPATH= cd "$scratch_dir" && git apply --reverse --check "$MODEL_PATCH" >/dev/null 2>&1); then
+        state=applied
+    elif (CDPATH= cd "$scratch_dir" && git apply --check "$MODEL_PATCH" >/dev/null 2>&1); then
+        state=unapplied
+    else
+        state=drifted
+    fi
+    rm -rf "$scratch_dir"
+    printf '%s\n' "$state"
+}
+
 while [ "$#" -gt 0 ]; do
     case "$1" in
         --hermes-home) [ "$#" -ge 2 ] || { echo "Missing value for --hermes-home" >&2; exit 2; }; HERMES_HOME=$2; shift 2 ;;
@@ -79,6 +127,8 @@ PLUGIN_SOURCE="$REPO_DIR/server/judge-m-control-plane"
 PLUGIN_TARGET="$HERMES_HOME/plugins/judge-m-control-plane"
 MODEL_PATCH="$REPO_DIR/server/hermes-runtime-patches/semantic-routing-hooks.patch"
 MEMORY_PATCH="$REPO_DIR/server/hermes-runtime-patches/semantic-routing-memory-hooks.patch"
+OWNER_PATCH="$REPO_DIR/server/hermes-runtime-patches/hosted-plugin-owner-scope.patch"
+BROWSER_PATCH="$REPO_DIR/server/hermes-runtime-patches/browser-preview-gateway.patch"
 
 echo "Hermes Cockpit doctor"
 echo "Hermes home:   $HERMES_HOME"
@@ -86,6 +136,9 @@ echo "Hermes source: $HERMES_SOURCE"
 
 if [ "$(uname -s 2>/dev/null || :)" = Linux ]; then pass "Linux host detected"; else fail "runtime host is not Linux"; fi
 if command -v git >/dev/null 2>&1; then pass "git is available"; else fail "git is not available"; fi
+for command_name in cp mkdir mktemp rm; do
+    if command -v "$command_name" >/dev/null 2>&1; then pass "$command_name is available"; else fail "$command_name is not available"; fi
+done
 
 if command -v git >/dev/null 2>&1 && [ "$(git -C "$HERMES_SOURCE" rev-parse --is-inside-work-tree 2>/dev/null || :)" = true ]; then
     remote=$(git -C "$HERMES_SOURCE" remote get-url origin 2>/dev/null || :)
@@ -101,16 +154,20 @@ if command -v git >/dev/null 2>&1 && [ "$(git -C "$HERMES_SOURCE" rev-parse --is
     if [ "$version" = "$EXPECTED_HERMES_VERSION" ]; then pass "Hermes version is $EXPECTED_HERMES_VERSION";
     else fail "Hermes version is ${version:-unknown}; expected $EXPECTED_HERMES_VERSION"; fi
     memory_state=$(patch_state "$MEMORY_PATCH")
-    if [ "$memory_state" = applied ]; then model_state=applied-below-memory; else model_state=$(patch_state "$MODEL_PATCH"); fi
-    case "$model_state" in applied|applied-below-memory) pass "model-routing patch is applied" ;; *) fail "model-routing patch state is $model_state" ;; esac
+    if [ "$memory_state" = applied ]; then model_state=$(model_patch_state_without_memory_overlay); else model_state=$(patch_state "$MODEL_PATCH"); fi
+    owner_state=$(patch_state "$OWNER_PATCH")
+    case "$model_state" in applied) pass "model-routing patch is applied" ;; *) fail "model-routing patch state is $model_state" ;; esac
     if [ "$memory_state" = applied ]; then pass "memory-routing patch is applied"; else fail "memory-routing patch state is $memory_state"; fi
+    if [ "$owner_state" = applied ]; then pass "hosted-plugin owner patch is applied"; else fail "hosted-plugin owner patch state is $owner_state"; fi
+    browser_state=$(patch_state "$BROWSER_PATCH")
+    if [ "$browser_state" = applied ]; then pass "browser preview gateway patch is applied"; else fail "browser preview gateway patch state is $browser_state"; fi
 else
     fail "Hermes source is not a git checkout: $HERMES_SOURCE"
 fi
 
 if [ -d "$PLUGIN_TARGET" ]; then
     pass "plugin directory exists"
-    for plugin_file in plugin.yaml __init__.py semantic_routing.py dashboard/__init__.py dashboard/cli_bridge.py dashboard/manifest.json dashboard/plugin_api.py; do
+    for plugin_file in plugin.yaml __init__.py semantic_routing.py routing_state.py dashboard/__init__.py dashboard/cli_bridge.py dashboard/manifest.json dashboard/plugin_api.py; do
         if [ -f "$PLUGIN_TARGET/$plugin_file" ]; then pass "plugin file exists: $plugin_file";
         else fail "plugin file is missing: $plugin_file"; fi
     done

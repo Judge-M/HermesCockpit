@@ -71,6 +71,7 @@
     reconnectAttempt: 0,
     intentionalClose: false,
     connected: false,
+    healthAvailable: false,
     resume: null,
     profile: "",
     health: null,
@@ -98,6 +99,7 @@
     botPollTimer: null,
     browserPreviewTimer: null,
     browserPreviewInFlight: false,
+    browserPreviewToken: 0,
     browserPreviewSession: null,
     browserProfileOriginal: false,
     browserProfileName: "",
@@ -635,6 +637,8 @@
   function stopBrowserPreview() {
     if (state.browserPreviewTimer) window.clearInterval(state.browserPreviewTimer);
     state.browserPreviewTimer = null;
+    state.browserPreviewToken += 1;
+    state.browserPreviewInFlight = false;
   }
 
   function currentBrowserProfileName() {
@@ -696,7 +700,18 @@
   }
 
   function renderBrowserPreview(payload) {
-    const session = payload?.session || null;
+    if (payload?.available === false) {
+      state.browserPreviewSession = null;
+      const frame = document.getElementById("cockpit-browser-frame");
+      const empty = document.getElementById("cockpit-browser-empty");
+      if (frame) { frame.hidden = true; frame.removeAttribute("src"); }
+      if (empty) { empty.hidden = false; empty.querySelector("strong").textContent = "Native browser preview unavailable"; empty.querySelector("p").textContent = payload.message || "This Hermes runtime does not expose the native browser preview."; }
+      text(document.getElementById("cockpit-browser-state"), "unavailable");
+      text(document.getElementById("cockpit-browser-title"), "Hermes Browser");
+      text(document.getElementById("cockpit-browser-url"), "Native browser preview unavailable");
+      return;
+    }
+    const session = payload?.session || (payload?.active === false ? null : payload?.session_id ? payload : null);
     state.browserPreviewSession = session;
     const frame = document.getElementById("cockpit-browser-frame");
     const empty = document.getElementById("cockpit-browser-empty");
@@ -709,33 +724,41 @@
       text(document.getElementById("cockpit-browser-url"), "Waiting for browser activity");
       return;
     }
-    text(badge, session.preview_ready ? "live" : "start");
+    text(badge, session.preview_ready && session.data_url ? "live" : "start");
     text(document.getElementById("cockpit-browser-title"), session.real_profile ? "Hermes Browser · copied profile" : "Hermes Browser · isolated");
     text(document.getElementById("cockpit-browser-url"), session.url || "Browser session active");
-    if (!session.preview_ready || !frame) {
+    if (!session.preview_ready || !session.data_url || !frame) {
       frame?.setAttribute("hidden", "");
       if (empty) { empty.hidden = false; empty.querySelector("strong").textContent = "Browser is starting"; empty.querySelector("p").textContent = "Hermes has an active browser session; the first live frame will appear shortly."; }
       return;
     }
-    const next = `${apiUrl(`${CONTROL_PLANE}/browser-preview/${encodeURIComponent(session.id)}/frame`)}?t=${Date.now()}`;
     frame.onload = () => { frame.hidden = false; if (empty) empty.hidden = true; };
     frame.onerror = () => { frame.hidden = true; if (empty) empty.hidden = false; };
-    frame.src = next;
+    frame.src = session.data_url;
   }
 
   async function refreshBrowserPreview(force = false) {
     if (state.browserPreviewInFlight && !force) return;
+    const token = ++state.browserPreviewToken;
+    const runtime = state.botSession?.runtimeId || state.runtimeId || "";
+    const profile = currentBrowserProfileName();
+    const isCurrent = () => token === state.browserPreviewToken
+      && runtime === (state.botSession?.runtimeId || state.runtimeId || "")
+      && profile === currentBrowserProfileName();
     state.browserPreviewInFlight = true;
     try {
-      const runtime = state.botSession?.runtimeId || "";
-      const query = runtime ? `?session_id=${encodeURIComponent(runtime)}` : "";
-      const payload = await request(`${CONTROL_PLANE}/browser-preview${query}`);
+      if (!runtime) {
+        renderBrowserPreview({ available: false, reason: "no_runtime" });
+        return;
+      }
+      const payload = await gateway().call("browser.preview", { session_id: runtime, profile }, 12000);
+      if (!isCurrent()) return;
       renderBrowserPreview(payload);
     } catch (error) {
-      text(document.getElementById("cockpit-browser-state"), "offline");
-      text(document.getElementById("cockpit-browser-url"), error.message || "Browser preview unavailable");
+      if (!isCurrent()) return;
+      renderBrowserPreview({ available: false, reason: "unsupported", message: "Native browser preview is unavailable." });
     } finally {
-      state.browserPreviewInFlight = false;
+      if (token === state.browserPreviewToken) state.browserPreviewInFlight = false;
     }
   }
 
@@ -2031,7 +2054,12 @@
       if (roster && !roster.childElementCount) roster.innerHTML = '<p class="cockpit-muted">Hermes returned no Bot Mode profiles.</p>';
     } catch (error) {
       if (error instanceof AuthRequiredError) showAuth();
-      if (roster) roster.innerHTML = `<p class="cockpit-muted">Real Bot Mode roster unavailable: ${String(error.message || error)}</p>`;
+      if (roster) {
+        const message = document.createElement("p");
+        message.className = "cockpit-muted";
+        message.textContent = `Real Bot Mode roster unavailable: ${String(error.message || error)}`;
+        roster.replaceChildren(message);
+      }
     }
   }
 
@@ -2039,8 +2067,11 @@
     try {
       const health = await request("/api/health");
       state.health = health;
+      state.healthAvailable = true;
       text(document.getElementById("cockpit-version"), health.displayVersion || health.version || "unknown");
     } catch (_) {
+      state.healthAvailable = false;
+      setConnection("offline", "Hermes unavailable");
       text(document.getElementById("cockpit-version"), "unavailable");
     }
   }
@@ -2074,11 +2105,11 @@
       setWorkspaceMode("bot");
       const preferred = state.botProfiles.find((profile) => profile.name === (state.profile || "default")) || state.botProfiles[0];
       if (preferred) await openBotChat(preferred);
-      else setConnection("connected", "No Bot Mode profiles are available");
+      else setConnection(state.healthAvailable ? "connecting" : "offline", state.healthAvailable ? "No Bot Mode profiles are available" : "Hermes unavailable");
     } else {
       setWorkspaceMode("chat");
       if (state.sessions[0]) await openChatSession(state.sessions[0]);
-      else setConnection("connected", "Ready for a new chat");
+      else setConnection(state.healthAvailable ? "connecting" : "offline", state.healthAvailable ? "Ready for a new chat" : "Hermes unavailable");
     }
   }
 

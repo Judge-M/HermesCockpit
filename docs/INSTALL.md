@@ -63,7 +63,7 @@ HERMES_SOURCE=/srv/hermes/hermes-agent \
 ./scripts/install-hermes-extension.sh
 ```
 
-The installer backs up an existing plugin and applies the two semantic-routing patches idempotently. If your Hermes source differs from `0.21.7`, it stops instead of forcing an incompatible patch. Use `--skip-patches` only when you intentionally want Cockpit without full subagent, auxiliary, and memory semantic routing.
+The installer backs up an existing plugin and applies four runtime patches: model routing, memory routing, verified plugin owner context, and authenticated browser preview. If your Hermes source differs from `0.21.7`, it stops instead of forcing an incompatible patch. Use `--skip-patches` only for a deliberately reduced setup; runtime routing and live browser preview require the patches.
 
 Restart the Hermes dashboard or `hermes serve` after installation.
 
