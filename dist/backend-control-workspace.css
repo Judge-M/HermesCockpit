@@ -388,6 +388,8 @@ button, summary, select { -webkit-tap-highlight-color: transparent; }
 @media (max-width: 760px) {
   .bc-section-note { display: none; }
   .bc-section-actions { gap: 2px; }
+  .bc-embedded .bc-section-actions .bc-text-button { padding: 6px; font-size: 9px; }
+  .bc-embedded .bc-section-actions .bc-text-button .material-symbols-outlined { font-size: 16px; }
   .bc-common-grid { display: flex; margin: 0 -10px; padding: 1px 10px 8px; overflow-x: auto; scroll-snap-type: x mandatory; }
   .bc-common-card { width: 270px; min-width: 270px; scroll-snap-align: start; }
   .bc-embedded .bc-domain-grid { display: flex; }

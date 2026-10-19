@@ -451,43 +451,29 @@
     state.domain = select.value;
   }
 
-  function commonTaskOperation(task, used) {
-    const candidates = state.operations.filter(operation => operation.available && operation.domain === task.domain && operation.risk !== 'high' && operation.method !== 'DELETE' && !used.has(operation.id));
-    const scored = candidates.map(operation => {
-      const haystack = operation.search || '';
-      let score = task.terms.reduce((total, term) => total + (haystack.includes(term) ? 14 : 0), 0);
-      if (operation.kind === task.kind) score += 18;
-      if (operation.source === 'api') score += 4;
-      if (operation.risk === 'low') score += 3;
-      return {operation, score};
-    }).sort((left, right) => right.score - left.score || left.operation.label.localeCompare(right.operation.label));
-    return scored[0]?.operation || null;
-  }
-
   function renderCommonActions() {
     const container = $('commonActionGrid');
     if (!container) return;
     container.replaceChildren();
-    const used = new Set();
     COMMON_TASK_DEFINITIONS.forEach(task => {
-      const operation = commonTaskOperation(task, used);
-      if (!operation) return;
-      used.add(operation.id);
+      const operations = state.operations.filter(operation => operation.available && operation.domain === task.domain);
+      if (!operations.length) return;
       const button = node('button', 'bc-common-card');
       button.type = 'button';
       const iconWrap = node('span', 'bc-common-icon');
       iconWrap.append(icon(task.icon));
       const copy = node('span', 'bc-common-copy');
-      copy.append(node('strong', '', task.label), node('span', '', task.description), node('small', '', operation.label));
+      copy.append(node('strong', '', task.label), node('span', '', task.description), node('small', '', `${operations.length} available option${operations.length === 1 ? '' : 's'}`));
       button.append(iconWrap, copy, icon('arrow_forward'));
       button.addEventListener('click', () => {
-        state.domain = operation.domain;
+        state.domain = task.domain;
         state.browseAll = false;
-        $('domainFilter').value = operation.domain;
+        $('domainFilter').value = task.domain;
         $('kindFilter').value = '';
         $('searchInput').value = '';
+        renderEmptyWorkspace();
         applyFilters();
-        selectOperation(operation.id);
+        $('controlBrowser').scrollIntoView({behavior: 'smooth', block: 'start'});
       });
       container.append(button);
     });
