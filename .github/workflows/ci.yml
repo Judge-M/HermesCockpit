@@ -1,0 +1,40 @@
+name: Verify Hermes Cockpit
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify frontend and integration contracts
+        run: node scripts/check.mjs
+      - name: Verify semantic routing
+        run: python scripts/validate-semantic-routing.py
+      - name: Verify release builder
+        run: python build.py --check-only
+      - name: Verify installer syntax
+        run: sh -n scripts/install-hermes-extension.sh
+      - name: Reject installation-specific network defaults
+        run: |
+          if grep -R -n -E '192\.168\.[0-9]+\.[0-9]+|tail[0-9a-f]+\.ts\.net' \
+            --exclude-dir=.git --exclude='CAPABILITY-INVENTORY.json' --exclude='CAPABILITY-INVENTORY.md' .; then
+            echo 'Private installation address found in the public repository.' >&2
+            exit 1
+          fi

@@ -1,151 +1,243 @@
-# Hermes Cockpit
+<p align="center">
+  <img src="dist/assets/hermes-aviator-girl.jpg" width="190" alt="Hermes Cockpit aviator girl emblem">
+</p>
 
-Hermes Cockpit is a mobile-friendly browser interface for [Hermes Agent](https://github.com/NousResearch/hermes-agent). It connects directly to a running Hermes server, so you can chat, switch models, resume sessions, manage tools, and use Hermes Bot Mode without streaming a desktop through VNC or opening the official Hermes web interface.
+<h1 align="center">Hermes Cockpit</h1>
 
-![Status: live integration](https://img.shields.io/badge/status-live%20integration-A3BE8C)
+<p align="center">
+  <strong>A complete, self-hosted command center for Hermes Agent.</strong><br>
+  Chat, Bot Mode, models, tools, browser automation, task boards, observability, and every backend control—without VNC or a desktop relay.
+</p>
 
-## What works
+<p align="center">
+  <a href="https://github.com/Judge-M/HermesCockpit/actions/workflows/ci.yml"><img alt="CI status" src="https://github.com/Judge-M/HermesCockpit/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-A3BE8C.svg"></a>
+  <img alt="Hermes 0.21.7" src="https://img.shields.io/badge/Hermes-0.21.7-88C0D0.svg">
+  <img alt="Desktop and mobile" src="https://img.shields.io/badge/UI-desktop%20%2B%20mobile-B48EAD.svg">
+  <img alt="No VNC" src="https://img.shields.io/badge/VNC-not%20required-EBCB8B.svg">
+</p>
 
-- Live Hermes chat through the authenticated gateway, with the native `/api/pty` terminal available from Chat
-- Automatic reconnect with a keep-alive terminal session
-- Resume recent Hermes sessions
-- Use any model returned by Hermes' model catalog
-- Add model providers through OAuth, API keys, or custom OpenAI-compatible endpoints without editing configuration files
-- Validate provider credentials and endpoints before saving them to Hermes
-- Curate the model picker with per-model visibility, friendly labels, and a separate semantic-routing allow-list
-- Assign fixed, native automatic, or Semantic Auto behavior to primary, subagent, and live auxiliary slots per Hermes profile
-- Configure every live auxiliary route with provider, model, inheritance, and reasoning-effort selectors
-- Operate Hermes' native multi-profile Kanban boards, tasks, dependencies, workers, runs, dispatch, and orchestration from a responsive visual board
-- Configure native semantic routing in the Models workspace, including shared or dedicated model/tool/memory routers, System One-compatible or generic structured adapters, true inheritance, deterministic policy/fallback, passive shadow comparison, bounded verification/escalation controls, safe caching, and redacted decision history
-- A dedicated Bot Mode chat workspace backed by Hermes' gateway protocol, including the same profile metadata used by Hermes Desktop
-- Resume each bot's canonical hidden `Bot Chat`, including its existing conversation history, or create it when one does not exist
-- Native Bot Mode transcript with independently scrollable conversation, live task state, subagent status, and tool activity from Hermes gateway events
-- A native Browser inspector beside Chat and Bot Mode that automatically opens during Hermes browser-tool activity and shows live frames from Hermes' isolated Chromium session
-- Browser privacy controls that clearly distinguish the isolated browser from the optional copied personal-browser profile
-- Keyboard input, mobile composer input, terminal selection, copy, and paste
-- Hermes' existing sign-in flow; Cockpit does not store provider credentials
-- Responsive desktop and mobile layouts
-- Live views for Hermes health, profiles, sessions, system statistics, tools, toolsets, skills, and model options
-- Native Cockpit controls for enabling toolsets and skills, adding/testing/enabling/deleting MCP servers, and creating/editing eligible skills
-- One Manage workspace for profiles, schema-driven configuration, all backend actions, and advanced raw configuration
-- Every field published by `/api/config/schema`, organized into human-facing settings areas with a complete Advanced fallback
-- Per-profile active selection, model assignment, routing description, and `SOUL.md` editing
-- Automatic redaction of credential-like fields in raw API inspectors and copied telemetry snapshots
-- Guided forms for 170 reviewed extended actions across 44 CLI-only and partially API-backed Hermes families; command syntax stays inside collapsed diagnostics
-- Authenticated, user-scoped command jobs with bounded output, destructive-action confirmations, interactive responses, stop controls, and reload-safe job reattachment
+---
 
-Hermes Cockpit follows a strict coverage rule: every user-facing capability exposed by the installed Hermes backend or `hermes` CLI must have a real Cockpit surface, and every Cockpit control must call a real operation. CLI-only capabilities must be implemented through a narrowly allowlisted server-side bridge—not a browser-accessible shell. Missing coverage is tracked as unfinished work in [BACKEND-COVERAGE.md](BACKEND-COVERAGE.md); it is not represented with invented data or dead controls.
+Hermes Cockpit is an independent browser interface for [Hermes Agent](https://github.com/NousResearch/hermes-agent). It runs beside Hermes, uses Hermes' real authenticated APIs and gateway protocol, and gives the entire agent platform one coherent interface on desktop or mobile.
 
-## Requirements
+> **No fake agents. No placeholder topology. No hidden terminal required.** If Hermes exposes a user-facing API or CLI capability, Cockpit gives it a real visual surface or a typed, allowlisted workflow.
 
-- A current Hermes Agent installation with `hermes serve` or the equivalent dashboard service running
-- A reverse proxy that serves Cockpit and Hermes from the same browser origin
-- Node.js 18 or newer only if you want to run the local preview/check scripts
+## See the whole system at a glance
 
-The tested configuration uses Hermes `0.21.7`. Older releases may not expose the same browser API.
+| Workspace | What it gives you |
+| --- | --- |
+| 💬 **Chat** | Live Hermes terminal, model switching, saved-session history, task progress, subagents, tool activity, and browser preview. |
+| 🤖 **Bot Mode** | The real Hermes Bot roster and canonical `Bot Chat` sessions—not a simulated second chat system. |
+| 🗂️ **Board** | Native multi-profile Kanban boards, dependencies, workers, runs, dispatch, decomposition, and orchestration. |
+| 🧠 **Models** | OAuth, API-key and OpenAI-compatible providers, model curation, assignments, auxiliary routes, and Semantic Auto. |
+| 🧰 **Tools** | Toolsets, skills, MCP servers, tests, enablement, permissions, and eligible skill editing. |
+| 🖥️ **System** | Verified health, runtime capacity, component state, profiles, and service status—never invented infrastructure. |
+| 🎛️ **Manage** | Plain-language configuration, profiles, `SOUL.md`, raw YAML, and every API or reviewed CLI action in guided forms. |
+| 📈 **Observability** | Endpoint telemetry, errors, request timing, and redacted diagnostic snapshots. |
 
-## Try the interface locally
+## The desktop experience—without the desktop dependency
+
+Cockpit reproduces the useful parts of Hermes Desktop as a responsive web application:
+
+- real-time chat and resumable transcripts;
+- Bot Mode with canonical Hermes sessions;
+- live tasks, subagents, todos, and tool events;
+- the packaged Chromium browser preview alongside the conversation;
+- isolated-browser and copied-profile privacy controls;
+- model and provider selection without an artificially shortened model list;
+- a mobile layout that works over your private HTTPS or Tailscale connection.
+
+The official Hermes web application remains the authentication authority, but routine operation stays inside Cockpit.
+
+## Architecture
+
+```mermaid
+flowchart LR
+    Browser[Desktop or mobile browser]
+    Proxy[Hermes Cockpit nginx]
+    UI[Static Cockpit UI]
+    Hermes[Hermes dashboard and gateway]
+    Plugin[Control-plane plugin]
+    CLI[Typed CLI bridge]
+    Chromium[Isolated Chromium]
+    Models[Model providers]
+
+    Browser -->|HTTPS| Proxy
+    Proxy -->|/cockpit| UI
+    Proxy -->|/hermes REST + WebSocket| Hermes
+    Hermes --> Plugin
+    Plugin --> CLI
+    Plugin --> Chromium
+    Hermes --> Models
+```
+
+Cockpit and Hermes share one browser origin. Hermes' session cookie protects API and WebSocket traffic, while Cockpit receives short-lived connection tickets instead of passwords or long-lived tokens.
+
+## Quick start
+
+### Requirements
+
+- Linux host with a working Hermes Agent `0.21.7` installation
+- Docker Engine with Docker Compose
+- Git
+- HTTPS before exposing the service outside a trusted machine
+
+### Install
+
+```sh
+git clone https://github.com/Judge-M/HermesCockpit.git
+cd HermesCockpit
+cp .env.example .env
+./scripts/install-hermes-extension.sh
+docker compose up -d
+```
+
+Restart Hermes after the extension installer finishes. Then open:
+
+1. `http://YOUR-HOST:8088/hermes/login`
+2. `http://YOUR-HOST:8088/cockpit/`
+
+The defaults assume Hermes listens on port `9119` on the Docker host. If it runs elsewhere, change `HERMES_UPSTREAM` in `.env`.
+
+For path overrides, HTTPS guidance, an existing nginx server, and installation checks, read the **[complete installation guide](docs/INSTALL.md)**.
+
+## What is actually integrated
+
+### Chat and sessions
+
+- Authenticated REST and gateway WebSocket connections
+- Random, tab-scoped terminal attachment IDs
+- Automatic reconnect and keep-alive
+- Recent-session search, resume, rename, archive, and export
+- Native `/model` switching against the full server model catalog
+- Mobile composer, terminal selection, copy, and paste
+
+### Bot Mode and multi-agent work
+
+- Hermes' canonical hidden `Bot Chat` session for each bot
+- Existing transcript recovery instead of blank resumed sessions
+- Live todo, task, subagent, and tool-event streams
+- Agent dispatch and multi-profile Kanban orchestration
+
+### Models and semantic routing
+
+- OAuth, API-key, and custom OpenAI-compatible provider onboarding
+- Credential and endpoint validation before saving
+- Per-model visibility and labels
+- Primary, subagent, and auxiliary model assignments
+- Fixed, native automatic, and `Semantic Auto` modes
+- Shared or dedicated model, tool, and memory routers
+- Eligibility, fallback, shadow, verification, escalation, caching, and redacted decision history
+
+### Browser automation
+
+- Live frames from Hermes' packaged, isolated Chromium
+- Automatic preview-panel activation during browser activity
+- Opaque preview IDs; no CDP address reaches the browser
+- Explicit copied-profile warning and privacy control
+
+### Complete backend coverage
+
+- Every operation published by Hermes' OpenAPI schema
+- Every field published by `/api/config/schema`
+- 170 reviewed CLI-only or partially API-backed command paths
+- Typed parameters and choices derived from the installed Hermes parser
+- Bounded output, secret redaction, per-user job ownership, stop controls, and destructive-action confirmation
+
+See [Backend Coverage](BACKEND-COVERAGE.md), [CLI Coverage](CLI-COVERAGE.md), and the generated [Capability Inventory](CAPABILITY-INVENTORY.md) for the auditable contract.
+
+## Security by design
+
+- Cockpit does not store your Hermes password, OAuth token, provider API key, or model credentials.
+- WebSockets use Hermes' short-lived, single-use ticket flow.
+- Raw diagnostic output is redacted before display or copy.
+- The CLI bridge executes an argument vector from a strict allowlist and never uses `shell=True`.
+- Interactive jobs are scoped to the authenticated Hermes user and retain bounded output.
+- Chromium's DevTools endpoint remains private to the Hermes process.
+- Installation-specific service links are environment configuration, not source-code defaults.
+
+Read [SECURITY.md](SECURITY.md) before making Cockpit reachable outside a trusted host.
+
+## Configure your installation
+
+The bundled Compose deployment recognizes:
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `COCKPIT_PORT` | `8088` | Published Cockpit/nginx port. |
+| `HERMES_UPSTREAM` | `http://host.docker.internal:9119` | Hermes dashboard origin reachable from nginx. |
+
+The Hermes plugin can optionally read `HERMES_COCKPIT_PORTAL_URL` and `HERMES_COCKPIT_LINKS_JSON` from the Hermes service environment. No portal or infrastructure catalog is required for a standalone installation.
+
+Full details: **[Configuration reference](docs/CONFIGURATION.md)**
+
+## Development
+
+Run a local static preview:
 
 ```sh
 node scripts/serve.mjs
 ```
 
-Open [http://127.0.0.1:4174](http://127.0.0.1:4174). The design and navigation work locally, but live chat requires a same-origin Hermes proxy at `/hermes`.
+Open <http://127.0.0.1:4174>. Navigation and responsive layouts work locally; live operations require a same-origin `/hermes` proxy.
 
-Run the repository checks with:
+Run the portable checks:
 
 ```sh
 node scripts/check.mjs
+python scripts/validate-semantic-routing.py
+python build.py --check-only
 ```
 
-## Deploy with nginx
+Validate the CLI bridge inside Hermes' managed Python environment:
 
-Copy the contents of `dist/` to your web server, then serve it under `/cockpit/` and proxy `/hermes/` to the Hermes dashboard. This example assumes Hermes listens on `192.168.1.50:9119`:
-
-```nginx
-location /cockpit/ {
-    alias /srv/hermes-cockpit/;
-    # Cockpit is a small static control plane. Revalidate it so navigation
-    # cannot reopen an older HTML shell after a deployment.
-    add_header Cache-Control "no-store, no-cache, must-revalidate" always;
-    add_header Pragma "no-cache" always;
-    expires -1;
-    try_files $uri $uri/ /cockpit/live-control.html;
-}
-
-location /hermes/ {
-    proxy_pass http://192.168.1.50:9119/;
-    proxy_http_version 1.1;
-    proxy_set_header Upgrade $http_upgrade;
-    proxy_set_header Connection "upgrade";
-    proxy_set_header Host $host;
-    proxy_set_header X-Forwarded-Host $host;
-    proxy_set_header X-Forwarded-Proto $scheme;
-    proxy_set_header X-Forwarded-Prefix /hermes;
-    proxy_read_timeout 3600s;
-    proxy_send_timeout 3600s;
-    proxy_buffering off;
-}
+```sh
+python scripts/run-cli-bridge-validation.py
 ```
 
-Open `/hermes/login` once to establish the Hermes session, then use `/cockpit/live-control.html`. The `/hermes/` proxy is required for authentication and API traffic, but normal operation stays inside Cockpit. Cockpit requests a short-lived, single-use WebSocket ticket for every connection and never asks for or saves your Hermes password, OAuth token, model API key, or provider credentials.
+Build a clean static release directory:
 
-### Use a different Hermes path
-
-Live Control defaults to `/hermes`. Change the `data-hermes-base` value on the `<body>` element in `dist/live-control.html` if your reverse proxy uses another same-origin path:
-
-```html
-<body data-hermes-client="true" data-hermes-base="/my-hermes-path">
+```sh
+python build.py --output build/cockpit
 ```
 
-## How sessions behave
+## Repository map
 
-Cockpit keeps a random terminal attachment ID in browser session storage. This lets a chat survive a page refresh in the same browser tab without storing credentials. Saved conversations remain in Hermes and are available from the Recent Sessions panel.
+```text
+dist/                                browser application and vendored assets
+server/judge-m-control-plane/        authenticated Hermes plugin
+server/hermes-runtime-patches/       reviewed semantic-routing seams
+deploy/nginx.conf.template           same-origin proxy configuration
+scripts/install-hermes-extension.sh  plugin and patch installer
+compose.yaml                         portable web deployment
+docs/                                install, configuration, and upgrade guides
+```
 
-Selecting a different model sends Hermes' native `/model` command to the current chat. Opening a Bot Mode entry resolves the same canonical `Bot Chat` session used by Hermes Desktop and resumes its real transcript. It does not rewrite provider configuration or expose provider secrets to the page.
+## Compatibility and honest boundaries
 
-## Live Browser preview
+The currently verified target is Hermes Agent `0.21.7`. The installer refuses to force runtime patches that no longer apply cleanly.
 
-Open **Browser** in the chat inspector to watch the Chromium session used by Hermes' browser tools. Cockpit automatically selects this panel when it sees browser navigation, clicking, typing, or scrolling activity. The same panel is available in desktop and mobile layouts; it does not require Hermes Desktop, VNC, or a separate browser window.
+- Primary Semantic Auto resolves when Cockpit creates a session; it does not switch a model midway through an active tool loop.
+- Escalation and verification are lifecycle-safe operations, but Hermes `0.21.7` does not expose a public ordinary-turn completion hook that would safely replay active work.
+- Hermes currently permits one external memory provider; multiple logical stores must remain behind that authorized provider.
+- Physical Tailscale peer/ACL/traffic topology is not shown because Hermes exposes no trustworthy contract for it.
 
-The preview is a real read-only capture of the active Hermes browser page. The control-plane plugin discovers the in-process browser supervisor and captures a compressed frame through its trusted CDP connection. Cockpit receives only an opaque preview ID, the current page URL, status metadata, and the rendered image. It never receives a DevTools address, browser socket, raw Hermes task key, or copied-profile filesystem path.
+These boundaries are intentionally visible instead of being filled with mock data.
 
-Hermes normally runs browser automation in its isolated Chromium environment. **Use a copied personal browser profile** is an explicit per-profile option for sites that need existing login sessions. A copied profile can contain cookies and other authenticated browser state, so Cockpit shows a warning before enabling it and never points automation at the live profile directory. Changes apply to subsequent browser sessions.
+## Upgrade and rollback
 
-## Security notes
-
-- Put Hermes behind HTTPS and authentication before exposing it beyond localhost.
-- Keep Cockpit and Hermes on the same trusted origin so Hermes' secure session cookie can protect the API.
-- Do not replace the WebSocket ticket flow with a long-lived token in JavaScript.
-- Never expose Chromium's CDP/DevTools endpoint directly to the LAN or Tailscale. Keep browser preview behind Hermes' authenticated, same-origin plugin API.
-- Treat copied personal-browser profiles as credentials. Prefer isolated Chromium and enable the copied-profile option only for a profile that needs it.
-- The repository contains no credentials. The vendored xterm runtime is included under its MIT license.
-
-## Repository layout
-
-- `dist/live-control.html` — live Hermes terminal and controls
-- `dist/bot-mode.html` — dedicated Bot Mode roster, canonical Bot Chat, transcript, tasks, subagents, and activity
-- `dist/kanban.html` — live Hermes Kanban boards, task lifecycle, workers, runs, dependencies, and orchestration
-- `dist/models-providers.html` — provider onboarding, model catalog and routing eligibility, fixed/Semantic Auto assignments, and native semantic-routing policy
-- `dist/hermes-client.js` — Hermes REST/WebSocket client
-- `dist/hermes-client.css` — responsive live-client styles
-- `dist/mesh-topology.html` — focused Hermes health, capacity, component, profile, and runtime overview
-- `dist/tool-registry.html` — live MCP server, toolset, skill, and profile inventory with native management controls
-- `dist/acp-telemetry.html` — live read-only endpoint telemetry and redacted snapshots
-- `dist/runtime-config-settings.html` — the unified Manage workspace: profile identity, full schema configuration, and 524 guided actions across 16 management areas
-- `dist/backend-control.html` and `dist/cli-control.html` — compatibility URLs that redirect older bookmarks into Manage → Actions
-- `server/judge-m-control-plane/` — Hermes plugin extension for authenticated command controls, browser preview, model curation, and native semantic routing
-- `server/hermes-runtime-patches/semantic-routing-hooks.patch` — narrow Hermes 0.21.7 model-route middleware seam for subagent and auxiliary invocation routing
-- `server/hermes-runtime-patches/semantic-routing-memory-hooks.patch` — memory-prefetch seam that can only narrow Hermes-authorized providers
-- `BACKEND-COVERAGE.md` — backend-to-interface coverage ledger and acceptance rule
-- `CLI-COVERAGE.md` — installed Hermes command coverage summary and secure bridge requirements
-- `CAPABILITY-INVENTORY.md` — generated human-readable list of all 422 canonical CLI command nodes and all 348 OpenAPI operations
-- `CAPABILITY-INVENTORY.json` — machine-readable command signatures, API signatures, counts, and reviewed family-level overlap
-- `scripts/build-capability-inventory.mjs` — reproducible inventory generator; fails when a new CLI family has not been reviewed
-- `scripts/serve.mjs` — loopback-only preview server
-- `scripts/check.mjs` — source, syntax, and asset checks
-- `scripts/validate-cli-bridge.py` — in-container bridge, parser, redaction, path-policy, and route-mount smoke test
+See **[UPGRADING.md](docs/UPGRADING.md)** for safe plugin backups, patch compatibility, container upgrades, and rollback procedures.
 
 ## Project status
 
-This is an independent community frontend and is not affiliated with or endorsed by Nous Research or the Hermes team. The tested Hermes `0.21.7` base schema contains 348 operations: 337 authenticated `/api` controls plus 11 login, OAuth, asset, and SPA-shell operations. The installed Cockpit control-plane plugin adds 6 authenticated routes, so Manage currently presents 354 live direct actions. The installed CLI has 72 top-level command families and 422 canonical command/subcommand nodes. The reviewed overlap is 22 direct API families, 21 partial API families, 5 generic config/env equivalents, 2 gateway/WebSocket families, and 22 genuinely CLI-only families. Manage also registers 170 typed, allowlisted extended actions: 43 paths from the 22 genuinely CLI-only families plus 127 missing paths from 22 partial or generic API families. Together, the live inventory contains 524 actions.
+Hermes Cockpit is an independent community project and is not affiliated with or endorsed by Nous Research or the Hermes team. The application is already running against a real Hermes deployment; packaging and cross-version compatibility are under active development.
+
+## License
+
+Hermes Cockpit is available under the [MIT License](LICENSE). Vendored dependencies retain their own licenses.
+
+<p align="center">
+  <img src="dist/assets/hermes-aviator-girl.jpg" width="72" alt="Hermes aviator emblem"><br>
+  <sub>Built to make powerful agents feel observable, controllable, and genuinely yours.</sub>
+</p>
