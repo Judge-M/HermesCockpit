@@ -13,27 +13,47 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Checkout official Hermes v0.21.7
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: NousResearch/hermes-agent
+          ref: v0.21.7
+          path: build/hermes-v0.21.7
+          fetch-depth: 1
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 20
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.12"
-      - name: Verify frontend and integration contracts
-        run: node scripts/check.mjs
-      - name: Verify semantic routing
-        run: python scripts/validate-semantic-routing.py
-      - name: Verify release builder
-        run: python build.py --check-only
-      - name: Verify installer syntax
-        run: sh -n scripts/install-hermes-extension.sh
-      - name: Reject installation-specific network defaults
-        run: |
-          if grep -R -n -E '192\.168\.[0-9]+\.[0-9]+|tail[0-9a-f]+\.ts\.net' \
-            --exclude-dir=.git --exclude='CAPABILITY-INVENTORY.json' --exclude='CAPABILITY-INVENTORY.md' .; then
-            echo 'Private installation address found in the public repository.' >&2
-            exit 1
-          fi
+      - name: Run portable validators
+        run: sh tests/ci/verify-portable.sh
+      - name: Verify runtime patches against Hermes v0.21.7
+        run: sh tests/ci/verify-hermes-v0.21.7.sh build/hermes-v0.21.7
+  browser-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install browser test dependencies
+        run: npm ci
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Run browser smoke tests
+        run: npm run test:e2e
+
+  compose-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Verify Compose and nginx runtime
+        run: sh tests/ci/smoke-compose.sh

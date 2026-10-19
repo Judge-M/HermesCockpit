@@ -1,0 +1,17 @@
+{
+  "name": "hermes-cockpit-verification",
+  "version": "0.4.0",
+  "private": true,
+  "description": "Deterministic browser verification for the Hermes Cockpit static frontend.",
+  "scripts": {
+    "check": "node scripts/check.mjs",
+    "test": "playwright test",
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
