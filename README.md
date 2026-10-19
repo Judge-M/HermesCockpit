@@ -21,7 +21,6 @@
 
 Hermes Cockpit is an independent browser interface for [Hermes Agent](https://github.com/NousResearch/hermes-agent). It runs beside Hermes, uses Hermes' real authenticated APIs and gateway protocol, and gives the entire agent platform one coherent interface on desktop or mobile.
 
-> **No fake agents. No placeholder topology. No hidden terminal required.** If Hermes exposes a user-facing API or CLI capability, Cockpit gives it a real visual surface or a typed, allowlisted workflow.
 
 ## See the whole system at a glance
 
