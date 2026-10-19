@@ -1,0 +1,75 @@
+name: Feature request
+description: Propose a focused improvement to Hermes Cockpit
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Hermes Cockpit exposes real Hermes capabilities through an ergonomic interface. It does not invent backend support or replace the Hermes runtime. Do not include credentials, private infrastructure details, or vulnerability reports.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues and pull requests for this request.
+          required: true
+        - label: This request does not disclose a security vulnerability or sensitive data.
+          required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: User problem
+      description: Who is affected, what are they trying to do, and what makes it difficult today?
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Desired outcome
+      description: Describe the workflow and result, without prescribing implementation unless necessary.
+    validations:
+      required: true
+  - type: textarea
+    id: hermes-support
+    attributes:
+      label: Hermes capability or upstream reference
+      description: Link or name the Hermes API, CLI command, documentation, or version that supports this behavior. Say "unknown" if it needs investigation.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Primary area
+      options:
+        - Chat and sessions
+        - Models and providers
+        - Agents and subagents
+        - Tools, skills, or MCP
+        - Browser preview
+        - Manage and CLI controls
+        - Observability
+        - Installation or upgrade
+        - Security or privacy hardening
+        - Documentation
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives and current workaround
+      description: What do you do today, and why is it insufficient?
+  - type: textarea
+    id: security
+    attributes:
+      label: Security and privacy considerations
+      description: Note new permissions, secrets, stored data, browser access, host effects, or multi-user concerns.
+    validations:
+      required: true
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Add sanitized sketches, screenshots, or references.

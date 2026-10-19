@@ -12,6 +12,10 @@ docker compose up -d --pull always
 
 Restart Hermes after the extension installer completes. The installer leaves the previous plugin beside the new one as a timestamped backup.
 
+Run `./scripts/hermes-cockpit-doctor.sh` before and after the restart. Do not
+delete the newest backup until Chat, Manage, Models, and Browser preview have
+been exercised through the public origin.
+
 ## Before a Hermes upgrade
 
 Hermes Cockpit's runtime patches are reviewed against Hermes `0.21.7`. Before upgrading Hermes:
@@ -35,3 +39,7 @@ docker compose up -d --force-recreate
 ## Plugin rollback
 
 Stop Hermes, move the current `~/.hermes/plugins/judge-m-control-plane` aside, restore the timestamped backup produced by the installer, and restart Hermes. Runtime patches must match the plugin version; restore the Hermes source backup when rolling back across a routing-patch change.
+
+For a complete removal, use `./scripts/uninstall-hermes-extension.sh`. It only
+reverses recognized Cockpit patches and preserves the installed plugin as a
+timestamped backup unless an explicit purge option is requested.

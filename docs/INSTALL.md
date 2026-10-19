@@ -7,6 +7,9 @@ Hermes Cockpit has two parts:
 
 The supported release target is Hermes Agent `0.21.7` on Linux with Docker Compose available for the web tier.
 
+For the least surprising installation, use a tagged Hermes Cockpit release and
+confirm the matching Hermes version in the [compatibility matrix](COMPATIBILITY.md).
+
 ## 1. Clone and configure
 
 ```sh
@@ -24,9 +27,23 @@ COCKPIT_PORT=8088
 
 `host.docker.internal` is mapped to the Docker host by the included Compose file. Use a container DNS name or another private address when Hermes runs elsewhere.
 
-## 2. Install the Hermes extension
+## 2. Bootstrap Cockpit
 
-Run this on the host that contains the Hermes installation:
+The normal path installs the extension, starts the web container, and runs
+diagnostics:
+
+```sh
+./scripts/bootstrap.sh
+```
+
+Use `./scripts/bootstrap.sh --dry-run` to perform compatibility preflight
+without changing Hermes. Use `--no-start` when an existing proxy will serve the
+web application.
+
+## 3. Install only the Hermes extension
+
+For a split deployment or manual web tier, run the extension installer on the
+host that contains the Hermes installation:
 
 ```sh
 ./scripts/install-hermes-extension.sh
@@ -50,7 +67,7 @@ The installer backs up an existing plugin and applies the two semantic-routing p
 
 Restart the Hermes dashboard or `hermes serve` after installation.
 
-## 3. Start the web application
+## 4. Start the web application manually
 
 ```sh
 docker compose up -d
@@ -86,3 +103,14 @@ If you do not want Docker, copy `dist/` to a static directory and use [`deploy/n
 - Browser preview should remain empty until a Hermes browser tool is active.
 
 If the UI loads but APIs fail, verify that `/hermes/openapi.json` is reachable through the same public origin and that the Hermes login cookie is present.
+
+Run the bundled doctor after installation or whenever an upgrade behaves
+unexpectedly:
+
+```sh
+./scripts/hermes-cockpit-doctor.sh
+```
+
+Doctor reports prerequisites, upstream compatibility, patch state, plugin
+installation, and—when a public URL is supplied—HTTP routing health without
+printing credentials.

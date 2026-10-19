@@ -4,6 +4,8 @@ All notable project changes are documented here. The project follows semantic ve
 
 ## Unreleased
 
+## 0.4.0 - 2026-10-18
+
 ### Added
 
 - Portable Docker Compose and nginx deployment.
@@ -11,6 +13,8 @@ All notable project changes are documented here. The project follows semantic ve
 - Public configuration, installation, upgrade, rollback, and security documentation.
 - Environment-driven optional portal and service links.
 - Continuous integration for frontend, Python, packaging, and portability checks.
+- Transactional installation, diagnostics, safe removal, browser smoke tests,
+  compatibility verification, deterministic release archives, and checksums.
 
 ### Changed
 

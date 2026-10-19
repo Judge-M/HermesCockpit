@@ -181,7 +181,28 @@ assert priority_secrets == []
 
 request_one = SimpleNamespace(state=SimpleNamespace(session=SimpleNamespace(provider="basic", user_id="owner-1", email="old@example.test")))
 request_two = SimpleNamespace(state=SimpleNamespace(session=SimpleNamespace(provider="basic", user_id="owner-1", email="new@example.test")))
+request_other = SimpleNamespace(state=SimpleNamespace(session=SimpleNamespace(provider="basic", user_id="owner-2", email="other@example.test")))
 assert module._owner_key(request_one) == module._owner_key(request_two)
+owner_one = module._owner_key(request_one)
+owner_other = module._owner_key(request_other)
+assert owner_one != owner_other
+isolation_job = {
+    "job_id": "isolation-test",
+    "status": "completed",
+    "output": "safe",
+    "_owner": owner_one,
+    "_raw_output": "private",
+}
+module._JOBS[isolation_job["job_id"]] = isolation_job
+try:
+    module._owned_job(isolation_job["job_id"], owner_other)
+except module.HTTPException as exc:
+    assert exc.status_code == 404
+else:
+    raise AssertionError("A different authenticated owner could access a CLI job")
+assert module._owned_job(isolation_job["job_id"], owner_one) is isolation_job
+assert all(not key.startswith("_") for key in module._public_job(isolation_job))
+module._JOBS.pop(isolation_job["job_id"], None)
 
 if len(sys.argv) > 2:
     plugin_path = Path(sys.argv[2])

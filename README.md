@@ -11,6 +11,7 @@
 
 <p align="center">
   <a href="https://github.com/Judge-M/HermesCockpit/actions/workflows/ci.yml"><img alt="CI status" src="https://github.com/Judge-M/HermesCockpit/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://github.com/Judge-M/HermesCockpit/releases"><img alt="Release" src="https://img.shields.io/github/v/release/Judge-M/HermesCockpit?display_name=tag&include_prereleases"></a>
   <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-A3BE8C.svg"></a>
   <img alt="Hermes 0.21.7" src="https://img.shields.io/badge/Hermes-0.21.7-88C0D0.svg">
   <img alt="Desktop and mobile" src="https://img.shields.io/badge/UI-desktop%20%2B%20mobile-B48EAD.svg">
@@ -20,6 +21,8 @@
 ---
 
 Hermes Cockpit is an independent browser interface for [Hermes Agent](https://github.com/NousResearch/hermes-agent). It runs beside Hermes, uses Hermes' real authenticated APIs and gateway protocol, and gives the entire agent platform one coherent interface on desktop or mobile.
+
+**[Open the interface preview](https://judge-m.github.io/HermesCockpit/)** — the Pages build demonstrates the real responsive UI but has no Hermes backend, fake agents, or fabricated telemetry.
 
 
 ## See the whole system at a glance
@@ -88,11 +91,14 @@ Cockpit and Hermes share one browser origin. Hermes' session cookie protects API
 git clone https://github.com/Judge-M/HermesCockpit.git
 cd HermesCockpit
 cp .env.example .env
-./scripts/install-hermes-extension.sh
-docker compose up -d
+./scripts/bootstrap.sh
 ```
 
-Restart Hermes after the extension installer finishes. Then open:
+Bootstrap performs compatibility preflight, installs the extension
+transactionally, starts the pinned nginx container, and runs diagnostics. Use
+`--no-start` when an existing proxy serves `dist/`.
+
+Restart Hermes after bootstrap finishes. Then open:
 
 1. `http://YOUR-HOST:8088/hermes/login`
 2. `http://YOUR-HOST:8088/cockpit/`
@@ -100,6 +106,7 @@ Restart Hermes after the extension installer finishes. Then open:
 The defaults assume Hermes listens on port `9119` on the Docker host. If it runs elsewhere, change `HERMES_UPSTREAM` in `.env`.
 
 For path overrides, HTTPS guidance, an existing nginx server, and installation checks, read the **[complete installation guide](docs/INSTALL.md)**.
+Supported runtime details are tracked in the **[compatibility matrix](docs/COMPATIBILITY.md)**.
 
 ## What is actually integrated
 
@@ -189,6 +196,9 @@ python scripts/validate-semantic-routing.py
 python build.py --check-only
 ```
 
+Contributor setup, provenance rules, browser checks, and release packaging are
+covered in the **[development guide](docs/DEVELOPMENT.md)**.
+
 Validate the CLI bridge inside Hermes' managed Python environment:
 
 ```sh
@@ -211,6 +221,7 @@ deploy/nginx.conf.template           same-origin proxy configuration
 scripts/install-hermes-extension.sh  plugin and patch installer
 compose.yaml                         portable web deployment
 docs/                                install, configuration, and upgrade guides
+VERSION                              shared Cockpit and plugin release version
 ```
 
 ## Compatibility and honest boundaries
@@ -230,11 +241,11 @@ See **[UPGRADING.md](docs/UPGRADING.md)** for safe plugin backups, patch compati
 
 ## Project status
 
-Hermes Cockpit is an independent community project and is not affiliated with or endorsed by Nous Research or the Hermes team. The application is already running against a real Hermes deployment; packaging and cross-version compatibility are under active development.
+Hermes Cockpit is an independent community project and is not affiliated with or endorsed by Nous Research or the Hermes team. Each release names the exact Hermes runtime it was verified against; see the compatibility matrix before upgrading either side.
 
 ## License
 
-Hermes Cockpit is available under the [MIT License](LICENSE). Vendored dependencies retain their own licenses.
+Hermes Cockpit is available under the [MIT License](LICENSE). Vendored dependencies retain their own licenses; see [Third-party notices](THIRD_PARTY_NOTICES.md).
 
 <p align="center">
   <img src="dist/assets/hermes-aviator-girl.jpg" width="72" alt="Hermes aviator emblem"><br>

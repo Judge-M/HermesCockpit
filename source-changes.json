@@ -2,6 +2,12 @@
   "schema_version": 1,
   "changes": [
     {
+      "path": "dist/index.html",
+      "baseline_sha256": "58ee22abfcf1a136c7e8f6665d7183df49489b285466ed5562a1de1e649d0ad5",
+      "reason": "Use the public Hermes Cockpit product name on the static entry redirect instead of the retired Hermes Copilot prototype name.",
+      "verification": "scripts/check.mjs records the intentional source change and verifies the entry redirect and product title."
+    },
+    {
       "path": "dist/shell.json",
       "baseline_sha256": "26ce1725b769ec818d89316abd7b39b3b7376b328e60d49c24eeec1b05b6fe95",
       "reason": "Use the checked-in Hermes Aviator Girl image and a shared Cockpit shell with live Hermes status, native navigation, and no dependency on the official admin interface.",

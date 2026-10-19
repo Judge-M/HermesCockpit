@@ -1,0 +1,7 @@
+# Default reviewer for this repository.
+* @Judge-M
+
+# Security-boundary and contribution-policy changes require owner review.
+/SECURITY.md @Judge-M
+/docs/THREAT-MODEL.md @Judge-M
+/.github/ @Judge-M
