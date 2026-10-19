@@ -2,6 +2,7 @@
 set -eu
 
 EXPECTED_HERMES_VERSION=0.21.7
+EXPECTED_HERMES_COMMIT=71d34bad1045610252eda02ee79549436896e784
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 REPO_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
 HERMES_HOME=${HERMES_HOME:-"$HOME/.hermes"}
@@ -29,6 +30,17 @@ EOF
 pass() { echo "PASS: $*"; }
 warn() { echo "WARN: $*" >&2; WARNINGS=$((WARNINGS + 1)); }
 fail() { echo "FAIL: $*" >&2; FAILURES=$((FAILURES + 1)); }
+
+fetch_health() {
+    url=$1
+    if command -v curl >/dev/null 2>&1; then
+        curl --fail --silent --show-error --location --max-time 10 "$url"
+    elif command -v wget >/dev/null 2>&1; then
+        wget -q -T 10 -O - "$url"
+    else
+        return 127
+    fi
+}
 
 detect_hermes_version() {
     tags=$(git -C "$HERMES_SOURCE" tag --points-at HEAD 2>/dev/null || :)
@@ -79,9 +91,12 @@ if command -v git >/dev/null 2>&1 && [ "$(git -C "$HERMES_SOURCE" rev-parse --is
     remote=$(git -C "$HERMES_SOURCE" remote get-url origin 2>/dev/null || :)
     remote_lower=$(printf '%s' "$remote" | tr '[:upper:]' '[:lower:]')
     case "$remote_lower" in
-        *github.com/nousresearch/hermes-agent|*github.com/nousresearch/hermes-agent.git) pass "official NousResearch/hermes-agent source detected" ;;
+        *github.com/nousresearch/hermes-agent|*github.com/nousresearch/hermes-agent.git|*github.com:nousresearch/hermes-agent|*github.com:nousresearch/hermes-agent.git) pass "official NousResearch/hermes-agent source detected" ;;
         *) fail "source origin is not official: ${remote:-<missing>}" ;;
     esac
+    commit=$(git -C "$HERMES_SOURCE" rev-parse HEAD 2>/dev/null || :)
+    if [ "$commit" = "$EXPECTED_HERMES_COMMIT" ]; then pass "Hermes commit matches $EXPECTED_HERMES_COMMIT";
+    else fail "Hermes commit is ${commit:-unknown}; expected $EXPECTED_HERMES_COMMIT"; fi
     version=$(detect_hermes_version || :)
     if [ "$version" = "$EXPECTED_HERMES_VERSION" ]; then pass "Hermes version is $EXPECTED_HERMES_VERSION";
     else fail "Hermes version is ${version:-unknown}; expected $EXPECTED_HERMES_VERSION"; fi
@@ -111,13 +126,21 @@ fi
 
 if [ -n "$UPSTREAM_URL" ]; then
     case "$UPSTREAM_URL" in */healthz) health_url=$UPSTREAM_URL ;; *) health_url=${UPSTREAM_URL%/}/healthz ;; esac
-    if command -v curl >/dev/null 2>&1; then
-        if curl --fail --silent --show-error --location --max-time 10 --output /dev/null "$health_url"; then pass "HTTP upstream is healthy: $health_url";
+    if ! command -v curl >/dev/null 2>&1 && ! command -v wget >/dev/null 2>&1; then
+        fail "curl or wget is required for --upstream"
+    else
+        attempt=1
+        health_body=""
+        while [ "$attempt" -le 10 ]; do
+            health_body=$(fetch_health "$health_url" 2>/dev/null || :)
+            [ "$health_body" = ok ] && break
+            attempt=$((attempt + 1))
+            [ "$attempt" -le 10 ] && sleep 1
+        done
+        if [ "$health_body" = ok ]; then pass "HTTP upstream health body is exactly 'ok': $health_url";
+        elif [ -n "$health_body" ]; then fail "HTTP upstream returned an unexpected health body: $health_url";
         else fail "HTTP upstream check failed: $health_url"; fi
-    elif command -v wget >/dev/null 2>&1; then
-        if wget -q -T 10 -O /dev/null "$health_url"; then pass "HTTP upstream is healthy: $health_url";
-        else fail "HTTP upstream check failed: $health_url"; fi
-    else fail "curl or wget is required for --upstream"; fi
+    fi
 else
     warn "HTTP upstream check skipped (pass --upstream URL to enable it)"
 fi

@@ -2,6 +2,7 @@
 set -eu
 
 EXPECTED_HERMES_VERSION=0.21.7
+EXPECTED_HERMES_COMMIT=71d34bad1045610252eda02ee79549436896e784
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 REPO_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
 HERMES_HOME=${HERMES_HOME:-"$HOME/.hermes"}
@@ -75,11 +76,13 @@ for command_name in git sed tr mv mkdir date; do command -v "$command_name" >/de
 remote=$(git -C "$HERMES_SOURCE" remote get-url origin 2>/dev/null || :)
 remote_lower=$(printf '%s' "$remote" | tr '[:upper:]' '[:lower:]')
 case "$remote_lower" in
-    *github.com/nousresearch/hermes-agent|*github.com/nousresearch/hermes-agent.git) ;;
+    *github.com/nousresearch/hermes-agent|*github.com/nousresearch/hermes-agent.git|*github.com:nousresearch/hermes-agent|*github.com:nousresearch/hermes-agent.git) ;;
     *) die "Hermes origin is not the official NousResearch/hermes-agent repository: ${remote:-<missing>}" ;;
 esac
 version=$(detect_hermes_version || :)
 [ "$version" = "$EXPECTED_HERMES_VERSION" ] || die "Hermes v$EXPECTED_HERMES_VERSION is required; detected ${version:-unknown}"
+commit=$(git -C "$HERMES_SOURCE" rev-parse HEAD 2>/dev/null || :)
+[ "$commit" = "$EXPECTED_HERMES_COMMIT" ] || die "Hermes commit $EXPECTED_HERMES_COMMIT is required; detected ${commit:-unknown}"
 
 PLUGIN_TARGET="$HERMES_HOME/plugins/judge-m-control-plane"
 LOCK_DIR="$HERMES_HOME/.hermes-cockpit-install.lock"

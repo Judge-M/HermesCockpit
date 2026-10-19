@@ -13,6 +13,14 @@ fi
 root=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
 model_patch="$root/server/hermes-runtime-patches/semantic-routing-hooks.patch"
 memory_patch="$root/server/hermes-runtime-patches/semantic-routing-memory-hooks.patch"
+test_home=$(mktemp -d)
+
+cleanup() {
+  git -C "$HERMES_SOURCE" apply --reverse --check "$memory_patch" >/dev/null 2>&1 && git -C "$HERMES_SOURCE" apply --reverse "$memory_patch" || true
+  git -C "$HERMES_SOURCE" apply --reverse --check "$model_patch" >/dev/null 2>&1 && git -C "$HERMES_SOURCE" apply --reverse "$model_patch" || true
+  rm -rf "$test_home"
+}
+trap cleanup EXIT INT TERM
 
 git -C "$HERMES_SOURCE" apply --check "$model_patch"
 git -C "$HERMES_SOURCE" apply "$model_patch"
@@ -29,4 +37,16 @@ python -m py_compile \
 grep -q 'MODEL_ROUTE_MIDDLEWARE' "$HERMES_SOURCE/hermes_cli/middleware.py"
 grep -q 'MEMORY_ROUTE_MIDDLEWARE' "$HERMES_SOURCE/hermes_cli/middleware.py"
 
-echo "PASS: both runtime patches apply sequentially to official Hermes v0.21.7 ($EXPECTED_COMMIT)"
+git -C "$HERMES_SOURCE" apply --reverse "$memory_patch"
+git -C "$HERMES_SOURCE" apply --reverse "$model_patch"
+
+HERMES_HOME="$test_home" HERMES_SOURCE="$HERMES_SOURCE" "$root/scripts/install-hermes-extension.sh" --dry-run
+HERMES_HOME="$test_home" HERMES_SOURCE="$HERMES_SOURCE" "$root/scripts/install-hermes-extension.sh"
+HERMES_HOME="$test_home" HERMES_SOURCE="$HERMES_SOURCE" "$root/scripts/hermes-cockpit-doctor.sh"
+HERMES_HOME="$test_home" HERMES_SOURCE="$HERMES_SOURCE" "$root/scripts/install-hermes-extension.sh"
+find "$test_home/plugins" -maxdepth 1 -type d -name 'judge-m-control-plane.backup-*' -print -quit | grep -q .
+HERMES_HOME="$test_home" HERMES_SOURCE="$HERMES_SOURCE" "$root/scripts/uninstall-hermes-extension.sh"
+test ! -e "$test_home/plugins/judge-m-control-plane"
+git -C "$HERMES_SOURCE" diff --exit-code
+
+echo "PASS: patches and transactional install, doctor, repeat install, backup, and uninstall on official Hermes v0.21.7 ($EXPECTED_COMMIT)"

@@ -48,26 +48,38 @@ fi
 "$SCRIPT_DIR/install-hermes-extension.sh" --hermes-home "$HERMES_HOME" --hermes-source "$HERMES_SOURCE"
 
 START_STATUS=0
+WEB_STARTED=0
 if [ "$START_WEB" -eq 1 ]; then
     if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
         if ! docker compose -f "$REPO_DIR/compose.yaml" up -d; then
             echo "ERROR: Docker Compose web tier failed to start" >&2
             START_STATUS=1
-        fi
+        else WEB_STARTED=1; fi
     elif command -v docker-compose >/dev/null 2>&1; then
         if ! docker-compose -f "$REPO_DIR/compose.yaml" up -d; then
             echo "ERROR: Docker Compose web tier failed to start" >&2
             START_STATUS=1
-        fi
+        else WEB_STARTED=1; fi
     else
-        echo "WARNING: Docker Compose is unavailable; web tier was not started" >&2
+        echo "ERROR: Docker Compose is unavailable; use --no-start only when another proxy serves Cockpit" >&2
+        START_STATUS=1
     fi
 else
     echo "Web tier startup skipped by --no-start"
 fi
 
 DOCTOR_STATUS=0
-if ! "$SCRIPT_DIR/hermes-cockpit-doctor.sh" --hermes-home "$HERMES_HOME" --hermes-source "$HERMES_SOURCE"; then
+if [ "$WEB_STARTED" -eq 1 ]; then
+    DOCTOR_UPSTREAM="http://127.0.0.1:${COCKPIT_PORT:-8088}"
+else
+    DOCTOR_UPSTREAM=""
+fi
+if [ -n "$DOCTOR_UPSTREAM" ]; then
+    set -- --hermes-home "$HERMES_HOME" --hermes-source "$HERMES_SOURCE" --upstream "$DOCTOR_UPSTREAM"
+else
+    set -- --hermes-home "$HERMES_HOME" --hermes-source "$HERMES_SOURCE"
+fi
+if ! "$SCRIPT_DIR/hermes-cockpit-doctor.sh" "$@"; then
     DOCTOR_STATUS=1
 fi
 [ "$START_STATUS" -eq 0 ] && [ "$DOCTOR_STATUS" -eq 0 ]

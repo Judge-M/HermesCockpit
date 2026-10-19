@@ -2,6 +2,7 @@
 set -eu
 
 EXPECTED_HERMES_VERSION=0.21.7
+EXPECTED_HERMES_COMMIT=71d34bad1045610252eda02ee79549436896e784
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 REPO_DIR=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)
 HERMES_HOME=${HERMES_HOME:-"$HOME/.hermes"}
@@ -58,9 +59,11 @@ verify_official_source() {
     remote=$(git -C "$HERMES_SOURCE" remote get-url origin 2>/dev/null || :)
     remote_lower=$(printf '%s' "$remote" | tr '[:upper:]' '[:lower:]')
     case "$remote_lower" in
-        *github.com/nousresearch/hermes-agent|*github.com/nousresearch/hermes-agent.git) ;;
+        *github.com/nousresearch/hermes-agent|*github.com/nousresearch/hermes-agent.git|*github.com:nousresearch/hermes-agent|*github.com:nousresearch/hermes-agent.git) ;;
         *) die "Hermes origin is not the official NousResearch/hermes-agent repository: ${remote:-<missing>}" ;;
     esac
+    commit=$(git -C "$HERMES_SOURCE" rev-parse HEAD 2>/dev/null || :)
+    [ "$commit" = "$EXPECTED_HERMES_COMMIT" ] || die "Hermes v$EXPECTED_HERMES_VERSION commit $EXPECTED_HERMES_COMMIT is required; detected ${commit:-unknown}"
     version=$(detect_hermes_version || :)
     [ "$version" = "$EXPECTED_HERMES_VERSION" ] || die "Hermes v$EXPECTED_HERMES_VERSION is required; detected ${version:-unknown} at $HERMES_SOURCE"
     for required_path in hermes_cli/middleware.py tools/delegate_tool.py agent/memory_manager.py; do
@@ -132,6 +135,7 @@ if [ "$APPLY_PATCHES" -eq 1 ]; then
 fi
 
 echo "Preflight passed: official Hermes Agent v$EXPECTED_HERMES_VERSION"
+echo "Hermes commit: $EXPECTED_HERMES_COMMIT"
 echo "Hermes source: $HERMES_SOURCE"
 echo "Model patch:   $MODEL_STATE"
 echo "Memory patch:  $MEMORY_STATE"
