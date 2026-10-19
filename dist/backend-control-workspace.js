@@ -28,6 +28,23 @@
     ['Other', 'tune', 'Additional controls published by this Hermes installation.']
   ].map(([name, icon, description], order) => ({name, icon, description, order}));
   const DOMAIN_INDEX = new Map(DOMAIN_DEFINITIONS.map(item => [item.name, item]));
+  const COMMON_TASK_DEFINITIONS = [
+    {label: 'Check system health', description: 'See whether Hermes and its services are ready.', icon: 'monitor_heart', domain: 'System & Health', terms: ['health', 'status', 'doctor'], kind: 'read'},
+    {label: 'Review models and providers', description: 'Inspect model availability, providers, and routing.', icon: 'model_training', domain: 'Models & Providers', terms: ['models', 'providers', 'catalog'], kind: 'read'},
+    {label: 'Manage profiles', description: 'Create, review, or update Hermes identities.', icon: 'manage_accounts', domain: 'Profiles & Settings', terms: ['profiles', 'profile'], kind: 'read'},
+    {label: 'Connect messaging', description: 'Manage gateways, channels, Slack, and other connections.', icon: 'hub', domain: 'Gateway & Connections', terms: ['channels', 'gateway', 'connectors'], kind: 'read'},
+    {label: 'Manage tools and skills', description: 'Review capabilities, permissions, MCP servers, and skills.', icon: 'handyman', domain: 'Tools & Skills', terms: ['tools', 'skills', 'mcp'], kind: 'read'},
+    {label: 'Open browser controls', description: 'Work with browser sessions and computer-use services.', icon: 'language', domain: 'Browser & Computer Use', terms: ['browser', 'sessions'], kind: 'read'}
+  ];
+  const QUERY_SYNONYMS = {
+    add: ['create', 'new', 'install', 'register', 'configure'], create: ['add', 'new', 'register'],
+    remove: ['delete', 'clear', 'uninstall', 'revoke'], delete: ['remove', 'clear'],
+    check: ['status', 'health', 'doctor', 'inspect'], see: ['get', 'list', 'show', 'status'], show: ['get', 'list', 'status'],
+    start: ['run', 'enable', 'launch'], stop: ['disable', 'cancel', 'shutdown'], restart: ['reload', 'relaunch'],
+    connect: ['gateway', 'channel', 'login', 'oauth', 'pair'], model: ['provider', 'inference', 'catalog', 'routing'],
+    agent: ['profile', 'session', 'worker'], backup: ['export', 'checkpoint', 'recovery'], fix: ['repair', 'doctor', 'migrate']
+  };
+  const QUERY_STOP_WORDS = new Set(['a', 'an', 'the', 'my', 'please', 'want', 'need', 'to', 'hermes']);
 
   const PATH_DOMAINS = {
     actions: 'System & Health', health: 'System & Health', status: 'System & Health', system: 'System & Health', host: 'System & Health', dashboard: 'System & Health', hermes: 'System & Health',
@@ -59,7 +76,8 @@
     pending: null,
     jobTimer: null,
     bridgeCounts: null,
-    browseAll: false
+    browseAll: false,
+    expandedDomains: false
   };
 
   const $ = id => document.getElementById(id);
@@ -243,11 +261,11 @@
 
   function operationSubtitle(operation) {
     if (!operation.available) return operation.unavailableReason || 'Unavailable on this installation';
-    if (operation.source === 'workflow') return operation.longRunning ? 'Extended action · may take a while' : operation.interactive ? 'Interactive extended action' : 'Extended action';
+    if (operation.source === 'workflow') return operation.longRunning ? 'Guided workflow · may take a while' : operation.interactive ? 'Interactive guided workflow' : 'Guided workflow';
     if (operation.kind === 'access') return 'Browser access flow';
     if (operation.method === 'DELETE') return 'Removes or clears data';
     if (operation.kind === 'read') return 'View current information';
-    return 'Change settings or run an action';
+    return 'Update Hermes';
   }
 
   function collectApiOperations(spec) {
@@ -387,6 +405,7 @@
     }
     updateCoverage();
     renderFilters();
+    renderCommonActions();
     renderDomains();
     applyFilters();
     renderInventoryDiagnostics();
@@ -432,6 +451,53 @@
     state.domain = select.value;
   }
 
+  function commonTaskOperation(task, used) {
+    const candidates = state.operations.filter(operation => operation.available && operation.domain === task.domain && operation.risk !== 'high' && operation.method !== 'DELETE' && !used.has(operation.id));
+    const scored = candidates.map(operation => {
+      const haystack = operation.search || '';
+      let score = task.terms.reduce((total, term) => total + (haystack.includes(term) ? 14 : 0), 0);
+      if (operation.kind === task.kind) score += 18;
+      if (operation.source === 'api') score += 4;
+      if (operation.risk === 'low') score += 3;
+      return {operation, score};
+    }).sort((left, right) => right.score - left.score || left.operation.label.localeCompare(right.operation.label));
+    return scored[0]?.operation || null;
+  }
+
+  function renderCommonActions() {
+    const container = $('commonActionGrid');
+    if (!container) return;
+    container.replaceChildren();
+    const used = new Set();
+    COMMON_TASK_DEFINITIONS.forEach(task => {
+      const operation = commonTaskOperation(task, used);
+      if (!operation) return;
+      used.add(operation.id);
+      const button = node('button', 'bc-common-card');
+      button.type = 'button';
+      const iconWrap = node('span', 'bc-common-icon');
+      iconWrap.append(icon(task.icon));
+      const copy = node('span', 'bc-common-copy');
+      copy.append(node('strong', '', task.label), node('span', '', task.description), node('small', '', operation.label));
+      button.append(iconWrap, copy, icon('arrow_forward'));
+      button.addEventListener('click', () => {
+        state.domain = operation.domain;
+        state.browseAll = false;
+        $('domainFilter').value = operation.domain;
+        $('kindFilter').value = '';
+        $('searchInput').value = '';
+        applyFilters();
+        selectOperation(operation.id);
+      });
+      container.append(button);
+    });
+    if (!container.children.length) {
+      const empty = node('div', 'bc-loading-card');
+      empty.append(icon('hourglass_empty'), node('span', '', 'Common tasks will appear when Hermes publishes its action inventory.'));
+      container.append(empty);
+    }
+  }
+
   function renderDomains() {
     const container = $('domainGrid');
     container.replaceChildren();
@@ -443,7 +509,20 @@
       container.append(empty);
       return;
     }
-    DOMAIN_DEFINITIONS.filter(definition => counts.has(definition.name)).forEach(definition => {
+    const allDefinitions = DOMAIN_DEFINITIONS.filter(definition => counts.has(definition.name));
+    let visibleDefinitions = state.expandedDomains ? allDefinitions : allDefinitions.slice(0, 8);
+    if (!state.expandedDomains && state.domain && !visibleDefinitions.some(definition => definition.name === state.domain)) {
+      const selected = allDefinitions.find(definition => definition.name === state.domain);
+      if (selected) visibleDefinitions = [...visibleDefinitions.slice(0, 7), selected];
+    }
+    const overflowButton = $('domainOverflowButton');
+    if (overflowButton) {
+      overflowButton.hidden = allDefinitions.length <= 8;
+      overflowButton.firstChild.textContent = state.expandedDomains ? 'Show fewer areas ' : `Show all ${allDefinitions.length} areas `;
+      const symbol = overflowButton.querySelector('.material-symbols-outlined');
+      if (symbol) symbol.textContent = state.expandedDomains ? 'expand_less' : 'expand_more';
+    }
+    visibleDefinitions.forEach(definition => {
       const button = node('button', 'bc-domain-card');
       button.type = 'button';
       button.dataset.selected = String(state.domain === definition.name);
@@ -473,12 +552,22 @@
     return operation.source === 'api' && operation.kind === kind;
   }
 
+  function matchesQuery(operation, query) {
+    const tokens = String(query || '').toLowerCase().split(/[^a-z0-9]+/).filter(token => token && !QUERY_STOP_WORDS.has(token));
+    if (!tokens.length) return true;
+    const haystack = operation.search || '';
+    return tokens.every(token => {
+      const alternatives = [token, ...(QUERY_SYNONYMS[token] || [])];
+      return alternatives.some(alternative => haystack.includes(alternative));
+    });
+  }
+
   function applyFilters() {
     state.domain = $('domainFilter').value;
     const query = $('searchInput').value.trim().toLowerCase();
     const kind = $('kindFilter').value;
     const shouldBrowse = Boolean(state.domain || query || kind || state.browseAll);
-    state.filtered = shouldBrowse ? state.operations.filter(operation => (!state.domain || operation.domain === state.domain) && (!query || operation.search.includes(query)) && matchesKind(operation, kind)) : [];
+    state.filtered = shouldBrowse ? state.operations.filter(operation => (!state.domain || operation.domain === state.domain) && matchesQuery(operation, query) && matchesKind(operation, kind)) : [];
     renderActionList();
     renderDomains();
   }
@@ -498,7 +587,7 @@
     }
     const groups = new Map();
     state.filtered.forEach(operation => {
-      const group = state.domain ? (operation.source === 'workflow' ? 'Extended actions' : operation.kind === 'access' ? 'Sign-in & access' : operation.kind === 'read' ? 'Information & status' : 'Settings & actions') : operation.domain;
+      const group = state.domain ? (operation.source === 'workflow' ? 'Guided workflows' : operation.kind === 'access' ? 'Sign-in & access' : operation.kind === 'read' ? 'Information & status' : 'Changes & maintenance') : operation.domain;
       if (!groups.has(group)) groups.set(group, []);
       groups.get(group).push(operation);
     });
@@ -555,7 +644,7 @@
     title.append(node('span', 'bc-eyebrow', operation.domain), node('h2', '', operation.label));
     title.append(node('p', '', operation.description || operationSubtitle(operation)));
     const badges = node('div', 'bc-badges');
-    badges.append(badge(operation.source === 'workflow' ? 'Extended action' : operation.kind === 'access' ? 'Sign-in & access' : operation.kind === 'read' ? 'Live information' : 'Direct action', operation.source === 'workflow' ? 'is-purple' : ''));
+    badges.append(badge(operation.source === 'workflow' ? 'Guided workflow' : operation.kind === 'access' ? 'Sign-in & access' : operation.kind === 'read' ? 'View information' : 'Guided control', operation.source === 'workflow' ? 'is-purple' : ''));
     badges.append(badge(operation.available ? 'Available' : 'Unavailable', operation.available ? 'is-good' : 'is-danger'));
     if (operation.risk === 'high') badges.append(badge('Confirmation required', 'is-danger'));
     else if (operation.risk === 'medium') badges.append(badge('Changes Hermes', 'is-warning'));
@@ -1494,6 +1583,7 @@
   $('domainFilter').addEventListener('change', () => { state.domain = $('domainFilter').value; state.browseAll = false; applyFilters(); });
   $('kindFilter').addEventListener('change', applyFilters);
   $('reloadButton').addEventListener('click', loadInventories);
+  $('domainOverflowButton')?.addEventListener('click', () => { state.expandedDomains = !state.expandedDomains; renderDomains(); });
   $('showEverythingButton').addEventListener('click', () => {
     state.domain = '';
     state.browseAll = true;

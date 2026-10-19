@@ -20,6 +20,18 @@
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}.spin{animation:none}}
 .workspace-tabs,.menu-actions{scrollbar-width:none}.workspace-tabs::-webkit-scrollbar,.menu-actions::-webkit-scrollbar{display:none}
 
+.settings-view-toggle{display:inline-flex;flex:0 0 auto;gap:3px;padding:3px;border:1px solid rgba(76,86,106,.58);border-radius:10px;background:#111120}
+.settings-view-button{min-height:31px;padding:0 11px;border:0;border-radius:7px;background:transparent;color:#7f8ca2;font:650 11px/1 Inter,sans-serif;cursor:pointer;white-space:nowrap}
+.settings-view-button:hover{color:#d8dee9;background:rgba(255,255,255,.035)}
+.settings-view-button.is-active{color:#102f36;background:#a3dcec;box-shadow:0 2px 10px rgba(0,0,0,.2)}
+.results-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.results-show-all{border:0;background:transparent;color:#a3dcec;font:650 11px/1.3 Inter,sans-serif;cursor:pointer;white-space:nowrap}
+.results-show-all:hover{text-decoration:underline}
+.concept-stats span{display:flex;flex-direction:column;gap:2px;min-width:70px}
+.concept-stats small{color:#68768e;font-size:9px;font-weight:650;text-transform:uppercase;letter-spacing:.07em}
+
+@media(max-width:760px){.settings-view-toggle{width:100%;order:2}.settings-view-button{flex:1}.results-heading{align-items:flex-start;flex-direction:column}.results-show-all{padding:0}.settings-filter-bar .mobile-category-picker{order:3}.settings-filter-bar #clear-settings-search{order:4}}
+
 /* The complete control inventory lives inside Manage instead of a separate app. */
 .bc-embedded{width:100%;gap:14px}.bc-embedded .bc-hero{min-height:138px}.bc-embedded .bc-hero h1{font-size:27px}.bc-embedded .bc-browser{min-height:620px}
 @media(max-width:760px){.bc-embedded .bc-hero{align-items:flex-start;flex-direction:column}.bc-embedded .bc-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.bc-embedded .bc-toolbar{grid-template-columns:1fr}.bc-embedded .bc-browser{min-height:0}}
