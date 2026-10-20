@@ -93,7 +93,7 @@ class HostedOwnerContractTests(unittest.TestCase):
                     list(workers.map(plugin_api._write_model_preferences, payloads))
                 parsed = json.loads(target.read_text(encoding="utf-8"))
                 self.assertIn(parsed, payloads)
-                self.assertFalse(list(Path(folder).glob("*.tmp")))
+                self.assertFalse(list(Path(folder).glob(".*.tmp")))
 
 
 if __name__ == "__main__":

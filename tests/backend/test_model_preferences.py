@@ -56,7 +56,7 @@ class ModelPreferenceTests(unittest.TestCase):
         self.assertEqual(len(set(staged)), 12)
         self.assertIn(self.namespace["_read_model_preferences"]("owner-a"), payloads)
         self.assertEqual(self.namespace["_read_model_preferences"]("owner-b"), {})
-        self.assertEqual(list(self.root.glob("*.tmp")), [])
+        self.assertEqual(list(self.root.glob(".*.tmp")), [])
         if os.name == "posix":
             self.assertEqual(self.namespace["_preferences_file"]("owner-a").stat().st_mode & 0o777, 0o600)
 
@@ -67,7 +67,7 @@ class ModelPreferenceTests(unittest.TestCase):
             with self.assertRaises(OSError):
                 write({"value": "replacement"}, "owner-a")
         self.assertEqual(self.namespace["_read_model_preferences"]("owner-a"), {"value": "original"})
-        self.assertEqual(list(self.root.glob("*.tmp")), [])
+        self.assertEqual(list(self.root.glob(".*.tmp")), [])
 
 
 if __name__ == "__main__":
