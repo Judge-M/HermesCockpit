@@ -143,7 +143,7 @@ function loadModelHooks(fetchImpl) {
   const scriptEnd = source.indexOf("</script>", scriptStart);
   const script = source.slice(scriptStart, scriptEnd).replace(
     "openFromHash();load().then(openFromHash);",
-    "window.__testHooks={state,loadAssignments};",
+    "window.__testHooks={state,loadAssignments,load};",
   );
   const {context, elements} = browserContext(fetchImpl);
   vm.runInNewContext(script, context, {filename: "dist/models-providers.html"});
@@ -175,6 +175,24 @@ test("failed profile data load keeps profile-bound saves disabled and dirty sett
   await hooks.loadSettings();
   assert.equal(hooks.state.dirty.get("agent.max_turns"), 7);
   assert.equal(elements.get("save-settings").disabled, true);
+});
+
+test("profile editors stay read-only until the selected profile has loaded", async () => {
+  const {hooks, elements} = loadSettingsHooks(async (url) => {
+    if (url.includes("/profiles/A/soul")) return response({content: "Profile A soul"});
+    if (url.includes("/profiles/A/setup-command")) return response({command: "hermes --profile A"});
+    throw new Error("not requested in this regression");
+  });
+  hooks.state.profiles = [{name: "A", description: "Profile A"}];
+  hooks.state.selected = "A";
+  hooks.state.liveAvailable = true;
+
+  const load = hooks.loadProfileDetails("A");
+  assert.equal(elements.get("profile-description").disabled, true);
+  assert.equal(elements.get("profile-soul").disabled, true);
+  await load;
+  assert.equal(elements.get("profile-description").disabled, false);
+  assert.equal(elements.get("profile-soul").disabled, false);
 });
 
 test("out-of-order A/B assignment loads leave the newest profile selected", async () => {
@@ -239,4 +257,22 @@ test("a failed B profile load cannot save A's previously loaded SOUL into B", as
   assert.equal(elements.get("profile-soul").value, "");
   assert.equal(elements.get("save-soul").disabled, true);
   assert.equal(writes.length, 0);
+});
+
+test("model panels retain successful data when optional profile discovery fails", async () => {
+  const {hooks} = loadModelHooks(async (url) => {
+    if (url.endsWith("/profiles")) throw new Error("profiles endpoint unavailable");
+    if (url.includes("model-menu")) return response({providers: [{slug: "provider", models: ["model"]}], preferences: {}});
+    if (url.includes("/providers/oauth")) return response({providers: []});
+    if (url.includes("/providers/custom-endpoints")) return response({endpoints: []});
+    if (url.includes("/credentials/pool")) return response({credentials: []});
+    if (url.includes("/model/auxiliary")) return response({main: {}, tasks: []});
+    if (url.includes("/model/options")) return response({providers: []});
+    if (url.includes("semantic-routing")) return response({config: {}});
+    return response({});
+  });
+
+  await hooks.load();
+  assert.equal(hooks.state.menu.providers[0].slug, "provider");
+  assert.match(hooks.state.panelErrors.profiles, /profiles endpoint unavailable/);
 });

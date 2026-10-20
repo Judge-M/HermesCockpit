@@ -148,7 +148,15 @@
       if (Array.isArray(detail)) return detail.map(item => item.msg || asText(item)).join('; ');
       if (detail) return asText(detail);
     }
-    return typeof payload === 'string' && payload ? redactText(payload) : `${response.status} ${response.statusText}`;
+    const status = `HTTP ${response.status}${response.statusText ? ` ${response.statusText}` : ''}`;
+    if (typeof payload !== 'string' || !payload.trim()) return status;
+    const contentType = response.headers?.get?.('content-type') || '';
+    const text = payload.trim();
+    if (contentType.includes('text/html') || /^\s*<!doctype\s+html|^\s*<html[\s>]/i.test(text)) {
+      return `${status}. Hermes returned an HTML error page; open Technical details for diagnostics.`;
+    }
+    const safe = redactText(text).replace(/\s+/g, ' ').trim();
+    return safe.length > 200 ? `${status}. ${safe.slice(0, 197)}…` : safe;
   };
 
   function domainDefinition(name) {

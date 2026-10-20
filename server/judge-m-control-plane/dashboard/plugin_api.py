@@ -14,6 +14,8 @@ import socket
 from pathlib import Path
 import secrets
 import sys
+import tempfile
+import threading
 import time
 from typing import Any
 from urllib.error import HTTPError, URLError
@@ -69,6 +71,8 @@ LINKS = _configured_links()
 _CACHE: dict[str, Any] = {"at": 0.0, "payload": None}
 PREFERENCES_ROOT = Path(os.environ.get("HERMES_HOME", str(Path.home() / ".hermes"))) / "judge-m-control-plane"
 PREFERENCES_FILE = PREFERENCES_ROOT / "model-menu.json"
+_PREFERENCE_LOCKS: dict[str, threading.Lock] = {}
+_PREFERENCE_LOCKS_GUARD = threading.Lock()
 _BROWSER_PREVIEW_SALT = secrets.token_bytes(32)
 _BROWSER_FRAME_LIMIT = 8 * 1024 * 1024
 _SINGLE_USER_OWNER_SCOPE = "__single_user__"
@@ -232,9 +236,35 @@ def _clean_model_preferences(body: dict[str, Any]) -> dict[str, Any]:
 def _write_model_preferences(preferences: dict[str, Any], owner_key: str = "") -> None:
     path = _preferences_file(owner_key)
     path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_suffix(".tmp")
-    temporary.write_text(json.dumps(preferences, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    os.replace(temporary, path)
+    with _PREFERENCE_LOCKS_GUARD:
+        lock = _PREFERENCE_LOCKS.setdefault(str(path), threading.Lock())
+    with lock:
+        temporary_name = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                mode="w",
+                encoding="utf-8",
+                dir=path.parent,
+                prefix=f".{path.name}.",
+                suffix=".tmp",
+                delete=False,
+            ) as temporary:
+                temporary_name = temporary.name
+                os.chmod(temporary.name, 0o600)
+                temporary.write(json.dumps(preferences, indent=2, sort_keys=True) + "\n")
+                temporary.flush()
+                os.fsync(temporary.fileno())
+            os.replace(temporary_name, path)
+            try:
+                os.chmod(path, 0o600)
+            except OSError:
+                pass
+        finally:
+            if temporary_name:
+                try:
+                    os.unlink(temporary_name)
+                except FileNotFoundError:
+                    pass
 
 
 def _model_catalog(refresh: bool = False, owner_key: str = "") -> dict[str, Any]:

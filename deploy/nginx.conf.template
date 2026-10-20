@@ -13,7 +13,8 @@ server {
     add_header X-Frame-Options "SAMEORIGIN" always;
     add_header Referrer-Policy "same-origin" always;
     add_header Permissions-Policy "camera=(self), microphone=(self), geolocation=(), payment=(), usb=()" always;
-    add_header Content-Security-Policy "base-uri 'self'; object-src 'none'; frame-ancestors 'self'" always;
+    add_header Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'self'; form-action 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; media-src 'self' data: blob:; worker-src 'self' blob:; connect-src 'self' ws: wss:; manifest-src 'self'" always;
+    add_header Content-Security-Policy-Report-Only "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'self'; form-action 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; media-src 'self' data: blob:; worker-src 'self' blob:; connect-src 'self' ws: wss:; manifest-src 'self'; require-trusted-types-for 'script'; report-uri /__csp-report" always;
 
     location = /healthz {
         access_log off;
@@ -37,7 +38,8 @@ server {
         add_header X-Frame-Options "SAMEORIGIN" always;
         add_header Referrer-Policy "same-origin" always;
         add_header Permissions-Policy "camera=(self), microphone=(self), geolocation=(), payment=(), usb=()" always;
-        add_header Content-Security-Policy "base-uri 'self'; object-src 'none'; frame-ancestors 'self'" always;
+        add_header Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'self'; form-action 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; media-src 'self' data: blob:; worker-src 'self' blob:; connect-src 'self' ws: wss:; manifest-src 'self'" always;
+        add_header Content-Security-Policy-Report-Only "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'self'; form-action 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; media-src 'self' data: blob:; worker-src 'self' blob:; connect-src 'self' ws: wss:; manifest-src 'self'; require-trusted-types-for 'script'; report-uri /__csp-report" always;
         expires -1;
         try_files $uri $uri/ /cockpit/live-control.html;
     }
@@ -60,5 +62,13 @@ server {
         proxy_read_timeout 3600s;
         proxy_send_timeout 3600s;
         proxy_buffering off;
+    }
+
+    # Accept browser CSP reports without retaining request bodies or exposing
+    # a third-party reporting service by default. Operators can replace this
+    # with their approved reporting endpoint at the reverse-proxy layer.
+    location = /__csp-report {
+        access_log off;
+        return 204;
     }
 }

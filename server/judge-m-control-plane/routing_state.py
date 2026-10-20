@@ -17,6 +17,9 @@ CANONICAL_SEMANTIC_MODULE = "judge_m_control_plane_semantic_routing"
 TRACE_DB_ENV = "HERMES_ROUTING_TRACE_DB"
 TRACE_MEMORY_ONLY_ENV = "HERMES_ROUTING_TRACE_MEMORY_ONLY"
 TRACE_LIMIT = 200
+# Emergency total-row cap; zero disables it. Prefer evicting from the largest
+# histories so busy owners cannot flush quieter owners' recent records.
+TRACE_GLOBAL_LIMIT = 10000
 TRACE_PAYLOAD_LIMIT = 256 * 1024
 
 
@@ -123,17 +126,39 @@ def _connect() -> sqlite3.Connection:
     return connection
 
 
-def _prune(connection: sqlite3.Connection) -> None:
+def _prune(connection: sqlite3.Connection, owner_scope: str) -> None:
+    """Keep each owner's recent history independent of other owners.
+
+    A global newest-N query lets one busy tenant evict another tenant's
+    history.  The dashboard reads traces by owner, so retention is scoped the
+    same way and a noisy owner cannot starve quieter owners.
+    """
     connection.execute(
         """
         DELETE FROM routing_traces
         WHERE trace_id IN (
             SELECT trace_id FROM routing_traces
+            WHERE owner_scope = ?
             ORDER BY trace_id DESC LIMIT -1 OFFSET ?
         )
         """,
-        (TRACE_LIMIT,),
+        (owner_scope, TRACE_LIMIT),
     )
+    if TRACE_GLOBAL_LIMIT > 0:
+        excess = connection.execute("SELECT COUNT(*) FROM routing_traces").fetchone()[0] - TRACE_GLOBAL_LIMIT
+        if excess > 0:
+            connection.execute(
+                """
+                DELETE FROM routing_traces WHERE trace_id IN (
+                    SELECT trace_id FROM (
+                        SELECT trace_id, ROW_NUMBER() OVER (
+                            PARTITION BY owner_scope ORDER BY trace_id DESC
+                        ) AS owner_rank FROM routing_traces
+                    ) ORDER BY owner_rank DESC, trace_id ASC LIMIT ?
+                )
+                """,
+                (excess,),
+            )
 
 
 def append_trace(row: dict[str, Any]) -> bool:
@@ -152,7 +177,7 @@ def append_trace(row: dict[str, Any]) -> bool:
                     "INSERT INTO routing_traces(owner_scope, decision_id, payload, created_at) VALUES (?, ?, ?, ?)",
                     (owner_scope, decision_id, payload, time.time()),
                 )
-                _prune(connection)
+                _prune(connection, owner_scope)
         finally:
             connection.close()
         return True

@@ -7,6 +7,7 @@ import vm from 'node:vm';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const read = file => readFileSync(path.join(root, file), 'utf8');
+await import('./check-csp.mjs');
 const provenance = JSON.parse(read('source-provenance.json'));
 const sourceChanges = JSON.parse(read('source-changes.json'));
 const intentional = new Map((sourceChanges.changes || []).map(change => [change.path, change]));

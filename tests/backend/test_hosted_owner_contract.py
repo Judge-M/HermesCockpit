@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 import importlib.util
+from concurrent.futures import ThreadPoolExecutor
+import json
 from pathlib import Path
 import sys
+import tempfile
 import types
 import unittest
+from unittest.mock import patch
 
 
 class _Router:
@@ -76,6 +80,20 @@ class HostedOwnerContractTests(unittest.TestCase):
     def test_loopback_mode_keeps_single_user_scope(self):
         request = _Request(auth_required=False, headers={"x-hermes-owner-scope": "caller-choice"})
         self.assertEqual(plugin_api._owner_key(request), "__single_user__")
+
+    def test_model_preferences_survive_concurrent_atomic_writes(self):
+        with tempfile.TemporaryDirectory(prefix="hermes-cockpit-preferences-") as folder:
+            target = Path(folder) / "model-menu.json"
+            with patch.object(plugin_api, "_preferences_file", return_value=target):
+                payloads = [
+                    {"version": 1, "provider_order": [f"provider-{index}"], "providers": {}}
+                    for index in range(32)
+                ]
+                with ThreadPoolExecutor(max_workers=8) as workers:
+                    list(workers.map(plugin_api._write_model_preferences, payloads))
+                parsed = json.loads(target.read_text(encoding="utf-8"))
+                self.assertIn(parsed, payloads)
+                self.assertFalse(list(Path(folder).glob("*.tmp")))
 
 
 if __name__ == "__main__":
