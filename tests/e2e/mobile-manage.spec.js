@@ -32,14 +32,22 @@ const providerSpec = {
 };
 
 async function mockManageBackend(page) {
+  const profiles = [{ name: "default" }];
+  let createdProfile = null;
   await page.route("**/hermes/**", route => {
     const path = new URL(route.request().url()).pathname;
+    const method = route.request().method();
     let body = {};
     if (path === "/hermes/openapi.json") body = providerSpec;
     else if (path.endsWith("/cli-operations")) body = { operations: [], counts: {} };
     else if (path.endsWith("/api/health")) body = { status: "ok", version: "test" };
     else if (path.endsWith("/api/profiles/active")) body = { active: "default", current: "default" };
-    else if (path.endsWith("/api/profiles")) body = { profiles: [{ name: "default" }] };
+    else if (path.endsWith("/api/profiles") && method === "POST") {
+      createdProfile = route.request().postDataJSON();
+      profiles.push({ name: createdProfile.name, description: createdProfile.description || "" });
+      body = { name: createdProfile.name };
+    }
+    else if (path.endsWith("/api/profiles")) body = { profiles };
     else if (path.endsWith("/config/schema")) body = { fields: {} };
     else if (path.endsWith("/config/defaults")) body = {};
     else if (path.endsWith("/config")) body = {};
@@ -47,11 +55,12 @@ async function mockManageBackend(page) {
     else if (path.endsWith("/model-menu")) body = { providers: [] };
     return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
   });
+  return { getCreatedProfile: () => createdProfile };
 }
 
 test("mobile Manage is compact and generated actions are friendly", async ({ page }, testInfo) => {
   test.skip(!testInfo.project.name.includes("mobile"), "Mobile ergonomics only");
-  await mockManageBackend(page);
+  const backend = await mockManageBackend(page);
   await page.goto("/runtime-config-settings.html?tab=controls#api%3APOST%3A%2Fapi%2Fproviders%2Fcustom-endpoints");
 
   await expect(page.locator("#panel-controls")).toBeVisible();
@@ -74,7 +83,7 @@ test("mobile Manage is compact and generated actions are friendly", async ({ pag
     };
   });
   expect(mobileLayout.headingHeight).toBeLessThan(70);
-  expect(mobileLayout.profileHeight).toBeLessThan(100);
+  expect(mobileLayout.profileHeight).toBeLessThan(120);
   expect(mobileLayout.commonDisplay).toBe("grid");
   expect(mobileLayout.commonFits).toBe(true);
   expect(mobileLayout.actionPosition).toBe("sticky");
@@ -94,5 +103,21 @@ test("mobile Manage is compact and generated actions are friendly", async ({ pag
   await page.locator("#workspace-tab-settings").click();
   await expect(page.locator("#panel-settings")).toBeVisible();
   await expect(page.locator(".settings-toolbar")).toHaveCSS("position", "sticky");
-  await expect(page.locator(".profile-primary-actions")).toBeHidden();
+  await expect(page.locator(".profile-primary-actions")).toBeVisible();
+
+  await page.locator("#open-create-profile").click();
+  await expect(page.locator("#create-profile-dialog")).toBeVisible();
+  await page.locator("#create-profile-name").fill("mobile-helper");
+  await page.locator("#create-profile-description").fill("Created from the phone-size Manage workspace.");
+  await page.locator("#create-profile-submit").click();
+
+  await expect(page.locator("#create-profile-dialog")).toBeHidden();
+  await expect(page.locator("#profile-select")).toHaveValue("mobile-helper");
+  expect(backend.getCreatedProfile()).toMatchObject({
+    name: "mobile-helper",
+    description: "Created from the phone-size Manage workspace.",
+    clone_all: false,
+    clone_channels: false,
+    no_skills: false
+  });
 });

@@ -104,8 +104,6 @@
   .profile-state .active-badge{padding:6px 8px;font-size:9px}
   .profile-state .secondary-button{min-height:32px;padding-inline:9px;font-size:11px}
   .profile-primary-actions{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:7px}
-  body:has(#panel-settings:not([hidden])) .profile-primary-actions,
-  body:has(#panel-controls:not([hidden])) .profile-primary-actions{display:none}
   .workspace-tabs{margin-top:10px}
   .workspace-tab{padding-block:11px}
   .workspace-panel{padding-top:12px}
