@@ -13,9 +13,13 @@ fi
 root=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
 model_patch="$root/server/hermes-runtime-patches/semantic-routing-hooks.patch"
 memory_patch="$root/server/hermes-runtime-patches/semantic-routing-memory-hooks.patch"
+owner_patch="$root/server/hermes-runtime-patches/hosted-plugin-owner-scope.patch"
+browser_patch="$root/server/hermes-runtime-patches/browser-preview-gateway.patch"
 test_home=$(mktemp -d)
 
 cleanup() {
+  git -C "$HERMES_SOURCE" apply --reverse --check "$browser_patch" >/dev/null 2>&1 && git -C "$HERMES_SOURCE" apply --reverse "$browser_patch" || true
+  git -C "$HERMES_SOURCE" apply --reverse --check "$owner_patch" >/dev/null 2>&1 && git -C "$HERMES_SOURCE" apply --reverse "$owner_patch" || true
   git -C "$HERMES_SOURCE" apply --reverse --check "$memory_patch" >/dev/null 2>&1 && git -C "$HERMES_SOURCE" apply --reverse "$memory_patch" || true
   git -C "$HERMES_SOURCE" apply --reverse --check "$model_patch" >/dev/null 2>&1 && git -C "$HERMES_SOURCE" apply --reverse "$model_patch" || true
   rm -rf "$test_home"
@@ -26,17 +30,31 @@ git -C "$HERMES_SOURCE" apply --check "$model_patch"
 git -C "$HERMES_SOURCE" apply "$model_patch"
 git -C "$HERMES_SOURCE" apply --check "$memory_patch"
 git -C "$HERMES_SOURCE" apply "$memory_patch"
+git -C "$HERMES_SOURCE" apply --check "$owner_patch"
+git -C "$HERMES_SOURCE" apply "$owner_patch"
+git -C "$HERMES_SOURCE" apply --check "$browser_patch"
+git -C "$HERMES_SOURCE" apply "$browser_patch"
 git -C "$HERMES_SOURCE" diff --check
 
 python -m py_compile \
   "$HERMES_SOURCE/hermes_cli/middleware.py" \
   "$HERMES_SOURCE/tools/delegate_tool.py" \
   "$HERMES_SOURCE/agent/auxiliary_client.py" \
-  "$HERMES_SOURCE/agent/memory_manager.py"
+  "$HERMES_SOURCE/agent/memory_manager.py" \
+  "$HERMES_SOURCE/hermes_cli/web_server_dashboard.py" \
+  "$HERMES_SOURCE/hermes_cli/plugin_host_child.py" \
+  "$HERMES_SOURCE/hermes_cli/plugin_runtime_context.py" \
+  "$HERMES_SOURCE/tui_gateway/methods_session.py"
 
 grep -q 'MODEL_ROUTE_MIDDLEWARE' "$HERMES_SOURCE/hermes_cli/middleware.py"
 grep -q 'MEMORY_ROUTE_MIDDLEWARE' "$HERMES_SOURCE/hermes_cli/middleware.py"
+grep -q '_HOSTED_OWNER_HEADER' "$HERMES_SOURCE/hermes_cli/web_server_dashboard.py"
+grep -q 'hosted_plugin_internal' "$HERMES_SOURCE/hermes_cli/plugin_host_child.py"
+grep -q '@method("browser.preview")' "$HERMES_SOURCE/tui_gateway/methods_session.py"
+grep -q 'routing_context' "$HERMES_SOURCE/hermes_cli/middleware.py"
 
+git -C "$HERMES_SOURCE" apply --reverse "$browser_patch"
+git -C "$HERMES_SOURCE" apply --reverse "$owner_patch"
 git -C "$HERMES_SOURCE" apply --reverse "$memory_patch"
 git -C "$HERMES_SOURCE" apply --reverse "$model_patch"
 
@@ -48,5 +66,7 @@ find "$test_home/plugins" -maxdepth 1 -type d -name 'judge-m-control-plane.backu
 HERMES_HOME="$test_home" HERMES_SOURCE="$HERMES_SOURCE" "$root/scripts/uninstall-hermes-extension.sh"
 test ! -e "$test_home/plugins/judge-m-control-plane"
 git -C "$HERMES_SOURCE" diff --exit-code
+
+sh "$root/tests/ci/verify-runtime-patch-state.sh" "$HERMES_SOURCE"
 
 echo "PASS: patches and transactional install, doctor, repeat install, backup, and uninstall on official Hermes v0.21.7 ($EXPECTED_COMMIT)"

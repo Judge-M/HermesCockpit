@@ -6,7 +6,7 @@ Use this checklist for every public Hermes Cockpit release.
 
 - [ ] `VERSION`, `plugin.yaml`, and `dashboard/manifest.json` agree.
 - [ ] The compatibility table names the exact supported Hermes tag and commit.
-- [ ] Both runtime patches apply to a clean checkout of that commit.
+- [ ] All runtime patches apply to a clean checkout of that commit.
 - [ ] The API/CLI capability inventory matches the supported runtime.
 - [ ] Portable, semantic-routing, CLI bridge, Compose, nginx, and browser checks pass.
 - [ ] A clean Linux host or VM completes bootstrap and doctor successfully.
@@ -20,6 +20,9 @@ Use this checklist for every public Hermes Cockpit release.
 - [ ] Provider onboarding, model curation, assignments, and Semantic Auto work.
 - [ ] Tools, Kanban, Manage, System, and Observability show live or explicit unavailable states.
 - [ ] Browser preview never exposes CDP addresses or copied-profile paths.
+- [ ] Two authenticated users cannot read each other's routing history or browser frames.
+- [ ] Failed and out-of-order profile loads cannot save changes into another profile.
+- [ ] Unavailable automatic escalation and verification controls remain disabled and explained.
 - [ ] Long-running CLI jobs stream, accept input, stop, and redact secrets.
 
 ## Security and operations

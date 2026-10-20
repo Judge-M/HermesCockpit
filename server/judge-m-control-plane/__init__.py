@@ -4,23 +4,43 @@ from __future__ import annotations
 
 from typing import Any, Mapping
 
-from .semantic_routing import (
-    ROUTER_TASK,
-    candidates_from_catalog,
-    decide,
-    middleware_profile,
-    route_memory,
-    route_tools,
-)
+from .routing_state import load_semantic_routing
+
+_semantic = load_semantic_routing()
+ROUTER_TASK = _semantic.ROUTER_TASK
+candidates_from_catalog = _semantic.candidates_from_catalog
+decide = _semantic.decide
+middleware_profile = _semantic.middleware_profile
+route_memory = _semantic.route_memory
+route_tools = _semantic.route_tools
 
 
-def _catalog() -> dict[str, Any]:
+def _catalog(owner_scope: str) -> dict[str, Any]:
     # Keep one authoritative model inventory and picker allow-list across the
     # dashboard and runtime plugin.  Import lazily so plugin discovery does not
     # require FastAPI until Hermes has finished bootstrapping.
     from .dashboard.plugin_api import _model_catalog
 
-    return _model_catalog(False)
+    return _model_catalog(False, owner_scope)
+
+
+def _runtime_owner(context: Mapping[str, Any]) -> str | None:
+    """Accept only identity established by Hermes before host serialization."""
+    if not context.get("_owner_context_verified"):
+        try:
+            from hermes_cli.plugin_runtime_context import routing_context
+
+            context = routing_context(dict(context))
+        except ImportError:
+            # A CLI outside a gateway is explicitly single-user.  A gateway
+            # without the identity patch must retain its native route.
+            import sys
+
+            return None if "tui_gateway.server" in sys.modules else "__single_user__"
+    owner = str(context.get("owner_scope") or "")
+    if owner == "__single_user__" or (len(owner) == 64 and all(c in "0123456789abcdef" for c in owner)):
+        return owner
+    return None
 
 
 def _prompt_from_messages(messages: Any) -> str:
@@ -41,6 +61,9 @@ def _prompt_from_messages(messages: Any) -> str:
 
 
 def _tool_request_middleware(**kwargs: Any):
+    owner = _runtime_owner(kwargs)
+    if owner is None:
+        return None
     request = kwargs.get("request")
     if not isinstance(request, dict) or not isinstance(request.get("tools"), list):
         return None
@@ -49,6 +72,7 @@ def _tool_request_middleware(**kwargs: Any):
     routed, trace = route_tools(
         profile=middleware_profile(kwargs), prompt=prompt, tools=tools,
         session_id=str(kwargs.get("session_id") or ""), turn_id=str(kwargs.get("turn_id") or ""),
+        owner_id=owner,
     )
     if routed is tools:
         return None
@@ -63,6 +87,9 @@ def _tool_request_middleware(**kwargs: Any):
 
 
 def _model_route_middleware(**kwargs: Any):
+    owner = _runtime_owner(kwargs)
+    if owner is None:
+        return None
     route = kwargs.get("route")
     if not isinstance(route, Mapping):
         return None
@@ -74,8 +101,9 @@ def _model_route_middleware(**kwargs: Any):
     profile = middleware_profile(kwargs)
     result = decide(
         profile=profile, slot=slot, task=task, prompt=prompt,
-        candidates=[candidate.public() for candidate in candidates_from_catalog(_catalog())],
+        candidates=[candidate.public() for candidate in candidates_from_catalog(_catalog(owner))],
         native=route, session_id=str(kwargs.get("session_id") or ""),
+        owner_id=owner,
     )
     selected = result.get("selected") if isinstance(result, Mapping) else None
     if not result.get("routed") or not isinstance(selected, Mapping):
@@ -91,12 +119,16 @@ def _model_route_middleware(**kwargs: Any):
 
 
 def _memory_route_middleware(**kwargs: Any):
+    owner = _runtime_owner(kwargs)
+    if owner is None:
+        return None
     sources = kwargs.get("sources")
     if not isinstance(sources, list):
         return None
     routed, trace = route_memory(
         profile=middleware_profile(kwargs), prompt=str(kwargs.get("query") or "")[-12000:],
         sources=[str(source) for source in sources], session_id=str(kwargs.get("session_id") or ""),
+        owner_id=owner,
     )
     if routed == sources:
         return None

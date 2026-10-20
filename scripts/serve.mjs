@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const root = fileURLToPath(new URL('../dist/', import.meta.url));
+const root = path.resolve(fileURLToPath(new URL('../dist/', import.meta.url)));
 const types = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8' };
 const server = http.createServer(async (req, res) => {
   try {
@@ -13,7 +13,8 @@ const server = http.createServer(async (req, res) => {
     if (pathname === '/') pathname = '/index.html';
     if (!path.extname(pathname)) pathname += '.html';
     const target = path.resolve(root, '.' + pathname);
-    if (!target.startsWith(root)) { res.writeHead(403).end(); return; }
+    const relative = path.relative(root, target);
+    if (relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) { res.writeHead(403).end(); return; }
     const bytes = await readFile(target);
     res.writeHead(200, {'Content-Type': types[path.extname(target)] || 'application/octet-stream', 'Cache-Control': 'no-store'});
     res.end(req.method === 'HEAD' ? undefined : bytes);

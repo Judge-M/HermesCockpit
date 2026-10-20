@@ -76,6 +76,7 @@
     pending: null,
     jobTimer: null,
     bridgeCounts: null,
+    profiles: [],
     browseAll: false,
     expandedDomains: false
   };
@@ -263,9 +264,17 @@
     if (!operation.available) return operation.unavailableReason || 'Unavailable on this installation';
     if (operation.source === 'workflow') return operation.longRunning ? 'Guided workflow · may take a while' : operation.interactive ? 'Interactive guided workflow' : 'Guided workflow';
     if (operation.kind === 'access') return 'Browser access flow';
+    if (operation.risk === 'high') return operation.method === 'DELETE' ? 'Removes or clears data' : 'May change or interrupt live Hermes work';
     if (operation.method === 'DELETE') return 'Removes or clears data';
     if (operation.kind === 'read') return 'View current information';
     return 'Update Hermes';
+  }
+
+  function operationRisk(method, path) {
+    const text = `${method} ${path}`.toLowerCase();
+    if (method === 'DELETE' || /\b(delete|remove|revoke|purge|reset|destroy|uninstall|disable|stop|shutdown|restart|rotate|migrate|import)\b/.test(text)) return 'high';
+    if (['POST', 'PUT', 'PATCH'].includes(method)) return 'medium';
+    return 'low';
   }
 
   function collectApiOperations(spec) {
@@ -291,7 +300,7 @@
           description,
           domain,
           kind: apiKind(method, path),
-          risk: method === 'DELETE' ? 'high' : ['POST', 'PUT', 'PATCH'].includes(method) ? 'medium' : 'low',
+          risk: operationRisk(method, path),
           available: true,
           operationId: raw.operationId || '',
           tags: raw.tags || [],
@@ -366,7 +375,7 @@
     state.errors = {};
     $('reloadButton').disabled = true;
     setStatus('loading', 'Refreshing the live control map…');
-    const [apiResult, bridgeResult] = await Promise.allSettled([
+    const [apiResult, bridgeResult, profileResult] = await Promise.allSettled([
       fetch(SPEC_URL, {credentials: 'same-origin', headers: {Accept: 'application/json'}}).then(async response => {
         if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
         const spec = await response.json();
@@ -377,6 +386,11 @@
         const {payload} = await readResponse(response);
         if (!response.ok) throw new Error(errorMessage(payload, response));
         if (!payload || !Array.isArray(payload.operations)) throw new Error('The host workflow inventory is not valid.');
+        return payload;
+      }),
+      fetch(`${HERMES_BASE}/api/profiles`, {credentials: 'same-origin', headers: {Accept: 'application/json'}}).then(async response => {
+        const {payload} = await readResponse(response);
+        if (!response.ok) throw new Error(errorMessage(payload, response));
         return payload;
       })
     ]);
@@ -396,6 +410,13 @@
       state.workflowOperations = [];
       state.bridgeCounts = null;
       state.errors.bridge = bridgeResult.reason?.message || 'Extended actions are unavailable.';
+    }
+    if (profileResult.status === 'fulfilled') {
+      const payload = profileResult.value;
+      const rows = Array.isArray(payload) ? payload : payload?.profiles || payload?.items || [];
+      state.profiles = rows.map(item => typeof item === 'string' ? item : item?.name || item?.id).filter(Boolean).map(String);
+    } else {
+      state.profiles = [];
     }
 
     state.operations = sortOperations([...state.apiOperations, ...state.workflowOperations]);
@@ -1286,8 +1307,12 @@
     section.append(sectionHeading('Workflow options', operation.arguments.length + operation.positionals.length ? '* required where marked' : 'no additional values required'));
     const grid = node('div', 'bc-field-grid');
     const profile = node('label', 'bc-field');
-    profile.append(labelRow('Profile', false, 'optional'), node('input', 'bc-input'), node('p', 'bc-field-help', 'Leave blank to use the default profile.'));
-    const profileInput = profile.querySelector('input');
+    const profileInput = state.profiles.length ? node('select', 'bc-select') : node('input', 'bc-input');
+    profile.append(labelRow('Profile', false, 'optional'), profileInput, node('p', 'bc-field-help', state.profiles.length ? 'Choose where this action should run. Leave it on the active profile unless you need another one.' : 'Leave blank to use the default profile.'));
+    if (state.profiles.length) {
+      profileInput.append(new Option('Use active profile', ''));
+      state.profiles.forEach(name => profileInput.append(new Option(name, name)));
+    }
     profileInput.name = 'workflow_profile';
     profileInput.autocomplete = 'off';
     grid.append(profile);
@@ -1472,15 +1497,15 @@
     technicalSummary.append(icon('code'), node('span', '', 'Request diagnostics'));
     technical.append(technicalSummary, node('pre', 'bc-scroll', operation.source === 'workflow' ? safeJSON({operation_id: operation.bridgeId, reviewed_command: operation.command}) : `${request.method} ${redactUrl(request.url)}`));
     body.append(technical);
-    const expected = operation.source === 'workflow' && operation.confirmation ? operation.confirmation : operation.method === 'DELETE' ? 'DELETE' : '';
+    const expected = operation.source === 'workflow' && operation.confirmation ? operation.confirmation : operation.risk === 'high' ? operation.label : '';
     const execute = $('confirmExecute');
     execute.className = `bc-button ${expected ? 'bc-button-danger' : 'bc-button-primary'}`;
-    execute.textContent = operation.source === 'workflow' ? 'Run action' : operation.method === 'DELETE' ? 'Delete permanently' : 'Apply changes';
+    execute.textContent = operation.source === 'workflow' ? 'Run action' : operation.risk === 'high' ? 'Confirm and run' : 'Apply changes';
     execute.disabled = Boolean(expected);
     if (expected) {
-      body.append(callout(`Type ${expected} exactly to continue.`, 'warning'));
+      body.append(callout(`This action may affect live Hermes state. Type “${expected}” exactly to continue.`, 'warning'));
       const field = node('label', 'bc-field');
-      field.append(labelRow(`Type ${expected}`, true, 'confirmation'));
+      field.append(labelRow(`Type “${expected}” to confirm`, true, 'confirmation'));
       const input = node('input', 'bc-input');
       input.type = 'text';
       input.autocomplete = 'off';

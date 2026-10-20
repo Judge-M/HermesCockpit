@@ -29,13 +29,17 @@ from fastapi import APIRouter, HTTPException, Request
 
 router = APIRouter()
 
-HERMES_EXE = os.environ.get("HERMES_CLI_BRIDGE_EXECUTABLE") or shutil.which("hermes") or "/root/.local/bin/hermes"
+HERMES_EXE: str
 OUTPUT_LIMIT = 256 * 1024
 MAX_RUNNING_JOBS = 4
 MAX_RETAINED_JOBS = 64
+MAX_ACTIVE_JOBS_PER_OWNER = 2
+MAX_RETAINED_JOBS_PER_OWNER = 16
 DEFAULT_TIMEOUT = 300
 INTERACTIVE_TIMEOUT = 30 * 60
 LONG_TIMEOUT = 24 * 60 * 60
+_HOSTED_OWNER_HEADER = "x-hermes-owner-scope"
+_SINGLE_USER_OWNER_SCOPE = "__single_user__"
 PROFILE_PATTERN = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
 ANSI_PATTERN = re.compile(r"\x1b(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
 OUTPUT_ASSIGNMENT_PATTERN = re.compile(
@@ -356,31 +360,64 @@ _JOBS: "OrderedDict[str, dict[str, Any]]" = OrderedDict()
 _JOBS_LOCK = asyncio.Lock()
 
 ACTIVE_JOB_STATES = {"queued", "starting", "running"}
+
+
+def _configured_path(names: tuple[str, ...], fallback: Path, user_home: Path | None = None) -> Path:
+    for name in names:
+        value = os.environ.get(name, "").strip()
+        if value:
+            expansion_home = user_home or fallback
+            if value == "~":
+                candidate = expansion_home
+            elif value.startswith("~/") or value.startswith("~\\"):
+                candidate = expansion_home / value[2:]
+            else:
+                candidate = Path(value).expanduser()
+            try:
+                return candidate.resolve(strict=False)
+            except (OSError, RuntimeError, ValueError):
+                return candidate
+    return fallback
+
+
+SERVICE_ACCOUNT_HOME = _configured_path(("HERMES_SERVICE_ACCOUNT_HOME", "HOME"), Path.home())
+HERMES_HOME = _configured_path(("HERMES_HOME",), SERVICE_ACCOUNT_HOME / ".hermes", SERVICE_ACCOUNT_HOME)
+OPENCLAW_HOME = _configured_path(("OPENCLAW_HOME",), SERVICE_ACCOUNT_HOME / ".openclaw", SERVICE_ACCOUNT_HOME)
+CLAUDE_HOME = _configured_path(("CLAUDE_HOME",), SERVICE_ACCOUNT_HOME / ".claude", SERVICE_ACCOUNT_HOME)
+CODEX_HOME = _configured_path(("CODEX_HOME",), SERVICE_ACCOUNT_HOME / ".codex", SERVICE_ACCOUNT_HOME)
+
+_configured_executable = os.environ.get("HERMES_CLI_BRIDGE_EXECUTABLE", "").strip()
+if _configured_executable and not Path(_configured_executable).is_absolute():
+    HERMES_EXE = shutil.which(_configured_executable) or _configured_executable
+else:
+    HERMES_EXE = _configured_executable or shutil.which("hermes") or str(SERVICE_ACCOUNT_HOME / ".local/bin/hermes")
+
 WORKSPACE_PATH_ROOTS = tuple(Path(value) for value in (
-    "/workspace", "/opt", "/srv", "/mnt", "/tmp", "/root/workspace", "/root/projects",
+    "/workspace", "/opt", "/srv", "/mnt", "/tmp",
 ))
-HERMES_PATH_ROOTS = (Path("/root/.hermes"), *WORKSPACE_PATH_ROOTS)
-SYSTEM_BINARY_ROOTS = (Path("/usr/bin"), Path("/usr/local/bin"), Path("/root/.local/bin"))
+WORKSPACE_PATH_ROOTS += (SERVICE_ACCOUNT_HOME / "workspace", SERVICE_ACCOUNT_HOME / "projects")
+HERMES_PATH_ROOTS = (HERMES_HOME, *WORKSPACE_PATH_ROOTS)
+SYSTEM_BINARY_ROOTS = (Path("/usr/bin"), Path("/usr/local/bin"), SERVICE_ACCOUNT_HOME / ".local/bin")
 SYSTEM_SERVICE_ROOTS = (
     Path("/etc/systemd/system"),
     Path("/etc/systemd/user"),
     Path("/usr/lib/systemd/system"),
     Path("/lib/systemd/system"),
-    Path("/root/.config/systemd/user"),
+    SERVICE_ACCOUNT_HOME / ".config/systemd/user",
 )
 PATH_POLICIES = {
     ("send", "file"): WORKSPACE_PATH_ROOTS,
     ("verify", "path"): WORKSPACE_PATH_ROOTS,
-    ("approvals suggest", "db"): (Path("/root/.hermes"),),
-    ("claw migrate", "source"): (Path("/root/.openclaw"), *WORKSPACE_PATH_ROOTS),
+    ("approvals suggest", "db"): (HERMES_HOME,),
+    ("claw migrate", "source"): (OPENCLAW_HOME, *WORKSPACE_PATH_ROOTS),
     ("claw migrate", "workspace_target"): WORKSPACE_PATH_ROOTS,
-    ("claw cleanup", "source"): (Path("/root/.openclaw"),),
-    ("serve", "ssh_session_token_file"): (Path("/root/.hermes"), Path("/tmp")),
-    ("desktop", "hermes_root"): (Path("/root/.hermes/hermes-agent"), *WORKSPACE_PATH_ROOTS),
+    ("claw cleanup", "source"): (OPENCLAW_HOME,),
+    ("serve", "ssh_session_token_file"): (HERMES_HOME, Path("/tmp")),
+    ("desktop", "hermes_root"): (HERMES_HOME / "hermes-agent", *WORKSPACE_PATH_ROOTS),
     ("desktop", "cwd"): WORKSPACE_PATH_ROOTS,
     ("gateway install", "force_unit_path"): SYSTEM_SERVICE_ROOTS,
     ("hooks test", "payload_file"): WORKSPACE_PATH_ROOTS,
-    ("import-agent", "source"): (Path("/root/.claude"), Path("/root/.codex"), *HERMES_PATH_ROOTS),
+    ("import-agent", "source"): (CLAUDE_HOME, CODEX_HOME, *HERMES_PATH_ROOTS),
     ("plugins validate", "path"): WORKSPACE_PATH_ROOTS,
     ("project add-folder", "path"): WORKSPACE_PATH_ROOTS,
     ("project create", "folders"): WORKSPACE_PATH_ROOTS,
@@ -654,9 +691,14 @@ def _clean_scalar(value: Any, name: str) -> str:
 
 
 def _validate_path(value: str, name: str, allowed_roots: tuple[Path, ...]) -> str:
-    candidate = Path(value).expanduser()
+    if value == "~":
+        candidate = SERVICE_ACCOUNT_HOME
+    elif value.startswith("~/") or value.startswith("~\\"):
+        candidate = SERVICE_ACCOUNT_HOME / value[2:]
+    else:
+        candidate = Path(value).expanduser()
     if not candidate.is_absolute():
-        candidate = Path("/root") / candidate
+        candidate = SERVICE_ACCOUNT_HOME / candidate
     try:
         resolved = candidate.resolve(strict=False)
     except (OSError, RuntimeError, ValueError) as exc:
@@ -921,14 +963,44 @@ async def _pump_pty(master_fd: int, job: dict[str, Any]) -> None:
         _append_output(job, chunk.decode("utf-8", errors="replace"))
 
 
+_SUBPROCESS_PATH_ROOTS = (
+    SERVICE_ACCOUNT_HOME / ".local/bin",
+    Path("/usr/local/sbin"),
+    Path("/usr/local/bin"),
+    Path("/usr/sbin"),
+    Path("/usr/bin"),
+    Path("/sbin"),
+    Path("/bin"),
+)
+_PASSTHROUGH_ENVIRONMENT = (
+    "LANG", "LC_ALL", "LC_CTYPE", "TZ", "TMPDIR", "TMP", "TEMP",
+    "XDG_RUNTIME_DIR", "SYSTEMROOT", "PATHEXT",
+)
+
+
+def _subprocess_path() -> str:
+    roots = list(_SUBPROCESS_PATH_ROOTS)
+    executable = Path(HERMES_EXE)
+    if executable.is_absolute():
+        roots.insert(0, executable.parent)
+    unique_roots = dict.fromkeys(str(root) for root in roots)
+    return os.pathsep.join(unique_roots)
+
+
 def _safe_environment() -> dict[str, str]:
-    environment = os.environ.copy()
-    for key in ("PYTHONPATH", "PYTHONHOME", "LD_PRELOAD", "BASH_ENV", "ENV"):
-        environment.pop(key, None)
-    environment.setdefault("HOME", "/root")
-    environment.setdefault("PATH", "/root/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin")
-    environment["NO_COLOR"] = "1"
-    environment["TERM"] = "xterm-256color"
+    """Build the small environment needed by Hermes without inheriting secrets."""
+
+    environment = {
+        "HOME": str(SERVICE_ACCOUNT_HOME),
+        "HERMES_HOME": str(HERMES_HOME),
+        "PATH": _subprocess_path(),
+        "NO_COLOR": "1",
+        "TERM": "xterm-256color",
+    }
+    for key in _PASSTHROUGH_ENVIRONMENT:
+        value = os.environ.get(key)
+        if value:
+            environment[key] = value
     return environment
 
 
@@ -948,7 +1020,7 @@ async def _run_job(job: dict[str, Any], argv: list[str], use_pty: bool, timeout:
                 stdin=slave_fd,
                 stdout=slave_fd,
                 stderr=slave_fd,
-                cwd="/root",
+                cwd=str(SERVICE_ACCOUNT_HOME),
                 env=_safe_environment(),
                 start_new_session=True,
             )
@@ -962,7 +1034,7 @@ async def _run_job(job: dict[str, Any], argv: list[str], use_pty: bool, timeout:
                 stdin=asyncio.subprocess.PIPE,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.STDOUT,
-                cwd="/root",
+                cwd=str(SERVICE_ACCOUNT_HOME),
                 env=_safe_environment(),
                 start_new_session=True,
             )
@@ -1048,6 +1120,17 @@ async def _stop_process(process: asyncio.subprocess.Process) -> None:
 def _owner_key(request: Request) -> str:
     """Return a stable, non-reversible job owner key for the authenticated caller."""
 
+    app_state = getattr(getattr(request, "app", None), "state", None)
+    if app_state is not None and getattr(app_state, "hosted_plugin_internal", False):
+        forwarded = str(request.headers.get(_HOSTED_OWNER_HEADER) or "").strip().lower()
+        if forwarded == _SINGLE_USER_OWNER_SCOPE or (
+            len(forwarded) == 64 and all(char in "0123456789abcdef" for char in forwarded)
+        ):
+            return forwarded
+        raise HTTPException(status_code=401, detail="The hosted plugin request has no verified owner scope")
+    if app_state is not None and getattr(app_state, "auth_required", None) is False:
+        return _SINGLE_USER_OWNER_SCOPE
+
     session = getattr(request.state, "session", None)
     if isinstance(session, dict):
         issuer = session.get("provider") or session.get("iss")
@@ -1062,7 +1145,12 @@ def _owner_key(request: Request) -> str:
             raise HTTPException(status_code=401, detail="The dashboard session has no stable user identity")
         source = {"issuer": str(issuer), "subject": str(subject)}
     else:
-        raise HTTPException(status_code=401, detail="An authenticated dashboard user session is required")
+        principal = getattr(request.state, "token_principal", None) or getattr(request.state, "principal", None)
+        provider = getattr(principal, "provider", None) if principal is not None else None
+        subject = getattr(principal, "principal", None) if principal is not None else None
+        if not provider or not subject:
+            raise HTTPException(status_code=401, detail="An authenticated dashboard user session is required")
+        source = {"issuer": str(provider), "subject": str(subject)}
     try:
         serialized = json.dumps(source, sort_keys=True, default=str)
     except (TypeError, ValueError):
@@ -1079,9 +1167,30 @@ def _owned_job(job_id: str, owner: str) -> dict[str, Any]:
 
 async def _reserve_job(job: dict[str, Any]) -> None:
     async with _JOBS_LOCK:
+        owner = job["_owner"]
         running = sum(1 for existing in _JOBS.values() if existing["status"] in ACTIVE_JOB_STATES)
         if running >= MAX_RUNNING_JOBS:
             raise HTTPException(status_code=429, detail="Too many Hermes jobs are already running")
+        owner_running = sum(
+            1
+            for existing in _JOBS.values()
+            if existing.get("_owner") == owner and existing["status"] in ACTIVE_JOB_STATES
+        )
+        if owner_running >= MAX_ACTIVE_JOBS_PER_OWNER:
+            raise HTTPException(status_code=429, detail="Too many active Hermes jobs for this owner")
+
+        while sum(1 for existing in _JOBS.values() if existing.get("_owner") == owner) >= MAX_RETAINED_JOBS_PER_OWNER:
+            removable = next(
+                (
+                    job_id
+                    for job_id, existing in _JOBS.items()
+                    if existing.get("_owner") == owner and existing["status"] not in ACTIVE_JOB_STATES
+                ),
+                None,
+            )
+            if removable is None:
+                raise HTTPException(status_code=429, detail="This owner's Hermes job history is full")
+            _JOBS.pop(removable, None)
         while len(_JOBS) >= MAX_RETAINED_JOBS:
             removable = next((job_id for job_id, existing in _JOBS.items() if existing["status"] not in ACTIVE_JOB_STATES), None)
             if removable is None:
@@ -1108,6 +1217,9 @@ async def list_cli_operations():
             "shell": False,
             "allowlisted": True,
             "max_running_jobs": MAX_RUNNING_JOBS,
+            "max_active_jobs_per_owner": MAX_ACTIVE_JOBS_PER_OWNER,
+            "max_retained_jobs": MAX_RETAINED_JOBS,
+            "max_retained_jobs_per_owner": MAX_RETAINED_JOBS_PER_OWNER,
             "output_limit_bytes": OUTPUT_LIMIT,
         },
     }

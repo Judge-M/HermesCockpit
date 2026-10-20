@@ -8,3 +8,4 @@
 - Do not enter or persist real secrets in the current frontend. Replace browser-local credential handling before connecting real providers.
 - After each work session, record substantive changes, decisions, commit/PR links, checks and results, blockers, and next steps on the Hermes Cockpit Page: https://chatgpt.com/space/page_91803be0d0c48191967667305453301f . If Page access fails, report it explicitly.
 - This recordkeeping requirement is not permission for unrelated changes or deployment.
+- Completed code changes should be committed and pushed to a GitHub feature branch with a pull request by default. Exclude secrets, temporary files, and unrelated edits; report publication blockers. Merging still requires explicit approval for the pull request.

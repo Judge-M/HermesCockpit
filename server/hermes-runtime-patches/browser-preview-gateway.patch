@@ -1,0 +1,142 @@
+diff --git a/tui_gateway/methods_session.py b/tui_gateway/methods_session.py
+--- a/tui_gateway/methods_session.py
++++ b/tui_gateway/methods_session.py
+@@ -1163,6 +1163,138 @@ def _(rid, params: dict) -> dict:
+     return _ok(rid, {"sessions": rows})
+
+
++_BROWSER_PREVIEW_FRAME_LIMIT = 2 * 1024 * 1024
++
++
++def _browser_preview_identity_candidates(session: dict) -> tuple[str, ...]:
++    """Return native identities that may name this agent's browser task.
++
++    The durable session key is authoritative.  The agent ids are compatibility
++    aliases for live sessions after a resume/compression rotation; none of these
++    values comes from the browser-preview client.
++    """
++    agent = session.get("agent")
++    values = (
++        session.get("session_key"),
++        getattr(agent, "session_id", None),
++        getattr(agent, "task_id", None),
++        getattr(agent, "_current_task_id", None),
++    )
++    seen: set[str] = set()
++    result: list[str] = []
++    for value in values:
++        identity = str(value or "").strip()
++        if identity and identity not in seen:
++            seen.add(identity)
++            result.append(identity)
++    return tuple(result)
++
++
++def _browser_preview_native_session(session: dict):
++    """Find the browser session and supervisor owned by this live native session.
++
++    This deliberately reads the registries in the Hermes process that owns the
++    gateway.  It does not accept a client-provided owner claim or inspect an
++    isolated plugin process.  Explicit registry metadata must be internally
++    consistent; otherwise the lookup fails closed.
++    """
++    from tools import browser_tool
++    from tools.browser_supervisor import SUPERVISOR_REGISTRY
++
++    identities = set(_browser_preview_identity_candidates(session))
++    if not identities:
++        return None
++    lock = getattr(browser_tool, "_cleanup_lock", None)
++    if lock is None:
++        records = list(getattr(browser_tool, "_active_sessions", {}).items())
++    else:
++        with lock:
++            records = list(getattr(browser_tool, "_active_sessions", {}).items())
++
++    for raw_key, raw_info in records:
++        browser_key = str(raw_key or "").strip()
++        if not browser_key:
++            continue
++        info = raw_info if isinstance(raw_info, dict) else {}
++        declared_key = str(info.get("session_key") or browser_key).strip()
++        if declared_key != browser_key:
++            continue
++        owner = str(info.get("owner_task_id") or "").strip()
++        if owner and owner not in identities:
++            continue
++        if not identities.intersection({browser_key, declared_key, owner}):
++            continue
++        supervisor_key = browser_key
++        supervisor = SUPERVISOR_REGISTRY.get(browser_key)
++        if supervisor is None and owner:
++            supervisor_key = owner
++            supervisor = SUPERVISOR_REGISTRY.get(owner)
++        if supervisor is None or str(getattr(supervisor, "task_id", "") or "").strip() != supervisor_key:
++            continue
++        return browser_key, info, supervisor, supervisor_key
++    return None
++
++
++def _browser_preview_unavailable(rid, session_key: str, *, active: bool, reason: str) -> dict:
++    return _ok(rid, {
++        "available": True,
++        "active": active,
++        "session_id": session_key,
++        "preview_ready": False,
++        "data_url": None,
++        "reason": reason,
++    })
++
++
++@method("browser.preview")
++@_with_session
++def _(rid, params: dict, session: dict) -> dict:
++    """Return a bounded screenshot only for the authenticated live session."""
++    transport = current_transport() or _stdio_transport
++    if not _session_transport_contains(session, transport):
++        return _err(rid, 4001, "session not found")
++    session_key = str(session.get("session_key") or "").strip()
++    if not session_key:
++        return _err(rid, 4001, "session not found")
++    native = _browser_preview_native_session(session)
++    if native is None:
++        return _browser_preview_unavailable(rid, session_key, active=False, reason="no_active_browser")
++    browser_key, info, supervisor, supervisor_key = native
++    try:
++        snapshot = supervisor.snapshot()
++        frame_tree = snapshot.frame_tree if isinstance(snapshot.frame_tree, dict) else {}
++        top = frame_tree.get("top") if isinstance(frame_tree.get("top"), dict) else {}
++        url = str(top.get("url") or "")
++        if not snapshot.active:
++            return _browser_preview_unavailable(rid, session_key, active=True, reason="browser_starting")
++        import base64
++        from tools.browser_supervisor import SUPERVISOR_REGISTRY
++        capture = SUPERVISOR_REGISTRY.capture(supervisor_key, timeout=3.0)
++        reply = capture.call(
++            "Page.captureScreenshot",
++            {"format": "jpeg", "quality": 76, "fromSurface": True, "optimizeForSpeed": True},
++            session_id=capture.page_session_id,
++            timeout=5.0,
++        )
++        encoded = ((reply.get("result") or {}).get("data") or "") if isinstance(reply, dict) else ""
++        frame = base64.b64decode(encoded, validate=True)
++        if not frame or len(frame) > _BROWSER_PREVIEW_FRAME_LIMIT:
++            return _browser_preview_unavailable(rid, session_key, active=True, reason="frame_too_large")
++        features = info.get("features") if isinstance(info.get("features"), dict) else {}
++        return _ok(rid, {
++            "available": True,
++            "active": True,
++            "session_id": session_key,
++            "preview_ready": True,
++            "data_url": "data:image/jpeg;base64," + base64.b64encode(frame).decode("ascii"),
++            "url": url,
++            "title": "",
++            "real_profile": bool(features.get("real_profile")),
++        })
++    except Exception:
++        return _browser_preview_unavailable(rid, session_key, active=True, reason="frame_unavailable")
++
++
+ @_session_method("session.activate")
+ def _(rid, params: dict, session: dict) -> dict:
+     """Attach the frontend to a live TUI session without closing the previously focused one."""

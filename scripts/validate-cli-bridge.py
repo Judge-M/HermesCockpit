@@ -9,7 +9,29 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 import sys
-from types import SimpleNamespace
+from types import ModuleType, SimpleNamespace
+
+
+try:
+    import fastapi  # noqa: F401
+except ModuleNotFoundError:
+    # The validator exercises parser and policy contracts only.  Keep that
+    # check runnable in CI without installing the full Hermes web runtime.
+    class _Router:
+        def __getattr__(self, _name):
+            return lambda *args, **kwargs: (lambda function: function)
+
+    class _HTTPException(Exception):
+        def __init__(self, status_code, detail):
+            super().__init__(detail)
+            self.status_code = status_code
+            self.detail = detail
+
+    fastapi_stub = ModuleType("fastapi")
+    fastapi_stub.APIRouter = _Router
+    fastapi_stub.HTTPException = _HTTPException
+    fastapi_stub.Request = object
+    sys.modules["fastapi"] = fastapi_stub
 
 
 bridge_path = Path(sys.argv[1] if len(sys.argv) > 1 else "server/judge-m-control-plane/dashboard/cli_bridge.py")

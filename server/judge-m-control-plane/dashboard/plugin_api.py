@@ -5,10 +5,12 @@ from __future__ import annotations
 import asyncio
 import base64
 import hashlib
+import hmac
 import importlib.util
 import ipaddress
 import json
 import os
+import socket
 from pathlib import Path
 import secrets
 import sys
@@ -16,9 +18,9 @@ import time
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
-from urllib.request import Request, urlopen
+from urllib.request import Request as UrlRequest, urlopen
 
-from fastapi import APIRouter, HTTPException, Response
+from fastapi import APIRouter, HTTPException, Request, Response
 
 
 router = APIRouter()
@@ -65,13 +67,68 @@ def _configured_links() -> list[dict[str, str]]:
 LINKS = _configured_links()
 
 _CACHE: dict[str, Any] = {"at": 0.0, "payload": None}
-PREFERENCES_FILE = Path(os.environ.get("HERMES_HOME", "/root/.hermes")) / "judge-m-control-plane" / "model-menu.json"
+PREFERENCES_ROOT = Path(os.environ.get("HERMES_HOME", str(Path.home() / ".hermes"))) / "judge-m-control-plane"
+PREFERENCES_FILE = PREFERENCES_ROOT / "model-menu.json"
 _BROWSER_PREVIEW_SALT = secrets.token_bytes(32)
 _BROWSER_FRAME_LIMIT = 8 * 1024 * 1024
+_SINGLE_USER_OWNER_SCOPE = "__single_user__"
+_HOSTED_OWNER_HEADER = "x-hermes-owner-scope"
+
+
+def _valid_owner_scope(value: str) -> bool:
+    return value == _SINGLE_USER_OWNER_SCOPE or (
+        len(value) == 64 and all(char in "0123456789abcdef" for char in value)
+    )
+
+
+def _owner_key(request: Request) -> str:
+    """Return the server-established owner scope for an authenticated request.
+
+    Cookie/bearer sessions expose a stable provider + subject identity.  Legacy
+    loopback Hermes deployments do not attach a user session, but their global
+    dashboard gate is explicitly single-user; retain that mode under a distinct
+    process scope.  Anything else fails closed rather than treating a caller
+    supplied profile/session/preview id as an authorization grant.
+    """
+
+    app_state = getattr(getattr(request, "app", None), "state", None)
+    if app_state is not None and getattr(app_state, "hosted_plugin_internal", False):
+        forwarded = str(request.headers.get(_HOSTED_OWNER_HEADER) or "").strip().lower()
+        if _valid_owner_scope(forwarded):
+            return forwarded
+        raise HTTPException(status_code=401, detail="The hosted plugin request has no verified owner scope")
+    if app_state is not None and getattr(app_state, "auth_required", None) is False:
+        return _SINGLE_USER_OWNER_SCOPE
+
+    state = getattr(request, "state", None)
+    session = getattr(state, "session", None)
+    if isinstance(session, dict):
+        issuer = session.get("provider") or session.get("iss")
+        subject = session.get("sub") or session.get("user_id") or session.get("id")
+    elif session is not None:
+        issuer = getattr(session, "provider", None) or getattr(session, "iss", None)
+        subject = getattr(session, "sub", None) or getattr(session, "user_id", None) or getattr(session, "id", None)
+    else:
+        issuer = subject = None
+    if issuer and subject:
+        source = {"issuer": str(issuer), "subject": str(subject)}
+        serialized = json.dumps(source, sort_keys=True, default=str)
+        return hashlib.sha256(serialized.encode("utf-8", errors="replace")).hexdigest()
+
+    principal = getattr(state, "token_principal", None) or getattr(state, "principal", None)
+    if principal is not None:
+        provider = getattr(principal, "provider", None)
+        value = getattr(principal, "principal", None)
+        if provider and value:
+            source = {"issuer": str(provider), "subject": str(value)}
+            serialized = json.dumps(source, sort_keys=True, default=str)
+            return hashlib.sha256(serialized.encode("utf-8", errors="replace")).hexdigest()
+
+    raise HTTPException(status_code=401, detail="An authenticated dashboard user session is required")
 
 
 def _fetch_json(url: str, timeout: float = 4.0) -> dict[str, Any]:
-    request = Request(url, headers={"Accept": "application/json", "User-Agent": "judge-m-control-plane/0.1"})
+    request = UrlRequest(url, headers={"Accept": "application/json", "User-Agent": "judge-m-control-plane/0.1"})
     with urlopen(request, timeout=timeout) as response:
         return json.loads(response.read().decode("utf-8"))
 
@@ -113,9 +170,17 @@ async def _load_overview() -> dict[str, Any]:
     return result
 
 
-def _read_model_preferences() -> dict[str, Any]:
+def _preferences_file(owner_key: str = "") -> Path:
+    if not owner_key or owner_key == _SINGLE_USER_OWNER_SCOPE:
+        return PREFERENCES_FILE
+    digest = hashlib.sha256(str(owner_key).encode("utf-8", errors="replace")).hexdigest()[:32]
+    return PREFERENCES_ROOT / f"model-menu-{digest}.json"
+
+
+def _read_model_preferences(owner_key: str = "") -> dict[str, Any]:
+    path = _preferences_file(owner_key)
     try:
-        data = json.loads(PREFERENCES_FILE.read_text(encoding="utf-8"))
+        data = json.loads(path.read_text(encoding="utf-8"))
         return data if isinstance(data, dict) else {}
     except (OSError, ValueError, TypeError):
         return {}
@@ -164,14 +229,15 @@ def _clean_model_preferences(body: dict[str, Any]) -> dict[str, Any]:
     return {"version": 1, "provider_order": order, "providers": providers, "updated_at": int(time.time())}
 
 
-def _write_model_preferences(preferences: dict[str, Any]) -> None:
-    PREFERENCES_FILE.parent.mkdir(parents=True, exist_ok=True)
-    temporary = PREFERENCES_FILE.with_suffix(".tmp")
+def _write_model_preferences(preferences: dict[str, Any], owner_key: str = "") -> None:
+    path = _preferences_file(owner_key)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(".tmp")
     temporary.write_text(json.dumps(preferences, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    os.replace(temporary, PREFERENCES_FILE)
+    os.replace(temporary, path)
 
 
-def _model_catalog(refresh: bool = False) -> dict[str, Any]:
+def _model_catalog(refresh: bool = False, owner_key: str = "") -> dict[str, Any]:
     from hermes_cli.inventory import build_model_options_payload, load_picker_context
 
     payload = build_model_options_payload(
@@ -214,7 +280,7 @@ def _model_catalog(refresh: bool = False) -> dict[str, Any]:
     return {
         "providers": rows,
         "current": {"provider": payload.get("provider") or "", "model": payload.get("model") or ""},
-        "preferences": _read_model_preferences(),
+        "preferences": _read_model_preferences(owner_key),
     }
 
 
@@ -236,61 +302,92 @@ async def links():
 
 
 @router.get("/model-menu")
-async def model_menu(refresh: bool = False):
+async def model_menu(request: Request, refresh: bool = False):
     """Live provider catalog plus the user's hosted prompt-menu curation."""
 
+    owner_key = _owner_key(request)
     try:
-        return {"ok": True, **(await asyncio.to_thread(_model_catalog, refresh))}
+        return {"ok": True, **(await asyncio.to_thread(_model_catalog, refresh, owner_key))}
+    except HTTPException:
+        raise
     except Exception as exc:
-        return {"ok": False, "error": f"{type(exc).__name__}: {exc}", "providers": [], "preferences": _read_model_preferences()}
+        return {"ok": False, "error": f"{type(exc).__name__}: {exc}", "providers": [], "preferences": _read_model_preferences(owner_key)}
 
 
 @router.post("/model-menu")
-async def save_model_menu(body: dict[str, Any]):
+async def save_model_menu(body: dict[str, Any], request: Request):
     """Persist the allow-list, labels, and provider order for Judge-M prompt menus."""
 
     preferences = _clean_model_preferences(body)
-    await asyncio.to_thread(_write_model_preferences, preferences)
+    await asyncio.to_thread(_write_model_preferences, preferences, _owner_key(request))
     return {"ok": True, "preferences": preferences}
 
 
 def _load_semantic_routing_module():
     """Load the runtime module when dashboard APIs are mounted standalone by Hermes."""
 
-    module_name = "judge_m_control_plane_semantic_routing"
-    cached = sys.modules.get(module_name)
-    if cached is not None:
-        return cached
-    module_path = Path(__file__).parent.parent / "semantic_routing.py"
-    spec = importlib.util.spec_from_file_location(module_name, module_path)
-    if spec is None or spec.loader is None:
-        raise RuntimeError(f"Could not load semantic routing module from {module_path}")
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[module_name] = module
-    try:
-        spec.loader.exec_module(module)
-    except Exception:
-        sys.modules.pop(module_name, None)
-        raise
-    return module
+    state_path = (Path(__file__).parent.parent / "routing_state.py").resolve()
+
+    def resolved_path(module):
+        value = getattr(module, "__file__", None)
+        if not value:
+            return None
+        try:
+            return Path(value).resolve()
+        except (OSError, RuntimeError, TypeError, ValueError):
+            return None
+
+    state_module = next(
+        (
+            module for module in list(sys.modules.values())
+            if resolved_path(module) == state_path
+        ),
+        None,
+    )
+    module_name = "judge_m_control_plane_routing_state"
+    if state_module is None:
+        state_module = sys.modules.get(module_name)
+        if state_module is not None and resolved_path(state_module) != state_path:
+            raise RuntimeError(
+                f"Canonical routing-state alias points to {resolved_path(state_module)}"
+            )
+    if state_module is None:
+        spec = importlib.util.spec_from_file_location(module_name, state_path)
+        if spec is None or spec.loader is None:
+            raise RuntimeError(f"Could not load shared routing state from {state_path}")
+        state_module = importlib.util.module_from_spec(spec)
+        sys.modules[module_name] = state_module
+        try:
+            spec.loader.exec_module(state_module)
+        except Exception:
+            sys.modules.pop(module_name, None)
+            raise
+    loader = getattr(state_module, "load_semantic_routing", None)
+    if loader is None:
+        raise RuntimeError(f"Shared routing state has no semantic-routing loader: {state_path}")
+    return loader()
 
 
 @router.get("/semantic-routing")
-async def semantic_routing_config(profile: str = "default"):
+async def semantic_routing_config(request: Request, profile: str = "default"):
     """Return profile-scoped native semantic-routing controls and eligible models."""
 
     module = _load_semantic_routing_module()
-    catalog = await asyncio.to_thread(_model_catalog, False)
+    catalog = await asyncio.to_thread(_model_catalog, False, _owner_key(request))
     config = await asyncio.to_thread(module.load_config, profile)
     candidates = [candidate.public() for candidate in module.candidates_from_catalog(catalog, config["policy"])]
     return {"ok": True, "profile": profile, "config": config, "candidates": candidates}
 
 
 @router.put("/semantic-routing")
-async def save_semantic_routing_config(body: dict[str, Any], profile: str = "default"):
+async def save_semantic_routing_config(body: dict[str, Any], request: Request, profile: str = "default"):
     """Validate and atomically persist profile-scoped semantic-routing controls."""
 
     module = _load_semantic_routing_module()
+    # Keep the profile selector intentionally user-scoped: Hermes profiles are
+    # operator-managed configuration namespaces, while the dashboard request
+    # still must be authenticated before a write is allowed.
+    _owner_key(request)
     try:
         config = await asyncio.to_thread(module.save_config, profile, body)
     except (ValueError, OSError) as exc:
@@ -299,12 +396,13 @@ async def save_semantic_routing_config(body: dict[str, Any], profile: str = "def
 
 
 @router.post("/semantic-routing/decide")
-async def semantic_routing_decide(body: dict[str, Any]):
+async def semantic_routing_decide(body: dict[str, Any], request: Request):
     """Resolve one requested slot to a concrete eligible Hermes provider/model pair."""
 
     module = _load_semantic_routing_module()
+    owner_key = _owner_key(request)
     profile = str(body.get("profile") or "default")
-    catalog = await asyncio.to_thread(_model_catalog, False)
+    catalog = await asyncio.to_thread(_model_catalog, False, owner_key)
     config = await asyncio.to_thread(module.load_config, profile)
     authoritative = [candidate.public() for candidate in module.candidates_from_catalog(catalog, "balanced")]
     requested = body.get("candidates")
@@ -326,55 +424,64 @@ async def semantic_routing_decide(body: dict[str, Any]):
         native=body.get("native") if isinstance(body.get("native"), dict) else {},
         session_id=str(body.get("session_id") or ""),
         requirements=body.get("requirements") if isinstance(body.get("requirements"), dict) else {},
+        owner_id=owner_key,
     )
     return {"ok": True, "decision": result}
 
 
 @router.get("/semantic-routing/decisions")
-async def semantic_routing_decisions(profile: str = "", session_id: str = "", limit: int = 50):
+async def semantic_routing_decisions(
+    request: Request, profile: str = "", session_id: str = "", limit: int = 50,
+):
     """Return bounded, prompt-redacted routing records for Cockpit's inspector."""
 
     module = _load_semantic_routing_module()
-    return {"ok": True, "decisions": module.decision_traces(profile=profile, session_id=session_id, limit=limit)}
+    return {"ok": True, "decisions": module.decision_traces(
+        profile=profile, session_id=session_id, limit=limit, owner_id=_owner_key(request),
+    )}
 
 
 @router.get("/semantic-routing/metrics")
-async def semantic_routing_metrics(profile: str = ""):
+async def semantic_routing_metrics(request: Request, profile: str = ""):
     module = _load_semantic_routing_module()
-    return {"ok": True, "metrics": module.routing_metrics(profile=profile)}
+    return {"ok": True, "metrics": module.routing_metrics(profile=profile, owner_id=_owner_key(request))}
 
 
 @router.post("/semantic-routing/escalate")
-async def semantic_routing_escalate(body: dict[str, Any]):
+async def semantic_routing_escalate(body: dict[str, Any], request: Request):
     module = _load_semantic_routing_module()
+    owner_key = _owner_key(request)
     profile = str(body.get("profile") or "default")
-    catalog = await asyncio.to_thread(_model_catalog, False)
+    catalog = await asyncio.to_thread(_model_catalog, False, owner_key)
     candidates = [candidate.public() for candidate in module.candidates_from_catalog(catalog, "balanced")]
     decision = await asyncio.to_thread(
         module.evaluate_escalation, profile=profile, session_id=str(body.get("session_id") or ""),
         current=body.get("current") if isinstance(body.get("current"), dict) else {}, candidates=candidates,
         error_count=int(body.get("error_count") or 0), side_effects=bool(body.get("side_effects")),
+        owner_id=owner_key,
     )
     return {"ok": True, "decision": decision}
 
 
 @router.post("/semantic-routing/verify")
-async def semantic_routing_verify(body: dict[str, Any]):
+async def semantic_routing_verify(body: dict[str, Any], request: Request):
     module = _load_semantic_routing_module()
     result = await asyncio.to_thread(
         module.verify_output, profile=str(body.get("profile") or "default"),
         prompt=str(body.get("prompt") or "")[:12000], output=str(body.get("output") or "")[:100000],
         session_id=str(body.get("session_id") or ""),
+        owner_id=_owner_key(request),
     )
     return {"ok": True, "verification": result}
 
 
 @router.post("/semantic-routing/outcome")
-async def semantic_routing_outcome(body: dict[str, Any]):
+async def semantic_routing_outcome(body: dict[str, Any], request: Request):
     module = _load_semantic_routing_module()
     saved = module.record_outcome(
         decision_id=str(body.get("decision_id") or ""),
         outcome=body.get("outcome") if isinstance(body.get("outcome"), dict) else {},
+        owner_id=_owner_key(request),
     )
     if not saved:
         raise HTTPException(status_code=404, detail="Routing decision is no longer in the bounded trace window")
@@ -385,7 +492,26 @@ def _browser_preview_id(session_key: str) -> str:
     return hashlib.sha256(_BROWSER_PREVIEW_SALT + session_key.encode("utf-8", "replace")).hexdigest()[:24]
 
 
-def _browser_preview_rows(requested_session: str = "") -> list[dict[str, Any]]:
+def _browser_owner_allowed(info: dict[str, Any], owner_key: str) -> bool:
+    """Resolve the native session's verified owner, never a caller's session id."""
+
+    claimed = next((info.get(key) for key in ("owner_key", "owner_scope", "authenticated_owner") if info.get(key)), None)
+    if claimed is None:
+        if owner_key == _SINGLE_USER_OWNER_SCOPE:
+            return True
+        try:
+            from hermes_cli.plugin_runtime_context import routing_context
+
+            context = routing_context({"session_id": str(info.get("owner_task_id") or info.get("session_key") or "")})
+            claimed = context.get("owner_scope")
+        except ImportError:
+            return False
+        if not claimed or claimed == "__unresolved__":
+            return False
+    return hmac.compare_digest(str(claimed), owner_key)
+
+
+def _browser_preview_rows(requested_session: str = "", owner_key: str = "") -> list[dict[str, Any]]:
     """Return authenticated, redacted metadata for live agent-browser sessions.
 
     The browser socket, CDP URL, raw task key, and copied-profile location never leave
@@ -410,6 +536,8 @@ def _browser_preview_rows(requested_session: str = "") -> list[dict[str, Any]]:
     rows = []
     for session_key, raw in active.items():
         info = raw if isinstance(raw, dict) else {}
+        if not owner_key or not _browser_owner_allowed(info, owner_key):
+            continue
         owner = str(info.get("owner_task_id") or "")
         if requested_session and requested_session not in {session_key, owner} and not session_key.startswith(f"{requested_session}::"):
             continue
@@ -448,10 +576,10 @@ def _browser_preview_public(row: dict[str, Any]) -> dict[str, Any]:
     return {key: value for key, value in row.items() if key != "supervisor_key"}
 
 
-def _capture_browser_preview(preview_id: str) -> bytes:
+def _capture_browser_preview(preview_id: str, owner_key: str) -> bytes:
     from tools.browser_supervisor import SUPERVISOR_REGISTRY
 
-    row = next((candidate for candidate in _browser_preview_rows() if candidate["id"] == preview_id), None)
+    row = next((candidate for candidate in _browser_preview_rows(owner_key=owner_key) if candidate["id"] == preview_id), None)
     if row is None:
         raise HTTPException(status_code=404, detail="That browser session is no longer active.")
     if not row["preview_ready"]:
@@ -476,13 +604,18 @@ def _capture_browser_preview(preview_id: str) -> bytes:
 
 
 @router.get("/browser-preview")
-async def browser_preview(session_id: str = ""):
+async def browser_preview(request: Request, response: Response, session_id: str = ""):
     """Describe the most relevant active isolated browser without exposing CDP."""
 
+    owner_key = _owner_key(request)
+    if getattr(request.app.state, "hosted_plugin_internal", False):
+        raise HTTPException(status_code=409, detail="Use the authenticated gateway browser.preview method; the browser runs in the Hermes process.")
+    response.headers["Cache-Control"] = "no-store, private"
+    response.headers["Vary"] = "Cookie, Authorization"
     requested_session = session_id.strip()
     if not requested_session:
         return {"ok": True, "active": False, "session": None, "active_count": 0, "mode": "live-cdp-frame"}
-    rows = await asyncio.to_thread(_browser_preview_rows, requested_session)
+    rows = await asyncio.to_thread(_browser_preview_rows, requested_session, owner_key)
     return {
         "ok": True,
         "active": bool(rows),
@@ -493,12 +626,12 @@ async def browser_preview(session_id: str = ""):
 
 
 @router.get("/browser-preview/{preview_id}/frame")
-async def browser_preview_frame(preview_id: str):
+async def browser_preview_frame(preview_id: str, request: Request):
     """Capture one compressed frame through Hermes' in-process CDP supervisor."""
 
     if not preview_id or len(preview_id) != 24 or any(char not in "0123456789abcdef" for char in preview_id):
         raise HTTPException(status_code=404, detail="Unknown browser preview.")
-    frame = await asyncio.to_thread(_capture_browser_preview, preview_id)
+    frame = await asyncio.to_thread(_capture_browser_preview, preview_id, _owner_key(request))
     etag = hashlib.sha256(frame).hexdigest()[:24]
     return Response(
         content=frame,
