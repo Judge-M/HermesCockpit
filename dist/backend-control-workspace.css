@@ -254,6 +254,11 @@ button, summary, select { -webkit-tap-highlight-color: transparent; }
 .bc-callout.is-warning .material-symbols-outlined { color: var(--bc-warning); }
 .bc-callout.is-error { border-color: rgba(255, 180, 171, .25); color: var(--bc-danger); background: rgba(255, 180, 171, .055); }
 .bc-callout.is-error .material-symbols-outlined { color: var(--bc-danger); }
+.bc-guided-route { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 13px; border: 1px solid rgba(155,217,233,.28); border-radius: 11px; background: rgba(155,217,233,.065); }
+.bc-guided-route>div { display: grid; gap: 3px; }
+.bc-guided-route strong { color: var(--bc-ink); font-size: 12px; }
+.bc-guided-route span { color: var(--bc-muted); font-size: 10px; line-height: 16px; }
+.bc-guided-route>.bc-button { flex: none; text-decoration: none; }
 
 .bc-technical { margin-top: 2px; overflow: hidden; border: 1px solid var(--bc-line); border-radius: 10px; }
 .bc-technical > summary { display: flex; align-items: center; gap: 7px; padding: 9px 11px; color: var(--bc-muted); cursor: pointer; list-style: none; font-size: 10px; font-weight: 650; }
@@ -348,6 +353,8 @@ button, summary, select { -webkit-tap-highlight-color: transparent; }
   .bc-map-row > .bc-icon-button { grid-column: 2; grid-row: 1; }
   .bc-form-actions { flex-direction: column-reverse; }
   .bc-form-actions .bc-button { width: 100%; }
+  .bc-guided-route { align-items: stretch; flex-direction: column; }
+  .bc-guided-route>.bc-button { width: 100%; }
   .bc-result-row { grid-template-columns: 1fr; gap: 3px; }
   .bc-job-input { grid-template-columns: 1fr; }
   .bc-modal { padding: 7px; }
@@ -399,7 +406,30 @@ button, summary, select { -webkit-tap-highlight-color: transparent; }
   .bc-section-actions { gap: 2px; }
   .bc-embedded .bc-section-actions .bc-text-button { padding: 6px; font-size: 9px; }
   .bc-embedded .bc-section-actions .bc-text-button .material-symbols-outlined { font-size: 16px; }
-  .bc-common-grid { display: flex; margin: 0 -10px; padding: 1px 10px 8px; overflow-x: auto; scroll-snap-type: x mandatory; }
-  .bc-common-card { width: 270px; min-width: 270px; scroll-snap-align: start; }
+  .bc-common-grid { display: grid; grid-template-columns: 1fr; gap: 8px; margin: 0; padding: 0; overflow: visible; }
+  .bc-common-card { width: 100%; min-width: 0; padding: 12px; }
+  .bc-common-copy strong, .bc-common-copy > span, .bc-common-copy small { overflow: visible; white-space: normal; text-overflow: clip; }
   .bc-embedded .bc-domain-grid { display: flex; }
+}
+
+/* Generated controls favor plain-language guidance while retaining schema fidelity. */
+.bc-label-row > span:first-child { font-size: 12px; line-height: 17px; }
+.bc-field-type { padding: 2px 6px; border-radius: 999px; background: rgba(97, 110, 136, .12); font-size: 9px; line-height: 15px; letter-spacing: .02em; text-transform: none; white-space: nowrap; }
+.bc-field.is-secret .bc-field-type { color: #d9c79f; background: rgba(235, 203, 139, .09); }
+.bc-field-help { margin-top: 0; font-size: 11px; line-height: 17px; }
+
+@media (max-width: 760px) {
+  .bc-workspace { padding: 13px; }
+  .bc-control-header { padding-bottom: 14px; }
+  .bc-form { gap: 14px; }
+  .bc-form-section { gap: 9px; padding-top: 13px; }
+  .bc-field-grid { gap: 9px; }
+  .bc-field-grid > .bc-field { gap: 7px; padding: 11px; border: 1px solid rgba(76, 86, 106, .42); border-radius: 11px; background: rgba(16, 16, 32, .48); }
+  .bc-label-row { align-items: flex-start; }
+  .bc-label-row > span:first-child { font-size: 13px; line-height: 18px; }
+  .bc-field-type { flex: none; font-size: 10px; line-height: 16px; }
+  .bc-field-help { font-size: 12px; line-height: 18px; }
+  .bc-input, .bc-select { min-height: 44px; font-size: 13px; }
+  .bc-textarea { font-size: 13px; line-height: 20px; }
+  .bc-form-actions { position: sticky; z-index: 32; bottom: calc(64px + env(safe-area-inset-bottom)); margin: 2px -13px -13px; padding: 11px 13px; border-top-color: rgba(76, 86, 106, .8); background: rgba(24, 24, 40, .96); box-shadow: 0 -12px 28px rgba(4, 4, 14, .3); backdrop-filter: blur(14px); }
 }

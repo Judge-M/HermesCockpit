@@ -79,6 +79,8 @@ const settingsRuntime = read('dist/settings-workspace.js');
 assert.ok(settingsRuntime.includes('function settingDescription') && settingsRuntime.includes('setting-technical'), 'Settings do not provide plain-language descriptions with optional technical details');
 assert.ok(settingsRuntime.includes('makePrimitiveListControl') && settingsRuntime.includes('settings-list-row'), 'Primitive list settings are not presented as add/remove controls');
 assert.ok(!settingsRuntime.includes('key.className="setting-path"'), 'Raw config keys are still exposed as primary setting labels');
+assert.ok(settingsWorkspace.includes('workflow%3Asetup') && settingsWorkspace.includes('Terminal fallback'), 'Profile setup still foregrounds a raw terminal command instead of the guided workflow');
+assert.ok(backendControl.includes('fieldPresentation') && backendControl.includes('Prefer the guided provider setup'), 'Generated actions are missing semantic fields or the guided provider route');
 const liveRuntime = read('dist/hermes-client.js');
 const controlPlaneRuntime = read('server/judge-m-control-plane/dashboard/plugin_api.py');
 assert.ok(controlPlaneRuntime.includes('HERMES_COCKPIT_PORTAL_URL') && controlPlaneRuntime.includes('HERMES_COCKPIT_LINKS_JSON'), 'Control plane is missing portable portal and service-link configuration');
