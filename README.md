@@ -5,8 +5,8 @@
 <h1 align="center">Hermes Cockpit</h1>
 
 <p align="center">
-  <strong>A complete, self-hosted command center for Hermes Agent.</strong><br>
-  Chat, Bot Mode, models, tools, browser automation, task boards, observability, and every backend control—without VNC or a desktop relay.
+  <strong>A self-hosted graphical command center for Hermes Agent.</strong><br>
+  Chat, Bot Mode, models, tools, browser automation, task boards, observability, and reviewed backend controls—without VNC or a desktop relay.
 </p>
 
 <p align="center">
@@ -20,7 +20,7 @@
 
 ---
 
-Hermes Cockpit is an independent browser interface for [Hermes Agent](https://github.com/NousResearch/hermes-agent). It runs beside Hermes, uses Hermes' real authenticated APIs and gateway protocol, and gives the entire agent platform one coherent interface on desktop or mobile.
+Hermes Cockpit is an independent browser interface for [Hermes Agent](https://github.com/NousResearch/hermes-agent). It runs beside Hermes, uses Hermes' real authenticated APIs and gateway protocol, and brings supported agent-platform workflows into one coherent interface on desktop or mobile.
 
 **[Open the interface preview](https://judge-m.github.io/HermesCockpit/)** — the Pages build demonstrates the real responsive UI but has no Hermes backend, fake agents, or fabricated telemetry.
 

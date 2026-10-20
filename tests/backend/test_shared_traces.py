@@ -192,6 +192,34 @@ print(json.dumps({{
             self.semantic._trace({"decision_id": f"bounded-{index}"}, owner_id="owner-a")
         self.assertLessEqual(len(self.semantic.decision_traces(owner_id="owner-a", limit=200)), 200)
 
+    def test_global_safeguard_prefers_largest_owner_history(self) -> None:
+        with patch.object(self.state, "TRACE_GLOBAL_LIMIT", 4):
+            self.assertTrue(self.state.append_trace({"decision_id": "quiet", "_owner_scope": "b"}))
+            for index in range(8):
+                self.assertTrue(self.state.append_trace({"decision_id": f"busy-{index}", "_owner_scope": "a"}))
+            self.assertEqual(
+                [row["decision_id"] for row in self.state.read_traces(owner_scope="b")], ["quiet"],
+            )
+            self.assertEqual(
+                [row["decision_id"] for row in self.state.read_traces(owner_scope="a")],
+                ["busy-7", "busy-6", "busy-5"],
+            )
+            self.assertEqual(self.state.read_traces(owner_scope="foreign"), [])
+        with patch.object(self.state, "TRACE_GLOBAL_LIMIT", 0):
+            for index in range(5):
+                self.assertTrue(self.state.append_trace({"decision_id": f"uncapped-{index}", "_owner_scope": "a"}))
+            self.assertEqual(len(self.state.read_traces(owner_scope="a")), 8)
+
+    def test_trace_retention_is_fair_between_owners(self) -> None:
+        self.semantic._trace({"decision_id": "quiet-owner"}, owner_id="owner-b")
+        for index in range(self.state.TRACE_LIMIT + 25):
+            self.semantic._trace({"decision_id": f"noisy-{index}"}, owner_id="owner-a")
+
+        owner_b = self.semantic.decision_traces(owner_id="owner-b")
+        owner_a = self.semantic.decision_traces(owner_id="owner-a", limit=200)
+        self.assertEqual([row["decision_id"] for row in owner_b], ["quiet-owner"])
+        self.assertLessEqual(len(owner_a), self.state.TRACE_LIMIT)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -75,3 +75,14 @@
 @media(max-width:1180px){.settings-layout{grid-template-columns:245px minmax(0,1fr)}.category-copy small{display:none}.concept-summary{align-items:flex-start;flex-direction:column}.concept-stats{justify-content:flex-start}.topic-fields{grid-template-columns:1fr}}
 @media(max-width:760px){.concept-summary{gap:13px;padding:14px}.concept-stats{width:100%}.concept-stats span{flex:1;text-align:center}.settings-topic>summary{padding:12px}.topic-fields{padding:9px}.topic-counts{max-width:42%;overflow:hidden;text-overflow:ellipsis}.mobile-category-picker{border-top:1px solid rgba(76,86,106,.35);padding-top:10px}}
 @media(max-width:430px){.concept-heading>.material-symbols-outlined{display:none}.concept-stats span{min-width:calc(50% - 4px)}.settings-breadcrumb{white-space:normal}.topic-heading small{white-space:normal}.settings-content{padding:10px}}
+.custom-model-field[hidden]{display:none}
+.setting-guidance-source{display:inline-flex;margin-left:4px;border:1px solid rgba(136,192,208,.24);border-radius:999px;padding:2px 6px;color:#88c0d0;font:650 8px/1.2 "JetBrains Mono",monospace;vertical-align:1px;white-space:nowrap}
+.settings-view-button{min-height:40px}
+.workspace-tab{min-height:44px}
+.primary-button,.secondary-button,.danger-button{min-height:42px}
+.quiet-button{min-height:40px}
+.mcp-repeater-field{grid-column:1/-1;border:1px solid rgba(76,86,106,.35);border-radius:9px;background:#151522;padding:9px}
+.mcp-value-row{display:grid;grid-template-columns:minmax(0,1fr) 36px;gap:7px;margin-top:7px}
+.mcp-env-row{grid-template-columns:minmax(100px,.7fr) minmax(0,1fr) 36px}
+.mcp-value-row .icon-button{width:36px;height:36px}
+@media(max-width:760px){.mcp-repeater-field{grid-column:auto}.mcp-env-row{grid-template-columns:1fr 1fr 36px}.mcp-value-row{min-height:42px}}
