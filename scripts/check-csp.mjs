@@ -16,8 +16,14 @@ const required = ['default-src', 'base-uri', 'object-src', 'frame-ancestors', 'f
 for (const header of [enforced, reportOnly]) {
   for (const directive of required) assert.match(header.value, new RegExp(`(?:^|;)\\s*${directive}\\s`), `${header.name} is missing ${directive}`);
   assert.doesNotMatch(header.value, /\bunsafe-eval\b/, `${header.name} enables unsafe-eval`);
+  assert.doesNotMatch(header.value, /script-src[^;]*\bunsafe-inline\b/, `${header.name} allows inline scripts`);
+  assert.doesNotMatch(header.value, /connect-src[^;]*(?:\sws:|\swss:)/, `${header.name} allows cross-origin WebSocket schemes`);
+}
+for (const file of ['dist/acp-telemetry.html', 'dist/backend-control.html', 'dist/bot-mode.html', 'dist/cli-control.html', 'dist/kanban.html', 'dist/live-control.html', 'dist/mesh-topology.html', 'dist/models-providers.html', 'dist/runtime-config-settings.html', 'dist/tool-registry.html']) {
+  const html = readFileSync(path.join(root, file), 'utf8');
+  assert.doesNotMatch(html, /<script(?![^>]*\bsrc=)[^>]*>/i, `${file} contains an inline script`);
 }
 assert.match(reportOnly.value, /\brequire-trusted-types-for 'script'/, 'report-only policy must stage Trusted Types');
 assert.match(reportOnly.value, /\breport-uri \/__csp-report\b/, 'report-only policy must have a local report sink');
 assert.match(template, /location = \/__csp-report\s*\{[\s\S]*?return 204;/, 'local CSP report sink is missing');
-console.log('PASS: enforced and report-only CSP policies include baseline directives, no unsafe-eval, and staged Trusted Types.');
+console.log('PASS: CSP blocks inline scripts and cross-origin WebSocket schemes, includes baseline directives, and stages Trusted Types.');
