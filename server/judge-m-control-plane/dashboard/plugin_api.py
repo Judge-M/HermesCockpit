@@ -9,6 +9,7 @@ import hmac
 import importlib.util
 import ipaddress
 import json
+import logging
 import os
 import socket
 from pathlib import Path
@@ -26,6 +27,7 @@ from fastapi import APIRouter, HTTPException, Request, Response
 
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 PORTAL_URL = os.environ.get(
     "HERMES_COCKPIT_PORTAL_URL",
@@ -161,11 +163,12 @@ async def _load_overview() -> dict[str, Any]:
             "overview": overview,
             "links": LINKS,
         }
-    except (HTTPError, URLError, TimeoutError, ValueError, OSError) as exc:
+    except (HTTPError, URLError, TimeoutError, ValueError, OSError):
+        logger.warning("Optional operations portal overview request failed", exc_info=True)
         result = {
             "ok": False,
             "source": PORTAL_URL,
-            "error": f"{type(exc).__name__}: {exc}",
+            "error": "The optional operations portal is unavailable.",
             "overview": None,
             "links": LINKS,
         }
@@ -341,7 +344,11 @@ async def model_menu(request: Request, refresh: bool = False):
     except HTTPException:
         raise
     except Exception as exc:
-        return {"ok": False, "error": f"{type(exc).__name__}: {exc}", "providers": [], "preferences": _read_model_preferences(owner_key)}
+        logger.exception("Unable to load the model catalog")
+        raise HTTPException(
+            status_code=503,
+            detail="The provider and model inventory is temporarily unavailable.",
+        ) from exc
 
 
 @router.post("/model-menu")

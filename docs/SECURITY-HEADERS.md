@@ -2,9 +2,11 @@
 
 Hermes Cockpit ships a CSP baseline in `deploy/nginx.conf.template`. It is
 designed for the current static app: all assets are same-origin, WebSocket
-connections are permitted for the same deployment, and the existing inline
-runtime is allowed while it is being migrated to nonce- or hash-based scripts.
-`unsafe-eval` is not permitted.
+connections are limited to the same deployment, and application scripts are
+loaded from same-origin files. Inline scripts and `unsafe-eval` are not
+permitted. Inline styles remain allowed because the vendored Tailwind runtime
+generates styles in the browser; removing that exception requires replacing
+the runtime with a compiled stylesheet.
 
 The template also sends a report-only policy with `require-trusted-types-for
 'script'`. This is deliberately report-only because the current UI still uses

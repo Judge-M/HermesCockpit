@@ -97,7 +97,7 @@ function browserContext(fetchImpl) {
     body: {style: {}},
     getElementById: getElement,
     createElement: (tag) => new FakeElement(tag),
-    querySelectorAll: () => [],
+    querySelectorAll: selector => String(selector).split(",").map(part => part.trim()).filter(part => /^#[A-Za-z0-9_-]+$/.test(part)).map(part => getElement(part.slice(1))),
     querySelector: () => null,
     addEventListener() {},
   };
@@ -130,7 +130,7 @@ function browserContext(fetchImpl) {
 function loadSettingsHooks(fetchImpl) {
   const source = fs.readFileSync("dist/settings-workspace.js", "utf8").replace(
     "  refreshWorkspace();",
-    "  window.__testHooks={state,loadProfileDetails,loadSettings,saveSoul};",
+    "  window.__testHooks={state,loadProfileDetails,loadSettings,saveSoul,httpErrorMessage,safeErrorDetail};",
   );
   const {context, elements} = browserContext(fetchImpl);
   vm.runInNewContext(source, context, {filename: "dist/settings-workspace.js"});
@@ -138,12 +138,9 @@ function loadSettingsHooks(fetchImpl) {
 }
 
 function loadModelHooks(fetchImpl) {
-  const source = fs.readFileSync("dist/models-providers.html", "utf8");
-  const scriptStart = source.indexOf("<script>") + "<script>".length;
-  const scriptEnd = source.indexOf("</script>", scriptStart);
-  const script = source.slice(scriptStart, scriptEnd).replace(
+  const script = fs.readFileSync("dist/models-providers-workspace.js", "utf8").replace(
     "openFromHash();load().then(openFromHash);",
-    "window.__testHooks={state,loadAssignments,load};",
+    "window.__testHooks={state,loadAssignments,load,httpErrorMessage,safeErrorDetail};",
   );
   const {context, elements} = browserContext(fetchImpl);
   vm.runInNewContext(script, context, {filename: "dist/models-providers.html"});
@@ -275,4 +272,39 @@ test("model panels retain successful data when optional profile discovery fails"
   await hooks.load();
   assert.equal(hooks.state.menu.providers[0].slug, "provider");
   assert.match(hooks.state.panelErrors.profiles, /profiles endpoint unavailable/);
+});
+
+test("failed model catalog cannot enable or post the destructive picker save", async () => {
+  const requests = [];
+  const {hooks, elements} = loadModelHooks(async (url, options = {}) => {
+    requests.push({url, options});
+    if (url.includes("model-menu")) return response({ok: false, error: "catalog token=do-not-show"});
+    if (url.includes("/providers/oauth")) return response({providers: []});
+    if (url.includes("/providers/custom-endpoints")) return response({endpoints: []});
+    if (url.includes("/credentials/pool")) return response({credentials: []});
+    if (url.endsWith("/profiles")) return response({profiles: []});
+    return response({});
+  });
+
+  await hooks.load();
+
+  assert.equal(hooks.state.readiness.menu, false);
+  assert.equal(hooks.state.menu, null);
+  assert.equal(elements.get("save-model-menu").disabled, true);
+  assert.equal(elements.get("summary-providers").textContent, "—");
+  assert.equal(elements.get("summary-models").textContent, "—");
+  assert.equal(elements.get("summary-provider-state").textContent, "Unknown");
+  assert.equal(elements.get("summary-model-state").textContent, "Unknown");
+  assert.equal(requests.filter(request => request.options?.method === "POST" && request.url.includes("model-menu")).length, 0);
+});
+
+test("browser-facing HTTP errors redact credentials", () => {
+  const settings = loadSettingsHooks(async () => response({})).hooks;
+  const models = loadModelHooks(async () => response({})).hooks;
+  const responseMeta = {status: 503, headers: {get: () => "application/json"}};
+  for (const hooks of [settings, models]) {
+    const message = hooks.httpErrorMessage(responseMeta, {detail: "token=abc123 Authorization: Bearer secret-value password=hunter2"});
+    assert.doesNotMatch(message, /abc123|secret-value|hunter2/);
+    assert.match(message, /\[redacted\]/);
+  }
 });

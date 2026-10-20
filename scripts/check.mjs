@@ -27,7 +27,8 @@ let inlineScripts = 0;
 for (const screen of screens) {
   const html = read(`dist/${screen}.html`);
   assert.ok(html.includes('id="shared-header"') && html.includes('id="shared-sidebar"'), screen);
-  assert.ok(html.includes(`window.currentPage="${screen}"`), screen);
+  const localScripts = [...html.matchAll(/<script\b[^>]*\bsrc="([^"#]+)"[^>]*>/g)].map(match => match[1].split(/[?#]/)[0]).filter(ref => !/^(?:https?:|\/)/.test(ref));
+  assert.ok(localScripts.some(ref => read(`dist/${ref}`).includes(`window.currentPage="${screen}"`)), `${screen}: missing page context`);
   assert.ok(!/<link\b[^>]+href="https?:\/\//i.test(html), `${screen}: external stylesheet dependency`);
   assert.ok(!/<script\b[^>]+src="https?:\/\//i.test(html), `${screen}: external script dependency`);
   assert.ok(html.includes('vendor/fonts.css'), `${screen}: missing local font stylesheet`);
@@ -66,7 +67,7 @@ const kanbanScreen = read('dist/kanban.html');
 const kanbanRuntime = read('dist/kanban-workspace.js');
 assert.ok(existsSync(path.join(root, 'dist/kanban-workspace.css')), 'Missing Kanban workspace stylesheet');
 assert.ok(kanbanScreen.includes('id="shared-header"') && kanbanScreen.includes('id="shared-sidebar"'), 'Kanban is missing the shared shell hosts');
-assert.ok(kanbanScreen.includes('window.currentPage="kanban"') && kanbanScreen.includes('kanban-workspace.js'), 'Kanban screen registration is incomplete');
+assert.ok(read('dist/kanban-page.js').includes('window.currentPage="kanban"') && kanbanScreen.includes('kanban-workspace.js'), 'Kanban screen registration is incomplete');
 new vm.Script(kanbanRuntime, {filename:'kanban-workspace.js'});
 for (const operation of ['/boards', '/board', '/stats', '/workflow', '/orchestration', '/profiles', '/model-options', '/tasks', '/comments', '/links', '/attachments', '/estimate', '/decompose', '/specify', '/reassign', '/reclaim', '/runs', '/workers/active', '/dispatch']) {
   assert.ok(kanbanRuntime.includes(operation), `Kanban workspace is missing ${operation}`);
@@ -76,7 +77,7 @@ assert.ok(!/placeholder card|sample card|mock task|demo task/i.test(kanbanRuntim
 const settingsWorkspace = read('dist/runtime-config-settings.html');
 const settingsRuntime = read('dist/settings-workspace.js');
 assert.ok(settingsRuntime.includes('function settingDescription') && settingsRuntime.includes('setting-technical'), 'Settings do not provide plain-language descriptions with optional technical details');
-assert.ok(settingsRuntime.includes('dataset.format="lines"') && settingsRuntime.includes('dataset.format==="lines"'), 'Primitive list settings are not presented as line-based editors');
+assert.ok(settingsRuntime.includes('makePrimitiveListControl') && settingsRuntime.includes('settings-list-row'), 'Primitive list settings are not presented as add/remove controls');
 assert.ok(!settingsRuntime.includes('key.className="setting-path"'), 'Raw config keys are still exposed as primary setting labels');
 const liveRuntime = read('dist/hermes-client.js');
 const controlPlaneRuntime = read('server/judge-m-control-plane/dashboard/plugin_api.py');
@@ -90,7 +91,8 @@ for (const route of ['/semantic-routing/metrics', '/semantic-routing/escalate', 
   assert.ok(controlPlaneRuntime.includes(route), `Control plane is missing ${route}`);
 }
 const modelWorkspace = read('dist/models-providers.html');
-assert.ok(modelWorkspace.includes('id="semantic-enabled"') && modelWorkspace.includes('Semantic Auto') && modelWorkspace.includes('data-model-routing'), 'Models workspace is missing routing policy, slot modes, or eligibility controls');
+const modelRuntime = read('dist/models-providers-workspace.js');
+assert.ok(modelWorkspace.includes('id="semantic-enabled"') && modelWorkspace.includes('Semantic Auto') && modelRuntime.includes('data-model-routing'), 'Models workspace is missing routing policy, slot modes, or eligibility controls');
 for (const control of ['semantic-default-mode', 'semantic-tool-provider', 'semantic-memory-provider', 'semantic-shadow-provider', 'semantic-escalation', 'semantic-verification', 'semantic-cache']) {
   assert.ok(modelWorkspace.includes(`id="${control}"`), `Models workspace is missing ${control}`);
 }
@@ -163,7 +165,7 @@ for (const command of ['auth priority', 'profile install', 'sessions recover', '
 }
 assert.ok(bridge.includes('create_subprocess_exec') && !bridge.includes('shell=True'), 'CLI bridge must execute argv directly');
 assert.ok(bridge.includes('termios.ECHO') && bridge.includes('_owner_key'), 'CLI bridge is missing PTY or owner isolation');
-assert.ok(read('dist/cli-control.html').includes('/cli-operations') && read('dist/cli-control.html').includes('/cli-jobs'), 'Advanced Controls is missing bridge integration');
+assert.ok(read('dist/cli-control-workspace.js').includes('/cli-operations') && read('dist/cli-control-workspace.js').includes('/cli-jobs'), 'Advanced Controls is missing bridge integration');
 const releaseVersion = read('VERSION').trim();
 assert.match(releaseVersion, /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/, 'VERSION is not semantic');
 assert.ok(read('server/judge-m-control-plane/plugin.yaml').includes(`version: ${releaseVersion}`), 'plugin.yaml version differs from VERSION');

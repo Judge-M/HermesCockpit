@@ -1,0 +1,1 @@
+window.currentPage="live-control";
