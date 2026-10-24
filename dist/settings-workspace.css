@@ -88,3 +88,39 @@
 .mcp-env-row{grid-template-columns:minmax(100px,.7fr) minmax(0,1fr) 36px}
 .mcp-value-row .icon-button{width:36px;height:36px}
 @media(max-width:760px){.mcp-repeater-field{grid-column:auto}.mcp-env-row{grid-template-columns:1fr 1fr 36px}.mcp-value-row{min-height:42px}}
+.profile-setup-action{width:100%;margin-top:14px;text-decoration:none}.profile-setup-details{margin-top:12px;border-top:1px solid rgba(76,86,106,.35);padding-top:10px}.profile-setup-details>summary{color:#94a3b8;font-size:11px;font-weight:650;cursor:pointer}.profile-setup-details[open]>summary{color:#d8dee9}.profile-setup-details .command-box{margin-top:10px}
+
+/* Compact mobile Manage shell and keep primary controls clear of bottom navigation. */
+@media(max-width:760px){
+  .settings-workspace{padding-bottom:84px}
+  .workspace-heading{align-items:center;padding:12px 0 10px}
+  .workspace-heading>div:first-child>.eyebrow,.workspace-heading>div:first-child>p{display:none}
+  .workspace-heading h1{margin:0;font-size:20px;line-height:1.2;letter-spacing:-.02em}
+  .profile-switcher{grid-template-columns:minmax(0,1fr) auto;gap:8px;padding:10px 11px;border-radius:12px}
+  .profile-avatar,.profile-context-note{display:none}
+  .profile-picker-wrap label{margin-bottom:2px;font-size:9px}
+  .profile-picker-wrap select{font-size:14px}
+  .profile-state{grid-column:2;justify-content:flex-end;gap:6px}
+  .profile-state .active-badge{padding:6px 8px;font-size:9px}
+  .profile-state .secondary-button{min-height:32px;padding-inline:9px;font-size:11px}
+  .profile-primary-actions{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:7px}
+  .workspace-tabs{margin-top:10px}
+  .workspace-tab{padding-block:11px}
+  .workspace-panel{padding-top:12px}
+  .settings-toolbar{position:sticky;z-index:34;top:52px;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;padding:10px 11px;border-radius:12px 12px 0 0;background:rgba(40,42,54,.96);box-shadow:0 10px 24px rgba(4,4,14,.22);backdrop-filter:blur(14px)}
+  .settings-intro .section-kicker,.settings-intro p{display:none}
+  .settings-intro h2{margin:0;font-size:13px;line-height:1.25}
+  .settings-save-actions{width:auto;display:grid;grid-template-columns:auto auto;gap:6px;flex-wrap:nowrap}
+  .save-summary{grid-column:1/-1;width:auto;margin:0;text-align:right;font-size:9px}
+  .settings-save-actions button{min-height:34px;padding-inline:10px;font-size:11px}
+  #demo-notice{display:none}
+}
+
+@media(max-width:430px){
+  .workspace-heading h1{font-size:18px}
+  .heading-actions .icon-button{width:34px;height:34px}
+  .profile-state .active-badge{max-width:92px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .settings-toolbar{grid-template-columns:1fr}
+  .settings-save-actions{width:100%;grid-template-columns:1fr 1fr}
+  .save-summary{text-align:left}
+}

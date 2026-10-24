@@ -115,6 +115,12 @@
     .replace(/\bConfig Raw\b/g, 'Raw Configuration')
     .replace(/\bTts\b/g, 'TTS')
     .replace(/\bStt\b/g, 'STT')
+    .replace(/\bId\b/g, 'ID')
+    .replace(/\bUrl\b/g, 'URL')
+    .replace(/\bUri\b/g, 'URI')
+    .replace(/\bUuid\b/g, 'UUID')
+    .replace(/\bHttp\b/g, 'HTTP')
+    .replace(/\bHttps\b/g, 'HTTPS')
     .trim();
   const cleanDescription = value => String(value || '')
     .replace(/``([^`]+)``/g, '$1')
@@ -122,6 +128,43 @@
     .replace(/\s*\(GH(?:SA)?[^)]*\)\.?/gi, '')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
+  const isSecretField = (name, schema = {}) => {
+    const clues = [name, schema.title, schema.format, schema['x-sensitive'] ? 'secret' : '', schema['x-secret'] ? 'secret' : ''].filter(Boolean).join(' ');
+    return schema.format === 'password' || SECRET_KEY.test(clues);
+  };
+  const fieldPresentation = (name, schema = {}, type = schemaType(schema)) => {
+    const label = prettyLabel(schema.title || name);
+    const secret = isSecretField(name, schema);
+    const clues = `${name || ''} ${schema.title || ''}`.toLowerCase().replace(/[_-]+/g, ' ');
+    let typeLabel = 'Text';
+    if (secret) typeLabel = 'Private value';
+    else if (Array.isArray(schema.enum) && schema.enum.length) typeLabel = 'Choose one';
+    else if (schema.format === 'uri' || schema.format === 'url' || /\b(base|server|endpoint) url\b/.test(clues)) typeLabel = 'Web address';
+    else if (schema.format === 'email') typeLabel = 'Email address';
+    else if (schema.format === 'date-time') typeLabel = 'Date and time';
+    else if (schema.format === 'date') typeLabel = 'Date';
+    else if (schema.format === 'binary') typeLabel = 'File';
+    else if (type === 'boolean') typeLabel = 'On or off';
+    else if (type === 'integer') typeLabel = 'Whole number';
+    else if (type === 'number') typeLabel = 'Number';
+    else if (type === 'array') typeLabel = 'List';
+    else if (type === 'object') typeLabel = 'Key-value list';
+
+    let help = cleanDescription(schema.description);
+    if (!help && secret) help = 'Enter this privately. Cockpit masks the value on screen and excludes it from diagnostics.';
+    else if (!help && typeLabel === 'Web address') help = 'The service address Hermes should connect to.';
+    else if (!help && /\bprovider( id)?\b/.test(clues)) help = 'The provider identifier Hermes should use.';
+    else if (!help && /\bmodel( id)?\b/.test(clues)) help = 'The model identifier Hermes should use.';
+    else if (!help && /\b(file )?path\b/.test(clues)) help = 'A path on the Hermes server.';
+    else if (!help && /\b(id|identifier)\b/.test(clues)) help = 'The unique identifier Hermes uses for this item.';
+
+    let placeholder = cleanDescription(schema.placeholder);
+    if (!placeholder && secret) placeholder = 'Enter privately';
+    else if (!placeholder && typeLabel === 'Web address') placeholder = 'https://api.example.com/v1';
+    else if (!placeholder && /\bprovider( id)?\b/.test(clues)) placeholder = 'Provider identifier';
+    else if (!placeholder && /\bmodel( id)?\b/.test(clues)) placeholder = 'Model identifier';
+    return {label, typeLabel, help, placeholder, secret};
+  };
   const redact = (value, key = '') => {
     if (SECRET_KEY.test(String(key))) return '[redacted]';
     if (typeof File !== 'undefined' && value instanceof File) return `[File: ${value.name}, ${value.size} bytes]`;
@@ -270,6 +313,7 @@
 
   function operationSubtitle(operation) {
     if (!operation.available) return operation.unavailableReason || 'Unavailable on this installation';
+    if (operation.description) return operation.description;
     if (operation.source === 'workflow') return operation.longRunning ? 'Guided workflow · may take a while' : operation.interactive ? 'Interactive guided workflow' : 'Guided workflow';
     if (operation.kind === 'access') return 'Browser access flow';
     if (operation.risk === 'high') return operation.method === 'DELETE' ? 'Removes or clears data' : 'May change or interrupt live Hermes work';
@@ -686,6 +730,16 @@
     form.id = 'controlForm';
     form.noValidate = false;
     form.append(operationHeader(operation));
+    if (operation.source === 'api' && operation.method === 'POST' && operation.path === '/api/providers/custom-endpoints') {
+      const guided = node('div', 'bc-guided-route');
+      const copy = node('div', '');
+      copy.append(node('strong', '', 'Prefer the guided provider setup'), node('span', '', 'Choose the API mode, test the connection, discover models, and optionally make the endpoint the profile default.'));
+      const link = node('a', 'bc-button bc-button-primary');
+      link.href = 'models-providers.html#add-provider';
+      link.append(icon('arrow_forward'), node('span', '', 'Open provider setup'));
+      guided.append(copy, link);
+      form.append(guided);
+    }
     if (!operation.available) {
       form.append(callout(operation.unavailableReason || 'This action is published by Hermes but is not available on this installation.', 'error'));
     }
@@ -734,8 +788,9 @@
     const path = context.path;
     const required = Boolean(context.required);
     const id = fieldId(context.prefix, path);
-    const wrap = node('label', `bc-field${['array', 'object'].includes(type) || schema.format === 'multiline' || (schema.maxLength || 0) > 180 ? ' is-full' : ''}`);
-    wrap.append(labelRow(prettyLabel(schema.title || name), required, schema.format || type));
+    const presentation = fieldPresentation(name, schema, type);
+    const wrap = node('label', `bc-field${['array', 'object'].includes(type) || schema.format === 'multiline' || (schema.maxLength || 0) > 180 ? ' is-full' : ''}${presentation.secret ? ' is-secret' : ''}`);
+    wrap.append(labelRow(presentation.label, required, presentation.typeLabel));
     const defaultValue = schemaDefault(schema);
     const enumChoices = schema.enum;
     const booleanToggle = type === 'boolean' && (!enumChoices || enumChoices.every(value => typeof value === 'boolean')) && (required || defaultValue !== undefined);
@@ -751,7 +806,7 @@
       const check = node('span', 'bc-checkbox');
       check.append(input, node('span', '', schema.title || `Enable ${prettyLabel(name)}`));
       wrap.append(check);
-      if (schema.description) wrap.append(node('p', 'bc-field-help', cleanDescription(schema.description)));
+      if (presentation.help) wrap.append(node('p', 'bc-field-help', presentation.help));
       return wrap;
     } else if (choices) {
       input = node('select', 'bc-select');
@@ -778,7 +833,7 @@
       input = multiline ? node('textarea', 'bc-textarea') : node('input', 'bc-input');
       if (multiline) input.rows = 5;
       else if (schema.format === 'binary') input.type = 'file';
-      else if (schema.format === 'password' || SECRET_KEY.test(name)) input.type = 'password';
+      else if (presentation.secret) input.type = 'password';
       else if (schema.format === 'email') input.type = 'email';
       else if (schema.format === 'uri' || schema.format === 'url') input.type = 'url';
       else if (schema.format === 'date') input.type = 'date';
@@ -793,10 +848,12 @@
     input.id = id;
     input.name = name;
     input.required = required;
-    input.autocomplete = SECRET_KEY.test(name) ? 'new-password' : 'off';
+    if (presentation.placeholder && input.type !== 'file') input.placeholder = presentation.placeholder;
+    input.autocomplete = presentation.secret ? 'new-password' : 'off';
+    if (presentation.secret) input.dataset.sensitive = 'true';
     attachFieldData(input, context, schema, path);
     wrap.append(input);
-    if (schema.description) wrap.append(node('p', 'bc-field-help', cleanDescription(schema.description)));
+    if (presentation.help) wrap.append(node('p', 'bc-field-help', presentation.help));
     return wrap;
   }
 
@@ -1256,8 +1313,10 @@
 
   function renderWorkflowField(item, bucket) {
     const name = item.name || 'value';
-    const wrap = node('label', `bc-field${item.multiple ? ' is-full' : ''}`);
-    wrap.append(labelRow(item.label || prettyLabel(name), Boolean(item.required), item.kind || 'text'));
+    const schema = {type: item.kind || 'string', title: item.label, description: item.help, enum: item.choices, format: item.kind === 'secret' ? 'password' : undefined};
+    const presentation = fieldPresentation(name, schema, item.multiple ? 'array' : item.kind || 'string');
+    const wrap = node('label', `bc-field${item.multiple ? ' is-full' : ''}${presentation.secret ? ' is-secret' : ''}`);
+    wrap.append(labelRow(presentation.label, Boolean(item.required), presentation.typeLabel));
     let input;
     if (item.kind === 'boolean') {
       input = node('input');
@@ -1281,20 +1340,22 @@
       wrap.append(input);
     } else {
       input = node('input', 'bc-input');
-      input.type = item.kind === 'secret' ? 'password' : ['integer', 'number'].includes(item.kind) ? 'number' : 'text';
+      input.type = presentation.secret ? 'password' : ['integer', 'number'].includes(item.kind) ? 'number' : 'text';
       if (item.kind === 'integer') input.step = '1';
       if (item.kind === 'number') input.step = 'any';
-      if (item.default !== null && item.default !== undefined && item.kind !== 'secret') input.value = asText(item.default);
-      input.autocomplete = item.kind === 'secret' ? 'new-password' : 'off';
+      if (item.default !== null && item.default !== undefined && !presentation.secret) input.value = asText(item.default);
+      input.autocomplete = presentation.secret ? 'new-password' : 'off';
       wrap.append(input);
     }
+    if (presentation.placeholder && 'placeholder' in input) input.placeholder = presentation.placeholder;
+    if (presentation.secret) input.dataset.sensitive = 'true';
     input.name = name;
     input.required = Boolean(item.required);
     input.dataset.workflowBucket = bucket;
     input.dataset.workflowName = name;
     input.dataset.workflowKind = item.kind || 'text';
     input.dataset.workflowMultiple = String(Boolean(item.multiple));
-    if (item.help) wrap.append(node('p', 'bc-field-help', cleanDescription(item.help)));
+    if (presentation.help) wrap.append(node('p', 'bc-field-help', presentation.help));
     return wrap;
   }
 
